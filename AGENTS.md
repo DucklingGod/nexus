@@ -1,6 +1,6 @@
-# Nexus — build guidance (Tauri 2 + React/TS + TS sidecar)
+# Nexus — Desktop AI Agent Platform (Tauri 2 + React/TS)
 
-This subproject is **not** the Next.js app at the repo root. See `../SPEC.md`, `../PLAN.md`, and **[`DESIGN.md`](DESIGN.md) — the visual theme; follow it for ALL new UI so the look stays consistent across agent handoffs**.
+**Standalone project.** See [`DESIGN.md`](DESIGN.md) for the visual theme — follow it for ALL new UI so the look stays consistent across agent handoffs.
 
 ## Stack
 - Shell: Tauri 2.x (Rust). Frontend: React 19 + TypeScript + Tailwind v4 (Vite).

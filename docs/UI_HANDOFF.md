@@ -120,5 +120,4 @@ skills master toggle.
 - **Cost-control engine:** `engine/src/tokens/{router.ts, semanticCache.ts, budget.ts, usage.ts}`.
 - **UI examples:** Settings → `src/components/settings/Settings.tsx`; chat events →
   `src/hooks/useChat.ts`; chat render → `src/components/chat/ChatConsole.tsx`.
-- **Theme:** `nexus/DESIGN.md`. **Build gotchas:** `nexus/AGENTS.md`. **Progress log:**
-  digital-brain wiki `projects/ai-agent-builder/nexus-rebuild.md`.
+- **Theme:** `DESIGN.md`. **Build gotchas:** `AGENTS.md`.

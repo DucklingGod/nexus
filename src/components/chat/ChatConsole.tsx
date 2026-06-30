@@ -285,7 +285,7 @@ export function ChatConsole({ conversationId, onConversationCreated }: Props) {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-3 py-2 font-mono text-[11px] text-nexus-fg/60">
-              <p className="text-nexus-muted/40">PS C:\Users\iHC\Desktop\ai-agent-builder&gt;</p>
+              <p className="text-nexus-muted/40">PS C:\Users\iHC\Desktop\Nexus-App&gt;</p>
             </div>
           </div>
         )}
