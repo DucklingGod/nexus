@@ -53,6 +53,8 @@ Your agent is ready. Ask it anything, upload documents for RAG, or build visual 
 - **Smart model routing** — heuristic complexity classifier routes to the cheapest capable model
 - **Semantic caching** — repeat queries answered instantly at $0 cost (cosine similarity ≥0.95)
 - **Prompt caching** — Anthropic cache_control reduces costs ~90% on repeated system prompts
+- **First-run onboarding** — agent introduces itself and gets to know new users naturally
+- **Agent self-awareness** — agent knows it runs in Nexus, knows its tools and capabilities
 
 ### Tools & Capabilities
 - **40+ built-in tools** — web search, file operations, terminal, code execution, search, patch, process management, todo lists
@@ -66,6 +68,13 @@ Your agent is ready. Ask it anything, upload documents for RAG, or build visual 
 - **60 built-in skills** across 8 categories (writing, research, productivity, coding, learning, life, business, creative)
 - **Skill synthesizer** — agent learns new skills from tasks automatically (opt-in)
 - **Semantic skill matching** — vector-based skill selection for better context
+
+### Persistent Memory
+- **5 context files** — rules, soul/persona, user profile, memory notes, current context
+- **Auto-extract** — background LLM distills durable facts from conversations (default ON)
+- **Cross-session persistence** — agent remembers user across restarts from day one
+- **Transparent .md layer** — users can view/edit all memory in Settings → Context
+- **remember tool** — agent proactively saves facts, preferences, and decisions
 
 ### Visual Workflows
 - **Drag-and-drop canvas** — React Flow-based workflow builder
@@ -182,16 +191,16 @@ See [PLAN.md](PLAN.md) for the full 55-task roadmap with acceptance criteria.
 
 ```bash
 git clone https://github.com/DucklingGod/nexus.git
-cd nexus/nexus
+cd nexus
 
 # Install dependencies
 npm install
 
 # Build frontend + Tauri binary
 export PATH="$HOME/.rustup/toolchains/stable-x86_64-pc-windows-msvc/bin:$PATH"
-npm run tauri build -- --no-bundle
+npm run tauri build
 
-# Output: nexus/src-tauri/target/release/nexus.exe (~12MB)
+# Output: src-tauri/target/release/nexus.exe (~12MB)
 ```
 
 ### Development
@@ -206,33 +215,31 @@ npm run tauri dev  # Opens window with hot-reload
 nexus/
 ├── src/                    # React frontend
 │   ├── components/
-│   │   ├── chat/           # ChatConsole, MessageBubble, ToolCallBubble
+│   │   ├── chat/           # ChatConsole, MessageBubble, TopBar (memory toggle)
 │   │   ├── workflow/       # WorkflowsView (React Flow canvas)
 │   │   ├── skills/         # SkillsView, skill management
-│   │   ├── settings/       # Settings, Connectors, AuditLog
+│   │   ├── settings/       # Settings, Connectors, Context files, AuditLog
 │   │   ├── panel/          # RightPanel (activity, files)
 │   │   ├── sidebar/        # LeftSidebar (conversations, navigation)
 │   │   ├── common/         # SpaceCanvas, Skeleton, EmptyState
-│   │   └── onboarding/     # ProviderPicker, ApiKeyInput
-│   ├── hooks/              # useChat, useContextFiles
+│   │   └── onboarding/     # ProviderPicker, ApiKeyInput, AgentSetup
+│   ├── hooks/              # useChat (with system prompt + onboarding)
 │   └── styles/             # globals.css, fonts
 ├── engine/                 # TypeScript agent engine (sidecar)
 │   ├── src/
-│   │   ├── ipc/            # JSON-RPC, stream, notify
+│   │   ├── ipc/            # JSON-RPC, stream (onboarding + auto-extract)
 │   │   ├── providers/      # OpenAI, Anthropic, Google adapters
-│   │   ├── tools/          # Tool registry + 40+ tools
+│   │   ├── tools/          # Tool registry + 40+ tools (incl. remember)
 │   │   ├── workflow/       # Executor, store
 │   │   ├── connectors/     # Telegram, Discord
 │   │   ├── skills/         # Built-in skills + synthesizer
-│   │   ├── context/        # Memory, RAG, token budget
-│   │   └── memory/         # Episodic + semantic memory
+│   │   ├── context/        # 5 .md files + auto-extract + injectContext
+│   │   └── memory/         # Episodic (SQLite) + semantic (vector)
 │   └── tests/              # 44+ tests (vitest)
+├── site/                   # Vercel landing + docs (static HTML)
 ├── src-tauri/              # Rust shell (Tauri)
 │   ├── src/                # IPC commands, keychain, sidecar manager
 │   └── Cargo.toml
-├── landing.html            # Landing page (Vercel-ready)
-├── docs.html               # Documentation site (22 sections)
-├── vercel.json             # Vercel deployment config
 ├── PLAN.md                 # 55-task roadmap
 ├── SPEC.md                 # Full specification
 └── DESIGN.md               # Visual theme spec
