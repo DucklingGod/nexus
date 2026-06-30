@@ -106,7 +106,7 @@ export function ChatConsole({ conversationId, onConversationCreated }: Props) {
   const [providerId, setProviderId] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [showModelDropdown, setShowModelDropdown] = useState(false);
-  const [modelList, setModelList] = useState<{ id: string }[]>([]);
+  const [modelList, setModelList] = useState<{ id: string; isFree?: boolean }[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [lastSentContent, setLastSentContent] = useState<string | null>(null);
   const [lastReasoningLevel, setLastReasoningLevel] = useState<string>("medium");
@@ -378,8 +378,7 @@ export function ChatConsole({ conversationId, onConversationCreated }: Props) {
                   {showModelDropdown && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowModelDropdown(false)} />
-                      <div className="absolute bottom-full right-0 z-50 mb-1 max-h-48 w-56 origin-bottom animate-dropdown overflow-y-auto rounded-lg border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
-                        <p className="px-3 py-1 text-[9px] font-medium uppercase tracking-wider text-nexus-muted/50">Models</p>
+                      <div className="absolute bottom-full right-0 z-50 mb-1 max-h-72 w-64 origin-bottom animate-dropdown overflow-y-auto rounded-lg border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
                         {modelsLoading && (
                           <div className="flex items-center gap-2 px-3 py-2">
                             <div className="h-3 w-3 animate-spin rounded-full border border-nexus-accent border-t-transparent" />
@@ -389,18 +388,59 @@ export function ChatConsole({ conversationId, onConversationCreated }: Props) {
                         {!modelsLoading && modelList.length === 0 && (
                           <p className="px-3 py-2 text-[10px] text-nexus-muted">No models available</p>
                         )}
-                        {!modelsLoading && modelList.map(m => (
-                          <button
-                            key={m.id}
-                            onClick={() => switchModel(m.id)}
-                            className={`flex w-full items-center justify-between px-3 py-1.5 text-[11px] transition hover:bg-nexus-surface ${
-                              m.id === modelName ? "text-nexus-accent" : "text-nexus-fg"
-                            }`}
-                          >
-                            <span className="truncate">{m.id}</span>
-                            {m.id === modelName && <span className="ml-2 text-[9px]">✓</span>}
-                          </button>
-                        ))}
+                        {/* Free models group (OpenRouter) */}
+                        {!modelsLoading && modelList.some(m => m.isFree) && (
+                          <>
+                            <p className="px-3 pt-1 pb-0.5 text-[9px] font-medium uppercase tracking-wider text-emerald-500/70">Free Models</p>
+                            {modelList.filter(m => m.isFree).map(m => (
+                              <button
+                                key={m.id}
+                                onClick={() => switchModel(m.id)}
+                                className={`flex w-full items-center justify-between px-3 py-1.5 text-[11px] transition hover:bg-nexus-surface ${
+                                  m.id === modelName ? "text-nexus-accent" : "text-nexus-fg"
+                                }`}
+                              >
+                                <span className="truncate">{m.id}</span>
+                                <span className="flex items-center gap-1.5">
+                                  <span className="rounded bg-emerald-500/15 px-1 py-0.5 text-[8px] text-emerald-400">FREE</span>
+                                  {m.id === modelName && <span className="text-[9px]">✓</span>}
+                                </span>
+                              </button>
+                            ))}
+                            <div className="mx-2 my-1 border-t border-nexus-border/30" />
+                          </>
+                        )}
+                        {/* Paid models group */}
+                        {!modelsLoading && (() => {
+                          const paid = modelList.filter(m => !m.isFree);
+                          const hasFree = modelList.some(m => m.isFree);
+                          if (paid.length === 0) return null;
+                          return (
+                            <>
+                              {hasFree && <p className="px-3 pt-1 pb-0.5 text-[9px] font-medium uppercase tracking-wider text-nexus-muted/50">Paid Models</p>}
+                              {paid.map(m => (
+                                <button
+                                  key={m.id}
+                                  onClick={() => switchModel(m.id)}
+                                  className={`flex w-full items-center justify-between px-3 py-1.5 text-[11px] transition hover:bg-nexus-surface ${
+                                    m.id === modelName ? "text-nexus-accent" : "text-nexus-fg"
+                                  }`}
+                                >
+                                  <span className="truncate">{m.id}</span>
+                                  {m.id === modelName && <span className="ml-2 text-[9px]">✓</span>}
+                                </button>
+                              ))}
+                            </>
+                          );
+                        })()}
+                        {/* Non-OpenRouter: just a flat list */}
+                        {!modelsLoading && !modelList.some(m => m.isFree) && modelList.filter(m => !m.isFree).length > 0 && modelList.length > 0 && (
+                          (() => {
+                            // If no isFree at all, this is a direct provider — show flat list
+                            const alreadyShown = modelList.filter(m => !m.isFree).length;
+                            return alreadyShown === modelList.length ? null : null; // avoid double-render
+                          })()
+                        )}
                       </div>
                     </>
                   )}

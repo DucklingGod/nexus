@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { invoke } from "@tauri-apps/api/core";
-import { IconTerminal, IconGlobe, IconSettings, IconBrain } from "../icons";
+import { IconTerminal, IconGlobe, IconSettings } from "../icons";
 
 const ICON_MAP: Record<string, React.FC<{ size?: number }>> = {
   terminal: IconTerminal,
@@ -27,22 +26,6 @@ export function TopBar({ taskTitle, onOpenSettings }: Props) {
   const [isMaximized, setIsMaximized] = useState(false);
   const [workspace, setWorkspace] = useState("local");
   const [showWsDropdown, setShowWsDropdown] = useState(false);
-  const [autoExtract, setAutoExtract] = useState(false);
-
-  useEffect(() => {
-    invoke("engine_rpc", { method: "settings.get_all", params: {} })
-      .then((all: any) => setAutoExtract(all["memory.autoExtract"] !== "false"))
-      .catch(() => {});
-  }, []);
-
-  async function toggleAutoExtract() {
-    const v = !autoExtract;
-    setAutoExtract(v);
-    await invoke("engine_rpc", {
-      method: "settings.set",
-      params: { key: "memory.autoExtract", value: v ? "true" : "false" },
-    }).catch(() => {});
-  }
 
   async function handleMaximize() {
     const win = getCurrentWindow();
@@ -106,21 +89,8 @@ export function TopBar({ taskTitle, onOpenSettings }: Props) {
 
       <div className="flex-1" data-tauri-drag-region />
 
-      {/* Right: auto-extract toggle + settings + window controls */}
+      {/* Right: settings + window controls */}
       <div className="flex items-center gap-1">
-        <button
-          onClick={toggleAutoExtract}
-          title={autoExtract ? "Auto-extract: ON" : "Auto-extract: OFF"}
-          className={`flex h-7 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium transition ${
-            autoExtract
-              ? "border-gold-faint bg-gold-ghost text-nexus-gold"
-              : "border-nexus-border bg-nexus-surface text-nexus-muted/50 hover:border-nexus-border hover:text-nexus-muted"
-          }`}
-        >
-          <IconBrain size={11} />
-          <span className="hidden sm:inline">{autoExtract ? "Memory" : "Memory"}</span>
-        </button>
-        <div className="mx-0.5 h-4 w-px bg-nexus-border/50" />
         <button
           onClick={onOpenSettings}
           title="Settings"

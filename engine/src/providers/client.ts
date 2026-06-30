@@ -10,6 +10,7 @@ import type { ProviderConfig, ChatRequest, ChatResponse, StreamChunk, StreamTool
 export async function listModels(config: ProviderConfig): Promise<{ models: ModelInfo[]; error?: string }> {
   if (config.baseUrl.includes("anthropic.com")) return listModelsAnthropic(config);
   if (config.baseUrl.includes("generativelanguage.googleapis.com")) return listModelsGoogle(config);
+  if (config.baseUrl.includes("openrouter.ai")) return listModelsOpenRouter(config);
   try {
     const headers: Record<string, string> = {};
     if (config.apiKey) headers["Authorization"] = `Bearer ${config.apiKey}`;
@@ -62,6 +63,42 @@ async function listModelsGoogle(config: ProviderConfig): Promise<{ models: Model
         .map((m: { name: string; displayName?: string }) => {
           const id = m.name.replace(/^models\//, "");
           return { id, name: m.displayName ?? id };
+        }),
+    };
+  } catch (e) {
+    return { models: [], error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/// OpenRouter: fetch models with pricing info — mark free models (prompt price = "0").
+async function listModelsOpenRouter(config: ProviderConfig): Promise<{ models: ModelInfo[]; error?: string }> {
+  try {
+    const headers: Record<string, string> = {};
+    if (config.apiKey) headers["Authorization"] = `Bearer ${config.apiKey}`;
+    const res = await fetch(`${config.baseUrl}/models`, { headers });
+    if (!res.ok) return { models: [], error: `${res.status} ${res.statusText}` };
+    const data = await res.json();
+    const models = (data.data ?? []) as Array<{
+      id: string;
+      name?: string;
+      pricing?: { prompt?: string; completion?: string };
+    }>;
+    return {
+      models: models
+        .map(m => {
+          const promptPrice = m.pricing?.prompt ?? "1";
+          const isFree = promptPrice === "0" || promptPrice === "0.00" || promptPrice === "0.000000";
+          return {
+            id: m.id,
+            name: m.name ?? m.id,
+            isFree,
+            pricing: m.pricing ? { prompt: m.pricing.prompt ?? "0", completion: m.pricing.completion ?? "0" } : undefined,
+          };
+        })
+        .sort((a, b) => {
+          // Free first, then alphabetical
+          if (a.isFree !== b.isFree) return a.isFree ? -1 : 1;
+          return a.id.localeCompare(b.id);
         }),
     };
   } catch (e) {

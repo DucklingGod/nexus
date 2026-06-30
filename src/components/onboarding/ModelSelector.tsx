@@ -11,6 +11,7 @@ interface Props {
 interface ModelInfo {
   id: string;
   name?: string;
+  isFree?: boolean;
 }
 
 export function ModelSelector({ provider, onComplete, onBack }: Props) {
@@ -51,6 +52,32 @@ export function ModelSelector({ provider, onComplete, onBack }: Props) {
     onComplete(model);
   }
 
+  const freeModels = models.filter(m => m.isFree);
+  const paidModels = models.filter(m => !m.isFree);
+  const hasGroups = freeModels.length > 0 && paidModels.length > 0;
+
+  function renderModelButton(m: ModelInfo) {
+    return (
+      <button
+        key={m.id}
+        onClick={() => setSelected(m.id)}
+        className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition-all hover:bg-nexus-surface ${
+          selected === m.id
+            ? "bg-nexus-surface text-nexus-accent"
+            : "text-neutral-300 border-b border-nexus-border last:border-b-0"
+        }`}
+      >
+        <span className="flex items-center gap-2 truncate">
+          <div className={`h-2 w-2 rounded-full shrink-0 ${selected === m.id ? "bg-nexus-accent" : "bg-nexus-border"}`} />
+          <span className="truncate">{m.id}</span>
+        </span>
+        {m.isFree && (
+          <span className="ml-2 shrink-0 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-medium text-emerald-400">FREE</span>
+        )}
+      </button>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-neutral-400">
@@ -72,21 +99,19 @@ export function ModelSelector({ provider, onComplete, onBack }: Props) {
       )}
 
       {!loading && models.length > 0 && !useCustom && (
-        <div className="max-h-48 overflow-y-auto rounded-lg border border-nexus-border">
-          {models.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => setSelected(m.id)}
-              className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-all hover:bg-nexus-surface ${
-                selected === m.id
-                  ? "bg-nexus-surface text-nexus-accent"
-                  : "text-neutral-300 border-b border-nexus-border last:border-b-0"
-              }`}
-            >
-              <div className={`h-2 w-2 rounded-full ${selected === m.id ? "bg-nexus-accent" : "bg-nexus-border"}`} />
-              {m.id}
-            </button>
-          ))}
+        <div className="max-h-64 overflow-y-auto rounded-lg border border-nexus-border">
+          {hasGroups ? (
+            <>
+              {/* Free models section */}
+              <p className="sticky top-0 z-10 bg-nexus-elevated px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-emerald-500/70">Free Models</p>
+              {freeModels.map(renderModelButton)}
+              {/* Paid models section */}
+              <p className="sticky top-0 z-10 border-t border-nexus-border/30 bg-nexus-elevated px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-neutral-500">Paid Models</p>
+              {paidModels.map(renderModelButton)}
+            </>
+          ) : (
+            models.map(renderModelButton)
+          )}
         </div>
       )}
 

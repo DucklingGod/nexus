@@ -48,6 +48,8 @@ export interface StreamChunk {
 export interface ModelInfo {
   id: string;
   name: string;
+  isFree?: boolean;
+  pricing?: { prompt: string; completion: string };
 }
 
 export interface ProviderConfig {
