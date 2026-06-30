@@ -87,6 +87,8 @@ export function Settings({ onClose }: Props) {
   const [docTitle, setDocTitle] = useState("");
   const [docContent, setDocContent] = useState("");
   const [docPath, setDocPath] = useState("");
+  const [folders, setFolders] = useState<string[]>([]);
+  const [folderSyncing, setFolderSyncing] = useState(false);
 
   // Capabilities (Task 14)
   const [capabilities, setCapabilities] = useState<{ name: string; enabled: boolean }[]>([]);
@@ -273,6 +275,8 @@ export function Settings({ onClose }: Props) {
   async function loadDocs() {
     const res = await invoke<{ documents: { id: string; title: string; chunks: number }[] }>("engine_rpc", { method: "documents.list", params: {} }).catch(() => ({ documents: [] }));
     setDocs(res.documents ?? []);
+    const f = await invoke<{ folders: string[] }>("engine_rpc", { method: "folders.list", params: {} }).catch(() => ({ folders: [] }));
+    setFolders(f.folders ?? []);
   }
 
   async function handleAddDoc() {
@@ -300,6 +304,25 @@ export function Settings({ onClose }: Props) {
   async function handleDeleteDoc(id: string) {
     await invoke("engine_rpc", { method: "documents.delete", params: { id } });
     await loadDocs();
+  }
+
+  async function handleAddFolder() {
+    const dir = await open({ directory: true, title: "Pick a folder to index" }).catch(() => null);
+    if (typeof dir !== "string") return;
+    await invoke("engine_rpc", { method: "folders.add", params: { path: dir } }).catch(() => {});
+    await loadDocs();
+  }
+  async function handleRemoveFolder(path: string) {
+    await invoke("engine_rpc", { method: "folders.remove", params: { path } }).catch(() => {});
+    await loadDocs();
+  }
+  async function handleSyncFolders() {
+    setFolderSyncing(true);
+    try {
+      const r = await invoke<{ indexed: number; total: number }>("engine_rpc", { method: "folders.sync", params: {} });
+      await loadDocs();
+      showMsg(`Synced — indexed ${r.indexed} of ${r.total} files`);
+    } catch (e) { showMsg(`Error: ${e}`); } finally { setFolderSyncing(false); }
   }
 
   // --- Change Provider Flow ---
@@ -717,6 +740,25 @@ export function Settings({ onClose }: Props) {
                 <button onClick={handleIngestFile} disabled={saving || !docPath.trim()}
                   className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Ingest file</button>
               </div>
+
+              <div className="flex flex-col gap-2 border-t border-nexus-border/40 pt-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-nexus-fg">Watched folders ({folders.length})</h3>
+                  <div className="flex gap-2">
+                    <button onClick={handleAddFolder} className="rounded-lg border border-nexus-border px-3 py-1.5 text-xs text-nexus-fg hover:bg-nexus-surface">+ Add folder</button>
+                    <button onClick={handleSyncFolders} disabled={folderSyncing || folders.length === 0} className="rounded-lg bg-nexus-accent px-3 py-1.5 text-xs font-medium text-black hover:opacity-90 disabled:opacity-50">{folderSyncing ? "Syncing…" : "Sync now"}</button>
+                  </div>
+                </div>
+                {folders.length === 0 ? (
+                  <p className="text-xs text-nexus-muted">No folders. Add a folder to auto-index its files (PDF/DOCX/XLSX/CSV/TXT/MD/JSON) into the knowledge base.</p>
+                ) : folders.map(f => (
+                  <div key={f} className="flex items-center justify-between rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2">
+                    <span className="truncate text-xs text-nexus-fg">{f}</span>
+                    <button onClick={() => handleRemoveFolder(f)} className="ml-2 flex-shrink-0 text-xs text-red-400 hover:text-red-300">Remove</button>
+                  </div>
+                ))}
+              </div>
+
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium text-nexus-fg">Documents ({docs.length})</h3>
                 {docs.length === 0 ? (

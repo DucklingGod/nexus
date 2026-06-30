@@ -24,6 +24,7 @@ import { importSkills } from "../skills/import.ts";
 import { listContextFiles, setContextFile } from "../context/files.ts";
 import { exportAgent, importAgent } from "../io/agent.ts";
 import { addDocument, ingestFile, listDocuments, deleteDocument } from "../knowledge/documents.ts";
+import { listFolders, addFolder, removeFolder, syncFolders } from "../knowledge/folders.ts";
 import {
   createConversation,
   updateConversation,
@@ -302,6 +303,20 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       }
       case "documents.list":
         return { ...base, result: { documents: listDocuments() } };
+      case "folders.list":
+        return { ...base, result: { folders: listFolders() } };
+      case "folders.add": {
+        const { path } = req.params as { path: string };
+        addFolder(path);
+        return { ...base, result: { ok: true } };
+      }
+      case "folders.remove": {
+        const { path } = req.params as { path: string };
+        removeFolder(path);
+        return { ...base, result: { ok: true } };
+      }
+      case "folders.sync":
+        return { ...base, result: await syncFolders() };
       case "documents.delete": {
         const { id } = req.params as { id: string };
         deleteDocument(id);
