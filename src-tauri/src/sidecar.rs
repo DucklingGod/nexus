@@ -70,9 +70,8 @@ impl Sidecar {
     where
         F: Fn(&str, Value) + Send + 'static,
     {
-        // Resolve engine path: use compile-time CARGO_MANIFEST_DIR (src-tauri/).
         // Engine lives at ../engine/ relative to src-tauri/.
-        // Note: this path is baked at compile time — don't move the project after building.
+        // CARGO_MANIFEST_DIR is baked at compile time — correct after rebuild.
         let engine = std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../engine/src/main.ts"));
 
         // Find node executable: NEXUS_NODE env > PATH > common Windows locations

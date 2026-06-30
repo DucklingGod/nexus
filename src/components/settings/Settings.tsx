@@ -121,7 +121,7 @@ export function Settings({ onClose }: Props) {
       setConnectors(conn.connectors ?? []);
       const ctx = await invoke<{ files: { name: string; title: string; content: string }[] }>("engine_rpc", { method: "context.list", params: {} }).catch(() => ({ files: [] }));
       setContextFiles(ctx.files ?? []);
-      setAutoExtract(all["memory.autoExtract"] === "true");
+      setAutoExtract(all["memory.autoExtract"] !== "false");
       setRouterEnabled(all["router.enabled"] === "true");
       setCacheEnabled(all["cache.enabled"] === "true");
       await loadDocs();

@@ -34,7 +34,7 @@ Return ONLY the JSON array. No explanation, no markdown fences.`;
 
 /** Check if auto-extraction is enabled. */
 export function isAutoExtractEnabled(): boolean {
-  return getSetting("memory.autoExtract") === "true";
+  return getSetting("memory.autoExtract") !== "false";
 }
 
 /**

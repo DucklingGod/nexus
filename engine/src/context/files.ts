@@ -132,6 +132,11 @@ function meaningful(content: string): string {
   return content.replace(/<!--[\s\S]*?-->/g, "").trim();
 }
 
+/** Check if the user has been onboarded (user.md has real content beyond the seed). */
+export function isUserOnboarded(): boolean {
+  return !!meaningful(read("user"));
+}
+
 function buildContextPrompt(): string {
   const parts: string[] = [];
   for (const name of FILES) {

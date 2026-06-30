@@ -31,7 +31,7 @@ export function TopBar({ taskTitle, onOpenSettings }: Props) {
 
   useEffect(() => {
     invoke("engine_rpc", { method: "settings.get_all", params: {} })
-      .then((all: any) => setAutoExtract(all["memory.autoExtract"] === "true"))
+      .then((all: any) => setAutoExtract(all["memory.autoExtract"] !== "false"))
       .catch(() => {});
   }, []);
 

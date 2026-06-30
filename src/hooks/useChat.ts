@@ -269,7 +269,9 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
           ja: "Japanese",
         };
         const systemPrompt = [
-          `You are ${personality.name || "Nexus Agent"}, an AI assistant.`,
+          `You are ${personality.name || "Nexus Agent"}, an AI assistant running inside the Nexus desktop app — an open-source local-first AI agent platform built with Tauri 2 and React.`,
+          `You have access to tools (file operations, web search, terminal, code execution, knowledge base, memory) and can perform multi-step tasks autonomously.`,
+          `You have persistent memory across conversations: user profile, rules, soul/persona, memory notes, and context. Use the 'remember' tool to save important facts about the user.`,
           personality.role ? `Your role: ${personality.role}.` : "",
           personality.tone ? `Your tone: ${personality.tone}.` : "",
           personality.language

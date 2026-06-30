@@ -11,7 +11,7 @@ import { maybeRouteModel } from "../tokens/router.ts";
 import { isCacheable, getCachedResponse, saveCachedResponse } from "../tokens/semanticCache.ts";
 import { matchSkillsAsync, injectSkills, synthesizeSkill } from "../skills/skills.ts";
 import { setWebKeys } from "../tools/web.ts";
-import { injectContext } from "../context/files.ts";
+import { injectContext, isUserOnboarded } from "../context/files.ts";
 import { isAutoExtractEnabled, autoExtract } from "../context/autoExtract.ts";
 
 const MAX_TOOL_ROUNDS = 5;
@@ -65,6 +65,18 @@ export async function streamChat(
     await augmentWithContext(messages, config).catch(() => messages),
     matchedSkills,
   ));
+
+  // First-run onboarding: if user.md is empty (no real content), prepend an
+  // onboarding instruction so the agent introduces itself and gets to know the user.
+  if (!isUserOnboarded()) {
+    const onboardMsg: ChatMessage = {
+      role: "system",
+      content: `This is the user's first conversation with you. Greet them warmly, introduce yourself briefly, then ask them to tell you about themselves — their name, what they do, and what they hope to use you for. After they respond, use the 'remember' tool to save their details to the 'user' file. Keep it natural and conversational, not like a form.`,
+    };
+    // Insert after existing system messages
+    const lastSysIdx = ragMessages.map((m, i) => m.role === "system" ? i : -1).filter(i => i >= 0).pop() ?? -1;
+    ragMessages.splice(lastSysIdx + 1, 0, onboardMsg);
+  }
 
   try {
     const tools = listToolsForLLM();
