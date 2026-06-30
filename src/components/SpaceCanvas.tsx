@@ -20,7 +20,7 @@ export function SpaceCanvas() {
 
     let W = (canvas.width = window.innerWidth);
     let H = (canvas.height = window.innerHeight);
-    const STAR_COUNT = 100;
+    const STAR_COUNT = 350;
     const stars: Star[] = [];
     const comets: Comet[] = [];
 
@@ -28,10 +28,10 @@ export function SpaceCanvas() {
       stars.push({
         x: Math.random() * W,
         y: Math.random() * H,
-        r: Math.random() * 1.2 + 0.2,
+        r: Math.random() * 1.8 + 0.3,
         alpha: Math.random(),
         da: (Math.random() - 0.5) * 0.01,
-        color: Math.random() > 0.88 ? "#c8a24e" : "#ffffff",
+        color: Math.random() > 0.75 ? "#c8a24e" : "#ffffff",
       });
     }
 
@@ -57,11 +57,22 @@ export function SpaceCanvas() {
       // Stars
       for (const s of stars) {
         s.alpha += s.da;
-        if (s.alpha <= 0.05 || s.alpha >= 1) s.da *= -1;
+        if (s.alpha <= 0.15 || s.alpha >= 1) s.da *= -1;
+        // Glow for larger stars
+        if (s.r > 1.0) {
+          const glow = ctx!.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 4);
+          glow.addColorStop(0, s.color);
+          glow.addColorStop(1, "transparent");
+          ctx!.beginPath();
+          ctx!.arc(s.x, s.y, s.r * 4, 0, Math.PI * 2);
+          ctx!.fillStyle = glow;
+          ctx!.globalAlpha = s.alpha * 0.15;
+          ctx!.fill();
+        }
         ctx!.beginPath();
         ctx!.arc(s.x, s.y, s.r, 0, Math.PI * 2);
         ctx!.fillStyle = s.color;
-        ctx!.globalAlpha = s.alpha * 0.4;
+        ctx!.globalAlpha = s.alpha * 0.85;
         ctx!.fill();
       }
 
@@ -131,7 +142,7 @@ export function SpaceCanvas() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 z-0 pointer-events-none"
-      style={{ opacity: 0.6 }}
+      style={{ opacity: 0.85 }}
     />
   );
 }
