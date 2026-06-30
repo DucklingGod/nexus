@@ -3,7 +3,8 @@
 > Depends on: SPEC.md
 > Created: 2026-06-28
 > Last updated: 2026-06-30
-> Status: In build — v0.1–v0.5 complete; v0.6 deferred; v0.7 (visual workflows) in progress
+> Repo: github.com/DucklingGod/nexus (canonical standalone repo "Nexus-App"; flattened layout — engine/ src/ src-tauri/ at root)
+> Status: In build — v0.1–v0.5, v0.7, v0.8 complete; v0.6 deferred; v0.9 (extensibility) in progress
 
 ---
 
@@ -19,10 +20,10 @@ breakdown is unchanged below). Current status against it:
 | v0.3 — Make It Yours | 13-18 | ✅ Complete (projects/workspaces UI still optional) |
 | v0.4 — Cost Control | 29-33 | ✅ Complete |
 | v0.5 — Reach + Polish | 19-24 | ✅ Complete — governance (21), UI polish (22), error handling (23), about (24), landing+docs (24B), **and Telegram + Discord connectors (19-20)** |
-| v0.6 — First Public Release (Beta) | 25-28 | ⏸️ Deferred — chosen to be done after v0.7 (packaging/CI is easier once the feature surface settles) |
-| v0.7 — Visual Workflows | 34-37 | 🚧 Task 34 (canvas) done — block config + execution (35-37), template library, Hermes skill import, context files remain |
-| v0.8 — Observability + Power Tools | 38-40, 42-44 | ⬜ Not started |
-| v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | 🚧 Only Task 48 (Skill Synthesizer) started |
+| v0.6 — First Public Release (Beta) | 25-28 | ⏸️ Deferred — to be done once the feature surface settles (packaging/CI) |
+| v0.7 — Visual Workflows | 34-37 (+37B/37C) | ✅ Complete — canvas, per-block config, execution engine, templates, Hermes skill import, persistent context files (auto-extract) |
+| v0.8 — Observability + Power Tools | 38-40, 42-44 | ✅ Complete — per-reply observability (38), export/import (39), prompt assistant (42), A/B testing (43); Ollama/LM Studio (40) + usage analytics (44) already covered |
+| v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | 🚧 In progress — **sub-agent delegation (41) done**; auto-extract/remember + skill-synthesizer (48) done; plugins (45-46) + experience/correction (47, 49) remain |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | ⬜ Not started |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
