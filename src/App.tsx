@@ -8,6 +8,7 @@ import { LeftSidebar } from "./components/sidebar/LeftSidebar";
 import { TopBar } from "./components/chat/TopBar";
 import { SkillsView } from "./components/skills/SkillsView";
 import { WorkflowsView } from "./components/workflow/WorkflowsView";
+import { ABTestView } from "./components/lab/ABTestView";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { SpaceCanvas } from "./components/SpaceCanvas";
 
@@ -16,6 +17,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
   const [showWorkflows, setShowWorkflows] = useState(false);
+  const [showAB, setShowAB] = useState(false);
   const [learnedToast, setLearnedToast] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [taskTitle, setTaskTitle] = useState<string | null>(null);
@@ -88,19 +90,23 @@ function App() {
       <SpaceCanvas />
       <LeftSidebar
         currentId={conversationId}
-        onSelect={(id) => { setConversationId(id); setShowSkills(false); setShowWorkflows(false); }}
-        onNewChat={() => { setConversationId(null); setShowSkills(false); setShowWorkflows(false); }}
-        onOpenSkills={() => { setShowSkills(true); setShowWorkflows(false); }}
-        onOpenWorkflows={() => { setShowWorkflows(true); setShowSkills(false); }}
+        onSelect={(id) => { setConversationId(id); setShowSkills(false); setShowWorkflows(false); setShowAB(false); }}
+        onNewChat={() => { setConversationId(null); setShowSkills(false); setShowWorkflows(false); setShowAB(false); }}
+        onOpenSkills={() => { setShowSkills(true); setShowWorkflows(false); setShowAB(false); }}
+        onOpenWorkflows={() => { setShowWorkflows(true); setShowSkills(false); setShowAB(false); }}
+        onOpenAB={() => { setShowAB(true); setShowSkills(false); setShowWorkflows(false); }}
         onOpenSettings={() => setShowSettings(true)}
         skillsActive={showSkills}
         workflowsActive={showWorkflows}
+        abActive={showAB}
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <TopBar taskTitle={showWorkflows ? "Workflows" : showSkills ? "Skills" : taskTitle} onOpenSettings={() => setShowSettings(true)} />
+        <TopBar taskTitle={showAB ? "A/B Test" : showWorkflows ? "Workflows" : showSkills ? "Skills" : taskTitle} onOpenSettings={() => setShowSettings(true)} />
         <div className="flex-1 overflow-hidden">
-          {showWorkflows ? (
+          {showAB ? (
+            <ABTestView />
+          ) : showWorkflows ? (
             <WorkflowsView />
           ) : showSkills ? (
             <SkillsView />

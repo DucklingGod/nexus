@@ -96,6 +96,7 @@ export function ChatConsole({ conversationId, onConversationCreated }: Props) {
   }, [messages, loading, scrollToBottom]);
 
   const [input, setInput] = useState("");
+  const [improving, setImproving] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [bottomTerminalOpen, setBottomTerminalOpen] = useState(false);
   const [safetyMode, setSafetyMode] = useState("ask");
@@ -172,6 +173,19 @@ export function ChatConsole({ conversationId, onConversationCreated }: Props) {
         setInput(prev => prev.trim() ? `${prev}\nRead this file: ${path}` : `Read this file: ${path}`);
       }
     } catch { /* cancelled */ }
+  }
+
+  async function improvePrompt() {
+    if (!input.trim() || improving) return;
+    setImproving(true);
+    try {
+      const r = await invoke<{ content: string }>("complete_once", {
+        text: input,
+        system: "You are a prompt engineer. Rewrite the user's text into a clearer, more specific, well-structured prompt for an AI assistant, preserving their intent. Return ONLY the improved prompt — no preamble, no quotes, no explanation.",
+        provider: providerId, model: modelName, baseUrl,
+      });
+      if (r.content?.trim()) setInput(r.content.trim());
+    } catch { /* ignore */ } finally { setImproving(false); }
   }
 
   const handleRetry = useCallback(() => {
@@ -318,6 +332,12 @@ export function ChatConsole({ conversationId, onConversationCreated }: Props) {
                 {/* + attach file */}
                 <button onClick={attachFile} title="Attach a file" className="rounded-md p-1 text-nexus-muted/40 transition hover:bg-nexus-surface hover:text-nexus-muted">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2"/><path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                </button>
+
+                {/* ✨ Improve prompt */}
+                <button onClick={improvePrompt} disabled={!input.trim() || improving} title="Improve this prompt"
+                  className={`rounded-md p-1 transition hover:bg-nexus-surface disabled:opacity-30 ${improving ? "animate-pulse text-nexus-gold" : "text-nexus-muted/40 hover:text-nexus-gold"}`}>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.4 3.6L13 6l-3.6 1.4L8 11 6.6 7.4 3 6l3.6-1.4z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/><path d="M12.5 10.5l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5z" fill="currentColor"/></svg>
                 </button>
 
                 {/* Safety mode dropdown */}

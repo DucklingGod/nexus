@@ -193,3 +193,24 @@ pub async fn workflow_run(
         }),
     )
 }
+
+/// One-off completion (used by the prompt assistant + A/B testing). Brokers the key.
+#[tauri::command]
+pub async fn complete_once(
+    state: State<'_, AppState>,
+    text: String,
+    system: Option<String>,
+    provider: String,
+    model: String,
+    base_url: String,
+) -> Result<Value, String> {
+    let api_key = key_for_local_aware(&provider, &base_url)?;
+    state.sidecar.request(
+        "complete.once",
+        json!({
+            "text": text,
+            "system": system,
+            "config": { "id": provider, "baseUrl": base_url, "apiKey": api_key, "model": model },
+        }),
+    )
+}

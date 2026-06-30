@@ -13,7 +13,7 @@ import {
   getAgentPersonality,
   setAgentPersonality,
 } from "../db/settings.ts";
-import { testConnection, listModels } from "../providers/client.ts";
+import { testConnection, listModels, chat } from "../providers/client.ts";
 import type { ProviderConfig } from "../providers/types.ts";
 import { listTools, executeTool } from "../tools/registry.ts";
 import { listSkillsWithState, setSkillEnabled, addCustomSkill, deleteCustomSkill } from "../skills/skills.ts";
@@ -201,6 +201,14 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       case "agent.import": {
         const { path } = req.params as { path: string };
         return { ...base, result: importAgent(path) };
+      }
+      case "complete.once": {
+        const { text, system, config } = req.params as { text: string; system?: string; config: ProviderConfig & { model: string } };
+        const messages = system
+          ? [{ role: "system" as const, content: system }, { role: "user" as const, content: text }]
+          : [{ role: "user" as const, content: text }];
+        const res = await chat(config, { messages, model: config.model, maxTokens: 1024 });
+        return { ...base, result: { content: res.content ?? "" } };
       }
       case "tools.execute": {
         const { name, arguments: args } = req.params as { name: string; arguments: Record<string, unknown> };
