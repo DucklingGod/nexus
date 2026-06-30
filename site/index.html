@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus — Build Your AI Army</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --gold: #c8a24e;
+            --gold-light: #d4b36a;
+            --gold-dark: #a88a3a;
+            --bg: #0a0a0a;
+            --bg-card: #111111;
+            --bg-card-hover: #1a1a1a;
+            --text: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666666;
+            --border: #1a1a1a;
+        }
+        
+        html { scroll-behavior: smooth; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+        /* ── Canvas ── */
+        #space-canvas {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0; pointer-events: none;
+        }
+
+        /* ── Nav ── */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(10,10,10,0.8); backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border); padding: 16px 0;
+            transition: background 0.3s;
+        }
+        nav .container { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-family: 'Playfair Display',serif; font-size: 24px; font-weight: 600; color: var(--gold); text-decoration: none; letter-spacing: 2px; }
+        .nav-links { display: flex; gap: 32px; align-items: center; }
+        .nav-links a:not(.btn-github) { color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:not(.btn-github):hover { color: var(--gold); }
+        .btn-github {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 20px; background: var(--gold) !important;
+            color: #000 !important; font-weight: 600; font-size: 14px;
+            border-radius: 8px; text-decoration: none;
+            border: 1.5px solid var(--gold); transition: all 0.3s ease;
+        }
+        .btn-github svg { transition: all 0.3s ease; stroke: #000 !important; fill: none !important; }
+        .btn-github:hover { background: transparent !important; color: var(--gold) !important; border-color: var(--gold); box-shadow: 0 0 24px rgba(200,162,78,0.15); }
+        .btn-github:hover svg { stroke: var(--gold) !important; }
+
+        /* ── Shared ── */
+        section { position: relative; z-index: 1; }
+        .section-label {
+            display: inline-flex; align-items: center; gap: 8px;
+            font-size: 12px; font-weight: 600; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--gold); margin-bottom: 16px;
+        }
+        .section-label::before, .section-label::after {
+            content: ''; width: 24px; height: 1px; background: var(--gold); opacity: 0.4;
+        }
+        .section-header { text-align: center; margin-bottom: 64px; }
+        .section-header h2 { font-family: 'Playfair Display',serif; font-size: clamp(32px,5vw,44px); font-weight: 600; margin-bottom: 16px; }
+        .section-header p { font-size: 18px; color: var(--text-secondary); max-width: 600px; margin: 0 auto; }
+
+        /* ── Reveal animation ── */
+        .reveal { opacity: 0; transform: translateY(40px); transition: opacity 0.8s cubic-bezier(.16,1,.3,1), transform 0.8s cubic-bezier(.16,1,.3,1); }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+        .reveal-left { opacity: 0; transform: translateX(-60px); transition: opacity 0.8s cubic-bezier(.16,1,.3,1), transform 0.8s cubic-bezier(.16,1,.3,1); }
+        .reveal-left.visible { opacity: 1; transform: translateX(0); }
+        .reveal-right { opacity: 0; transform: translateX(60px); transition: opacity 0.8s cubic-bezier(.16,1,.3,1), transform 0.8s cubic-bezier(.16,1,.3,1); }
+        .reveal-right.visible { opacity: 1; transform: translateX(0); }
+        .reveal-scale { opacity: 0; transform: scale(0.9); transition: opacity 0.8s cubic-bezier(.16,1,.3,1), transform 0.8s cubic-bezier(.16,1,.3,1); }
+        .reveal-scale.visible { opacity: 1; transform: scale(1); }
+
+        /* Stagger children */
+        .stagger > * { transition-delay: calc(var(--i, 0) * 0.1s); }
+
+        /* ── Hero ── */
+        .hero {
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            text-align: center; padding: 120px 24px 80px; overflow: hidden;
+        }
+        .hero::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle at 50% 50%, rgba(200,162,78,0.06) 0%, transparent 50%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.1)} }
+        .hero-content { position: relative; z-index: 1; max-width: 800px; }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 20px; background: rgba(200,162,78,0.06);
+            border: 1px solid rgba(200,162,78,0.12); border-radius: 100px;
+            font-size: 13px; color: var(--gold); margin-bottom: 32px;
+            animation: fadeInDown 0.8s ease-out both;
+        }
+        .hero-badge svg { width: 14px; height: 14px; stroke: var(--gold); fill: none; stroke-width: 2; }
+        @keyframes fadeInDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+        .hero h1 {
+            font-family: 'Playfair Display',serif; font-size: clamp(48px,8vw,88px);
+            font-weight: 700; line-height: 1.05; margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--gold) 0%, #e8d5a0 40%, var(--gold) 80%);
+            background-size: 300% 300%; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; animation: shimmer 4s ease-in-out infinite, fadeInUp 1s ease-out both;
+        }
+        @keyframes shimmer { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+        @keyframes fadeInUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+        .hero p {
+            font-size: 20px; color: var(--text-secondary); max-width: 600px;
+            margin: 0 auto 40px; line-height: 1.7;
+            animation: fadeInUp 1s ease-out 0.3s both;
+        }
+        .hero-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; animation: fadeInUp 1s ease-out 0.5s both; }
+        .btn-primary {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 16px 32px; background: var(--gold); color: #000;
+            font-weight: 600; font-size: 16px; border-radius: 12px;
+            text-decoration: none; transition: all 0.3s; border: none; cursor: pointer;
+        }
+        .btn-primary svg { stroke: #000; }
+        .btn-primary:hover { background: var(--gold-light); transform: translateY(-2px); box-shadow: 0 8px 40px rgba(200,162,78,0.35); }
+        .btn-secondary {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 16px 32px; background: transparent; color: var(--text);
+            font-weight: 500; font-size: 16px; border-radius: 12px;
+            text-decoration: none; border: 1px solid #333; transition: all 0.3s;
+        }
+        .btn-secondary svg { stroke: var(--text); }
+        .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+        .btn-secondary:hover svg { stroke: var(--gold); }
+
+        /* Floating particles behind hero */
+        .hero-particles {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            overflow: hidden; pointer-events: none;
+        }
+        .hero-particle {
+            position: absolute; width: 4px; height: 4px; background: var(--gold);
+            border-radius: 50%; opacity: 0; animation: floatUp 6s ease-in-out infinite;
+        }
+        @keyframes floatUp {
+            0%{opacity:0;transform:translateY(100px) scale(0)}
+            20%{opacity:0.6}
+            80%{opacity:0.3}
+            100%{opacity:0;transform:translateY(-200px) scale(1)}
+        }
+
+        /* ── Stats ── */
+        .stats { padding: 80px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 32px; text-align: center; }
+        .stat-item h3 {
+            font-family: 'Playfair Display',serif; font-size: 48px; font-weight: 700;
+            color: var(--gold); margin-bottom: 8px;
+        }
+        .stat-item p { font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 2px; }
+
+        /* ── Features ── */
+        .features { padding: 120px 0; }
+        .features-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+        .feature-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 32px; transition: all 0.4s cubic-bezier(.16,1,.3,1);
+            position: relative; overflow: hidden;
+        }
+        .feature-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            opacity: 0; transition: opacity 0.4s;
+        }
+        .feature-card:hover::before { opacity: 1; }
+        .feature-card:hover { background: var(--bg-card-hover); border-color: rgba(200,162,78,0.2); transform: translateY(-6px); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+        .feature-icon {
+            width: 48px; height: 48px; background: rgba(200,162,78,0.06);
+            border: 1px solid rgba(200,162,78,0.12); border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        .feature-card:hover .feature-icon { background: rgba(200,162,78,0.12); border-color: rgba(200,162,78,0.25); }
+        .feature-icon svg { width: 24px; height: 24px; stroke: var(--gold); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+        .feature-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
+        .feature-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.7; }
+
+        /* ── How It Works ── */
+        .how-it-works { padding: 120px 0; }
+        .steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 48px; margin-top: 32px; }
+        .step { text-align: center; position: relative; }
+        .step-number {
+            font-family: 'Playfair Display',serif; font-size: 72px; font-weight: 700;
+            color: var(--gold); line-height: 1; margin-bottom: 16px;
+            text-shadow: 0 0 30px rgba(200,162,78,0.25);
+        }
+        .step h3 { font-size: 20px; font-weight: 600; margin-bottom: 12px; }
+        .step p { font-size: 14px; color: var(--text-secondary); line-height: 1.7; }
+        .step-connector {
+            position: absolute; top: 36px; right: -24px; width: 48px; height: 2px;
+            background: linear-gradient(90deg, var(--gold), transparent); opacity: 0.3;
+        }
+        .step:last-child .step-connector { display: none; }
+
+        /* ── Skills Showcase ── */
+        .skills { padding: 120px 0; background: var(--bg-card); }
+        .skills-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 32px; }
+        .skill-category {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 16px; padding: 32px; transition: all 0.3s;
+        }
+        .skill-category:hover { border-color: rgba(200,162,78,0.2); }
+        .skill-category h3 {
+            font-size: 16px; font-weight: 600; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .skill-category h3 svg { width: 20px; height: 20px; stroke: var(--gold); fill: none; stroke-width: 1.5; }
+        .skill-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+        .skill-tag {
+            padding: 6px 14px; background: rgba(200,162,78,0.06);
+            border: 1px solid rgba(200,162,78,0.1); border-radius: 100px;
+            font-size: 12px; color: var(--text-secondary); transition: all 0.3s;
+        }
+        .skill-tag:hover { background: rgba(200,162,78,0.12); color: var(--gold); border-color: rgba(200,162,78,0.25); }
+
+        /* ── Architecture ── */
+        .architecture { padding: 120px 0; }
+        .arch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+        .arch-diagram {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 32px;
+            font-family: 'SF Mono','Fira Code',monospace; font-size: 12px;
+            color: var(--text-secondary); line-height: 1.9; overflow-x: auto;
+            position: relative;
+        }
+        .arch-diagram::before {
+            content: ''; position: absolute; top: 12px; left: 16px;
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #ff5f57; box-shadow: 16px 0 0 #ffbd2e, 32px 0 0 #28c840;
+        }
+        .arch-diagram code { display: block; padding-top: 20px; }
+        .arch-diagram .cm { color: var(--text-muted); }
+        .arch-diagram .kw { color: var(--gold); }
+        .arch-diagram .st { color: #6b9d6b; }
+        .arch-diagram .fn { color: #7ba4d4; }
+        .arch-content h2 { font-family: 'Playfair Display',serif; font-size: 36px; margin-bottom: 24px; }
+        .arch-content p { font-size: 16px; color: var(--text-secondary); margin-bottom: 32px; line-height: 1.7; }
+        .arch-list { list-style: none; display: flex; flex-direction: column; gap: 16px; }
+        .arch-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 15px; color: var(--text-secondary); }
+        .arch-list li svg { width: 18px; height: 18px; stroke: var(--gold); fill: none; stroke-width: 2; flex-shrink: 0; margin-top: 2px; }
+
+        /* ── Providers ── */
+        .providers { padding: 80px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .providers-logos {
+            display: flex; justify-content: center; align-items: center;
+            gap: 48px; flex-wrap: wrap; margin-top: 32px;
+        }
+        .provider-item {
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            opacity: 0.4; transition: opacity 0.3s;
+        }
+        .provider-item:hover { opacity: 1; }
+        .provider-icon {
+            width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+        }
+        .provider-icon svg { width: 36px; height: 36px; stroke: var(--text); fill: none; stroke-width: 1.2; }
+        .provider-item span { font-size: 12px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
+
+        /* ── Testimonials ── */
+        .testimonials { padding: 120px 0; background: var(--bg-card); }
+        .testimonial-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+        .testimonial-card {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 16px; padding: 28px; transition: all 0.3s;
+        }
+        .testimonial-card:hover { border-color: rgba(200,162,78,0.15); }
+        .testimonial-stars { display: flex; gap: 4px; margin-bottom: 16px; }
+        .testimonial-stars svg { width: 16px; height: 16px; stroke: var(--gold); fill: var(--gold); stroke-width: 1; }
+        .testimonial-card blockquote {
+            font-size: 14px; color: var(--text-secondary); line-height: 1.7;
+            margin-bottom: 20px; font-style: italic;
+        }
+        .testimonial-author { display: flex; align-items: center; gap: 12px; }
+        .testimonial-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 600; color: #000;
+        }
+        .testimonial-name { font-size: 13px; font-weight: 600; }
+        .testimonial-role { font-size: 12px; color: var(--text-muted); }
+
+        /* ── FAQ ── */
+        .faq { padding: 120px 0; }
+        .faq-list { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+        .faq-item {
+            border: 1px solid var(--border); border-radius: 12px;
+            overflow: hidden; transition: all 0.3s;
+        }
+        .faq-item:hover { border-color: rgba(200,162,78,0.15); }
+        .faq-question {
+            width: 100%; padding: 20px 24px; background: transparent;
+            border: none; color: var(--text); font-size: 15px; font-weight: 500;
+            text-align: left; cursor: pointer; display: flex; justify-content: space-between;
+            align-items: center; font-family: inherit;
+        }
+        .faq-question svg {
+            width: 20px; height: 20px; stroke: var(--gold); fill: none; stroke-width: 2;
+            transition: transform 0.3s; flex-shrink: 0;
+        }
+        .faq-item.open .faq-question svg { transform: rotate(180deg); }
+        .faq-answer {
+            max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(.16,1,.3,1);
+        }
+        .faq-answer p { padding: 0 24px 20px; font-size: 14px; color: var(--text-secondary); line-height: 1.7; }
+
+        /* ── CTA ── */
+        .cta { padding: 120px 0; text-align: center; }
+        .cta-content { max-width: 600px; margin: 0 auto; }
+        .cta h2 { font-family: 'Playfair Display',serif; font-size: clamp(32px,5vw,44px); margin-bottom: 20px; }
+        .cta p { font-size: 18px; color: var(--text-secondary); margin-bottom: 40px; }
+
+        /* ── Footer ── */
+        footer {
+            padding: 60px 0 40px; border-top: 1px solid var(--border);
+            position: relative; z-index: 1;
+        }
+        .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
+        .footer-brand .logo { font-size: 20px; display: inline-block; margin-bottom: 12px; }
+        .footer-brand p { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+        .footer-col h4 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; color: var(--text-secondary); }
+        .footer-col a { display: block; font-size: 13px; color: var(--text-muted); text-decoration: none; padding: 4px 0; transition: color 0.2s; }
+        .footer-col a:hover { color: var(--gold); }
+        .footer-bottom { text-align: center; padding-top: 32px; border-top: 1px solid var(--border); }
+        .footer-bottom p { font-size: 13px; color: var(--text-muted); }
+        .footer-bottom a { color: var(--gold); text-decoration: none; }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .stats-grid { grid-template-columns: repeat(2,1fr); }
+            .features-grid, .testimonial-grid { grid-template-columns: 1fr; }
+            .skills-grid { grid-template-columns: 1fr; }
+            .steps { grid-template-columns: 1fr; }
+            .step-connector { display: none; }
+            .arch-grid { grid-template-columns: 1fr; }
+            .footer-grid { grid-template-columns: 1fr 1fr; }
+            .hero h1 { font-size: 40px; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="space-canvas"></canvas>
+
+    <!-- Nav -->
+    <nav>
+        <div class="container">
+            <a href="#" class="logo">NEXUS</a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#skills">Skills</a>
+                <a href="#architecture">Architecture</a>
+                <a href="#faq">FAQ</a>
+                <a href="docs.html">Docs</a>
+                <a href="https://github.com/DucklingGod/nexus" class="btn-github">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    Star on GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-particles" id="hero-particles"></div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <svg viewBox="0 0 24 24"><path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"/></svg>
+                Open Source · Local-First · Privacy-Focused
+            </div>
+            <h1>Build Your AI Army</h1>
+            <p>Nexus is an open-source desktop AI Agent platform that puts you in control. Run multiple AI agents with 40+ built-in tools, all running locally on your machine.</p>
+            <div class="hero-buttons">
+                <a href="https://github.com/DucklingGod/nexus/releases" class="btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download Nexus
+                </a>
+                <a href="https://github.com/DucklingGod/nexus" class="btn-secondary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    View Source
+                </a>
+                <a href="docs.html" class="btn-secondary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    Read the Docs
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats">
+        <div class="container">
+            <div class="stats-grid stagger">
+                <div class="stat-item reveal" style="--i:0"><h3 data-count="40">0</h3><p>Built-in Tools</p></div>
+                <div class="stat-item reveal" style="--i:1"><h3 data-count="60">0</h3><p>Expert Skills</p></div>
+                <div class="stat-item reveal" style="--i:2"><h3 data-count="100">0</h3><p>Local & Private</p></div>
+                <div class="stat-item reveal" style="--i:3"><h3 data-count="0">0</h3><p>Cloud Dependencies</p></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">Features</div>
+                <h2>Everything You Need</h2>
+                <p>A complete AI agent platform that runs entirely on your machine. No subscriptions, no data sharing, no limits.</p>
+            </div>
+            <div class="features-grid stagger">
+                <div class="feature-card reveal" style="--i:0">
+                    <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div>
+                    <h3>40+ Built-in Tools</h3>
+                    <p>Web search, file operations, code execution, browser automation, and more. All tools run locally with transparent execution logs.</p>
+                </div>
+                <div class="feature-card reveal" style="--i:1">
+                    <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 014 4c0 .73-.2 1.41-.54 2A4 4 0 0118 12c0 1.1-.45 2.1-1.17 2.83A4 4 0 0116 22h-1a3 3 0 01-3-3v-1m0 0V8m0 10a3 3 0 01-3 3H8a4 4 0 01-.83-7.17A4 4 0 016 12a4 4 0 012.54-3.72A4 4 0 018 6a4 4 0 014-4"/></svg></div>
+                    <h3>Multi-Agent Orchestration</h3>
+                    <p>Deploy specialized agents for different tasks. Research, coding, analysis — each agent excels in its domain.</p>
+                </div>
+                <div class="feature-card reveal" style="--i:2">
+                    <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+                    <h3>Transparent Execution</h3>
+                    <p>See exactly what your AI agents are doing. Every tool call, every decision, every step is visible and auditable.</p>
+                </div>
+                <div class="feature-card reveal" style="--i:3">
+                    <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.78 7.78 5.5 5.5 0 017.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
+                    <h3>BYOK Support</h3>
+                    <p>Bring Your Own Key. Connect to OpenAI, Anthropic, Google, or any OpenAI-compatible provider. You control your API keys.</p>
+                </div>
+                <div class="feature-card reveal" style="--i:4">
+                    <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                    <h3>Local-First Privacy</h3>
+                    <p>All data stays on your machine. No telemetry, no analytics, no phone-home. Your conversations are yours alone.</p>
+                </div>
+                <div class="feature-card reveal" style="--i:5">
+                    <div class="feature-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                    <h3>Lightning Fast</h3>
+                    <p>Built with Tauri 2.x for native performance. Small footprint, fast startup, minimal resource usage.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">How It Works</div>
+                <h2>Three Steps to AI Freedom</h2>
+                <p>Get up and running in minutes. No complex setup, no cloud accounts needed.</p>
+            </div>
+            <div class="steps stagger">
+                <div class="step reveal" style="--i:0">
+                    <div class="step-number">01</div>
+                    <h3>Download & Install</h3>
+                    <p>Grab the standalone .exe from GitHub Releases. One file, no dependencies, no installer needed.</p>
+                    <div class="step-connector"></div>
+                </div>
+                <div class="step reveal" style="--i:1">
+                    <div class="step-number">02</div>
+                    <h3>Connect Your LLM</h3>
+                    <p>Add your API key for OpenAI, Anthropic, or connect to a local model via LM Studio or Ollama.</p>
+                    <div class="step-connector"></div>
+                </div>
+                <div class="step reveal" style="--i:2">
+                    <div class="step-number">03</div>
+                    <h3>Build Your Army</h3>
+                    <p>Start chatting. Nexus auto-selects the right tools and skills for each task. Watch it work in real-time.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Skills -->
+    <section class="skills" id="skills">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">Skills</div>
+                <h2>Expert Knowledge Built-In</h2>
+                <p>60+ specialized skill sets covering research, development, security, and more. Each skill transforms your agent into a domain expert.</p>
+            </div>
+            <div class="skills-grid stagger">
+                <div class="skill-category reveal" style="--i:0">
+                    <h3><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>Research & Analysis</h3>
+                    <div class="skill-tags">
+                        <span class="skill-tag">Web Research</span>
+                        <span class="skill-tag">Data Analysis</span>
+                        <span class="skill-tag">Fact Checking</span>
+                        <span class="skill-tag">Summarization</span>
+                        <span class="skill-tag">Competitive Intel</span>
+                    </div>
+                </div>
+                <div class="skill-category reveal" style="--i:1">
+                    <h3><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Development</h3>
+                    <div class="skill-tags">
+                        <span class="skill-tag">Code Generation</span>
+                        <span class="skill-tag">Debugging</span>
+                        <span class="skill-tag">Code Review</span>
+                        <span class="skill-tag">Refactoring</span>
+                        <span class="skill-tag">Testing</span>
+                    </div>
+                </div>
+                <div class="skill-category reveal" style="--i:2">
+                    <h3><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Security</h3>
+                    <div class="skill-tags">
+                        <span class="skill-tag">Vulnerability Scan</span>
+                        <span class="skill-tag">Penetration Testing</span>
+                        <span class="skill-tag">Security Audit</span>
+                        <span class="skill-tag">Compliance Check</span>
+                    </div>
+                </div>
+                <div class="skill-category reveal" style="--i:3">
+                    <h3><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Content & Writing</h3>
+                    <div class="skill-tags">
+                        <span class="skill-tag">Technical Writing</span>
+                        <span class="skill-tag">Documentation</span>
+                        <span class="skill-tag">Blog Posts</span>
+                        <span class="skill-tag">Copywriting</span>
+                        <span class="skill-tag">Translation</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture -->
+    <section class="architecture" id="architecture">
+        <div class="container">
+            <div class="arch-grid">
+                <div class="arch-diagram reveal-left">
+                    <code>
+<span class="cm">// Nexus Architecture</span>
+
+<span class="kw">┌─────────────────────────────────┐</span>
+<span class="kw">│</span>  <span class="st">React Frontend</span>               <span class="kw">│</span>
+<span class="kw">│</span>  <span class="fn">ChatConsole</span> · <span class="fn">SkillsUI</span>       <span class="kw">│</span>
+<span class="kw">│</span>  <span class="fn">ProviderConfig</span> · <span class="fn">Settings</span>   <span class="kw">│</span>
+<span class="kw">└───────────────┬─────────────────┘</span>
+                <span class="kw">│</span> IPC (invoke / listen)
+<span class="kw">┌───────────────▼─────────────────┐</span>
+<span class="kw">│</span>  <span class="st">Tauri 2.x Bridge</span>             <span class="kw">│</span>
+<span class="kw">│</span>  <span class="fn">Rust Commands</span> → <span class="fn">Sidecar</span>     <span class="kw">│</span>
+<span class="kw">└───────────────┬─────────────────┘</span>
+                <span class="kw">│</span> JSON-RPC 2.0 / stdio
+<span class="kw">┌───────────────▼─────────────────┐</span>
+<span class="kw">│</span>  <span class="st">TypeScript Engine</span>            <span class="kw">│</span>
+<span class="kw">│</span>  <span class="fn">SmartRouter</span> · <span class="fn">ToolRegistry</span>  <span class="kw">│</span>
+<span class="kw">│</span>  <span class="fn">SkillsEngine</span> · <span class="fn">SemanticCache</span><span class="kw">│</span>
+<span class="kw">│</span>  <span class="fn">PromptCache</span> · <span class="fn">Transparency</span>  <span class="kw">│</span>
+<span class="kw">└───────────────┬─────────────────┘</span>
+                <span class="kw">│</span> Provider APIs
+<span class="kw">┌───────────────▼─────────────────┐</span>
+<span class="kw">│</span>  <span class="st">LLM Providers</span>                <span class="kw">│</span>
+<span class="kw">│</span>  OpenAI · Anthropic · Google   <span class="kw">│</span>
+<span class="kw">│</span>  LM Studio · Ollama · Custom   <span class="kw">│</span>
+<span class="kw">└─────────────────────────────────┘</span>
+                    </code>
+                </div>
+                <div class="arch-content reveal-right">
+                    <div class="section-label">Architecture</div>
+                    <h2>Built for Performance</h2>
+                    <p>Nexus uses a modern architecture designed for speed, security, and extensibility. Every component runs locally on your machine.</p>
+                    <ul class="arch-list">
+                        <li><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Tauri 2.x for native performance with web technologies</li>
+                        <li><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>TypeScript sidecar with JSON-RPC 2.0 over stdio</li>
+                        <li><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Smart routing between multiple LLM providers</li>
+                        <li><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Semantic + prompt caching to reduce costs</li>
+                        <li><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>SQLite for local storage, zero cloud dependencies</li>
+                        <li><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Transparent tool calls with real-time execution logs</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Providers -->
+    <section class="providers">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">Providers</div>
+                <h2>Works With Your Favorite LLM</h2>
+            </div>
+            <div class="providers-logos stagger">
+                <div class="provider-item reveal" style="--i:0">
+                    <div class="provider-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg></div>
+                    <span>OpenAI</span>
+                </div>
+                <div class="provider-item reveal" style="--i:1">
+                    <div class="provider-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+                    <span>Anthropic</span>
+                </div>
+                <div class="provider-item reveal" style="--i:2">
+                    <div class="provider-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+                    <span>Google</span>
+                </div>
+                <div class="provider-item reveal" style="--i:3">
+                    <div class="provider-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+                    <span>LM Studio</span>
+                </div>
+                <div class="provider-item reveal" style="--i:4">
+                    <div class="provider-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
+                    <span>Ollama</span>
+                </div>
+                <div class="provider-item reveal" style="--i:5">
+                    <div class="provider-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+                    <span>Custom</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="testimonials">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">Community</div>
+                <h2>Loved by Developers</h2>
+            </div>
+            <div class="testimonial-grid stagger">
+                <div class="testimonial-card reveal" style="--i:0">
+                    <div class="testimonial-stars">
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
+                    <blockquote>"Finally, an AI tool that respects my privacy. The transparent tool execution is a game-changer — I can see exactly what it's doing."</blockquote>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">A</div>
+                        <div><div class="testimonial-name">Alex Chen</div><div class="testimonial-role">Full-Stack Developer</div></div>
+                    </div>
+                </div>
+                <div class="testimonial-card reveal" style="--i:1">
+                    <div class="testimonial-stars">
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
+                    <blockquote>"Replaced three different AI subscriptions with one local tool. The multi-agent setup is incredible for complex workflows."</blockquote>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">S</div>
+                        <div><div class="testimonial-name">Sarah Kim</div><div class="testimonial-role">DevOps Engineer</div></div>
+                    </div>
+                </div>
+                <div class="testimonial-card reveal" style="--i:2">
+                    <div class="testimonial-stars">
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
+                    <blockquote>"The BYOK approach is perfect. I switch between GPT-4 and Claude depending on the task. Nexus handles it seamlessly."</blockquote>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">M</div>
+                        <div><div class="testimonial-name">Marcus Rivera</div><div class="testimonial-role">Security Researcher</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq" id="faq">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-label">FAQ</div>
+                <h2>Common Questions</h2>
+            </div>
+            <div class="faq-list">
+                <div class="faq-item reveal">
+                    <button class="faq-question">Is Nexus really free?<svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+                    <div class="faq-answer"><p>Yes. Nexus is fully open-source under the MIT license. You only pay for the LLM API usage you choose — bring your own key or use local models for free.</p></div>
+                </div>
+                <div class="faq-item reveal">
+                    <button class="faq-question">Does it work offline?<svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+                    <div class="faq-answer"><p>Yes, when paired with a local model via Ollama or LM Studio. The tools, skills engine, and UI all run entirely offline. Only cloud LLM providers require internet.</p></div>
+                </div>
+                <div class="faq-item reveal">
+                    <button class="faq-question">How is this different from ChatGPT?<svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+                    <div class="faq-answer"><p>Nexus is a local desktop app that gives you 40+ tools, multi-agent orchestration, and full transparency. Your data never leaves your machine unless you choose a cloud provider.</p></div>
+                </div>
+                <div class="faq-item reveal">
+                    <button class="faq-question">What models are supported?<svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+                    <div class="faq-answer"><p>Any OpenAI-compatible API: GPT-4o, Claude, Gemini, Llama, Mistral, and more. Plus local models via Ollama and LM Studio. The smart router auto-detects the format.</p></div>
+                </div>
+                <div class="faq-item reveal">
+                    <button class="faq-question">Is my data safe?<svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+                    <div class="faq-answer"><p>Absolutely. All data is stored locally in SQLite. API keys go through your OS keychain. There is zero telemetry, zero analytics, and zero phone-home behavior.</p></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+        <div class="container">
+            <div class="cta-content reveal-scale">
+                <h2>Ready to Build Your AI Army?</h2>
+                <p>Join the community of developers who are taking control of their AI tools. Open source, privacy-first, and always free.</p>
+                <a href="https://github.com/DucklingGod/nexus/releases" class="btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Download Nexus v0.4
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="#" class="logo">NEXUS</a>
+                    <p>Open-source desktop AI Agent platform. Build your army, own your data.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Product</h4>
+                    <a href="#features">Features</a>
+                    <a href="#skills">Skills</a>
+                    <a href="#architecture">Architecture</a>
+                    <a href="https://github.com/DucklingGod/nexus/releases">Download</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Community</h4>
+                    <a href="https://github.com/DucklingGod/nexus">GitHub</a>
+                    <a href="#">Discord</a>
+                    <a href="#">Twitter</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Legal</h4>
+                    <a href="#">MIT License</a>
+                    <a href="#">Privacy Policy</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>Built with care by the Nexus Community · <a href="https://github.com/DucklingGod/nexus">GitHub</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+    // ── Stars + Comets Canvas ──
+    (function() {
+        const canvas = document.getElementById('space-canvas');
+        const ctx = canvas.getContext('2d');
+        let W, H;
+        const STAR_COUNT = 350;
+        let stars = [];
+        let comets = [];
+        let mouseX = -9999, mouseY = -9999;
+        let trail = [];
+        const REPULSE_RADIUS = 150;
+        const REPULSE_STRENGTH = 8;
+        const SPRING = 0.02;
+        const DAMPING = 0.92;
+
+        function resize() {
+            W = canvas.width = window.innerWidth;
+            H = canvas.height = window.innerHeight;
+        }
+
+        function createStars() {
+            stars = [];
+            for (let i = 0; i < STAR_COUNT; i++) {
+                const r = Math.random() * 2.0 + 0.4;
+                const x = Math.random() * W, y = Math.random() * H;
+                stars.push({
+                    x, y, ox: x, oy: y,
+                    vx: 0, vy: 0,
+                    r: r,
+                    alpha: Math.random() * 0.5 + 0.5,
+                    da: (Math.random() - 0.5) * 0.018,
+                    color: Math.random() > 0.75 ? '#c8a24e' : '#ffffff',
+                    glow: r > 1.4
+                });
+            }
+        }
+
+        // Track mouse on window (canvas has pointer-events: none)
+        window.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+        window.addEventListener('mouseleave', () => { mouseX = -9999; mouseY = -9999; });
+        // Touch support for mobile
+        window.addEventListener('touchmove', e => { const t = e.touches[0]; mouseX = t.clientX; mouseY = t.clientY; }, { passive: true });
+        window.addEventListener('touchend', () => { mouseX = -9999; mouseY = -9999; });
+
+        function spawnComet() {
+            if (comets.length > 2) return;
+            const startX = Math.random() * W * 1.2 - W * 0.1;
+            const startY = -20;
+            const angle = Math.PI / 4 + Math.random() * 0.5;
+            const speed = 6 + Math.random() * 8;
+            const isGold = Math.random() > 0.5;
+            comets.push({
+                x: startX, y: startY,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                tail: [],
+                maxTail: 40 + Math.floor(Math.random() * 30),
+                alpha: 0.7 + Math.random() * 0.3,
+                color: isGold ? '#c8a24e' : '#ffffff',
+                size: 1.5 + Math.random() * 1.5
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, W, H);
+
+            // Stars
+            for (const s of stars) {
+                s.alpha += s.da;
+                if (s.alpha <= 0.15 || s.alpha >= 1) s.da *= -1;
+
+                // Mouse repulsion
+                const dx = s.x - mouseX, dy = s.y - mouseY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < REPULSE_RADIUS && dist > 0) {
+                    const force = (1 - dist / REPULSE_RADIUS) * REPULSE_STRENGTH;
+                    s.vx += (dx / dist) * force;
+                    s.vy += (dy / dist) * force;
+                }
+                // Spring back to original position
+                s.vx += (s.ox - s.x) * SPRING;
+                s.vy += (s.oy - s.y) * SPRING;
+                s.vx *= DAMPING;
+                s.vy *= DAMPING;
+                s.x += s.vx;
+                s.y += s.vy;
+
+                // Glow for bigger stars
+                if (s.glow) {
+                    const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 4);
+                    grad.addColorStop(0, s.color);
+                    grad.addColorStop(1, 'transparent');
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, s.r * 4, 0, Math.PI * 2);
+                    ctx.fillStyle = grad;
+                    ctx.globalAlpha = s.alpha * 0.25;
+                    ctx.fill();
+                }
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+                ctx.fillStyle = s.color;
+                ctx.globalAlpha = s.alpha * 0.85;
+                ctx.fill();
+            }
+
+            // Comets
+            for (let i = comets.length - 1; i >= 0; i--) {
+                const c = comets[i];
+                c.tail.unshift({ x: c.x, y: c.y });
+                if (c.tail.length > c.maxTail) c.tail.pop();
+                c.x += c.vx;
+                c.y += c.vy;
+
+                // Draw tail
+                for (let t = 0; t < c.tail.length; t++) {
+                    const tp = c.tail[t];
+                    const fade = 1 - t / c.tail.length;
+                    ctx.beginPath();
+                    ctx.arc(tp.x, tp.y, c.size * fade * 0.6, 0, Math.PI * 2);
+                    ctx.fillStyle = c.color;
+                    ctx.globalAlpha = fade * c.alpha * 0.4;
+                    ctx.fill();
+                }
+
+                // Draw head
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2);
+                ctx.fillStyle = c.color;
+                ctx.globalAlpha = c.alpha;
+                ctx.fill();
+
+                // Glow
+                const grad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.size * 6);
+                grad.addColorStop(0, c.color);
+                grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad;
+                ctx.globalAlpha = c.alpha * 0.15;
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, c.size * 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Remove if off screen
+                if (c.x > W + 100 || c.y > H + 100) comets.splice(i, 1);
+            }
+
+            // Mouse trail — golden particles
+            if (mouseX > 0 && mouseY > 0) {
+                trail.push({ x: mouseX, y: mouseY, alpha: 1, r: 1 + Math.random() * 1.5 });
+                if (trail.length > 20) trail.shift();
+            }
+            for (let i = trail.length - 1; i >= 0; i--) {
+                const t = trail[i];
+                t.alpha -= 0.04;
+                if (t.alpha <= 0) { trail.splice(i, 1); continue; }
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.r * t.alpha, 0, Math.PI * 2);
+                ctx.fillStyle = '#c8a24e';
+                ctx.globalAlpha = t.alpha * 0.6;
+                ctx.fill();
+            }
+
+            // Cursor glow
+            if (mouseX > 0 && mouseY > 0) {
+                const g = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, REPULSE_RADIUS);
+                g.addColorStop(0, 'rgba(200,162,78,0.06)');
+                g.addColorStop(0.5, 'rgba(200,162,78,0.02)');
+                g.addColorStop(1, 'transparent');
+                ctx.beginPath();
+                ctx.arc(mouseX, mouseY, REPULSE_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = g;
+                ctx.globalAlpha = 1;
+                ctx.fill();
+            }
+
+            ctx.globalAlpha = 1;
+            requestAnimationFrame(draw);
+        }
+
+        resize();
+        createStars();
+        draw();
+        window.addEventListener('resize', () => { resize(); createStars(); });
+
+        // Randomly spawn comets
+        function scheduleComet() {
+            spawnComet();
+            setTimeout(scheduleComet, 2000 + Math.random() * 5000);
+        }
+        setTimeout(scheduleComet, 1500);
+    })();
+
+    // ── Hero floating particles ──
+    (function() {
+        const container = document.getElementById('hero-particles');
+        for (let i = 0; i < 20; i++) {
+            const p = document.createElement('div');
+            p.className = 'hero-particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.top = Math.random() * 100 + '%';
+            p.style.animationDelay = Math.random() * 6 + 's';
+            p.style.animationDuration = (4 + Math.random() * 4) + 's';
+            p.style.width = p.style.height = (2 + Math.random() * 3) + 'px';
+            container.appendChild(p);
+        }
+    })();
+
+    // ── Reveal on scroll ──
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) entry.target.classList.add('visible');
+        });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale').forEach(el => observer.observe(el));
+
+    // ── Counter animation ──
+    const counterObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            const h3 = entry.target.querySelector('h3[data-count]');
+            if (!h3 || h3.dataset.done) return;
+            h3.dataset.done = '1';
+            const target = parseInt(h3.dataset.count);
+            const suffix = h3.closest('.stat-item')?.querySelector('p')?.textContent.includes('%') ? '%' : (target > 0 ? '+' : '');
+            let current = 0;
+            const step = Math.max(1, Math.floor(target / 40));
+            const interval = setInterval(() => {
+                current += step;
+                if (current >= target) { current = target; clearInterval(interval); }
+                h3.textContent = current + (current === target ? suffix : '');
+            }, 30);
+        });
+    }, { threshold: 0.5 });
+    document.querySelectorAll('.stat-item').forEach(el => counterObserver.observe(el));
+
+    // ── FAQ accordion ──
+    document.querySelectorAll('.faq-question').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const item = btn.parentElement;
+            const answer = item.querySelector('.faq-answer');
+            const isOpen = item.classList.contains('open');
+            // Close all
+            document.querySelectorAll('.faq-item').forEach(i => {
+                i.classList.remove('open');
+                i.querySelector('.faq-answer').style.maxHeight = '0';
+            });
+            // Open clicked
+            if (!isOpen) {
+                item.classList.add('open');
+                answer.style.maxHeight = answer.scrollHeight + 'px';
+            }
+        });
+    });
+    </script>
+</body>
+</html>

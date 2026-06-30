@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+/* Nexus premium theme — near-black + real metallic gold (not yellow). */
+@theme {
+  --color-nexus-bg: #0a0a0b;
+  --color-nexus-surface: #141312;
+  --color-nexus-elevated: #1c1a17;
+  --color-nexus-border: #2a2620;
+
+  /* Real gold: warm antique/metallic, not pure yellow */
+  --color-nexus-gold: #c8a24e;
+  --color-nexus-gold-light: #e6cd86;
+  --color-nexus-gold-dark: #9a7b32;
+  /* keep `nexus-accent` mapped to gold so existing components recolor */
+  --color-nexus-accent: #c8a24e;
+
+  --color-nexus-fg: #ece7dd;
+  --color-nexus-muted: #8f8a80;
+
+  --font-sans: "Inter Variable", "Noto Sans Thai Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Playfair Display Variable", Georgia, "Times New Roman", serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-nexus-bg);
+  color: var(--color-nexus-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Gold-foil text — for the Nexus wordmark and premium headings. */
+.text-gold-foil {
+  background: linear-gradient(135deg, #f4e3b0 0%, #d9bd6e 38%, #c8a24e 58%, #a8822f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Subtle gold sheen for primary surfaces/buttons. */
+.bg-gold-sheen {
+  background-image: linear-gradient(135deg, #e6cd86 0%, #c8a24e 50%, #ad8636 100%);
+}
+
+/* Hairline gold divider. */
+.border-gold-faint {
+  border-color: rgba(200, 162, 78, 0.22);
+}
+
+/* Ghost gold bg — very subtle warm tint */
+.bg-gold-ghost {
+  background: rgba(200, 162, 78, 0.08);
+}
+
+/* Refined scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2c2823 transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2c2823;
+  border-radius: 9999px;
+  border: 2px solid var(--color-nexus-bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a352d;
+}
+
+/* Dropdown animation — smooth scale + fade */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+.animate-dropdown {
+  animation: dropdown-in 0.15s ease-out forwards;
+  transform-origin: inherit;
+}
+
+/* Liquid gold fill — for the loading screen wordmark.
+   The gradient is 300% tall: bottom = rich gold, middle = warm gold, top = faded.
+   We animate background-position upward so gold "rises" into the text. */
+@keyframes liquid-gold-fill {
+  0% {
+    background-position: center 100%;
+  }
+  100% {
+    background-position: center -80%;
+  }
+}
+
+.loading-liquid-gold {
+  /* Multi-layer gold gradient — brighter highlights, deeper shadows */
+  background-image:
+    linear-gradient(
+      to top,
+      #fef3c8 0%,       /* bright liquid surface shimmer */
+      #f0d78c 8%,       /* light gold */
+      #d4a843 18%,      /* warm gold */
+      #c8a24e 28%,      /* primary gold */
+      #b8923f 38%,      /* rich gold */
+      #9a7b32 48%,      /* deep gold */
+      #7a6228 58%,      /* bronze */
+      #5a481e 68%,      /* dark bronze */
+      #3d3115 78%,      /* shadow */
+      #1e1a0f 88%,      /* near-invisible */
+      #0a0a0a 100%      /* blends with bg */
+    );
+  background-size: 100% 400%;
+  background-position: center 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation:
+    liquid-gold-fill 2.8s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+    liquid-gold-shimmer 2s ease-in-out 0.5s infinite alternate;
+}
+
+/* Rising liquid fill */
+@keyframes liquid-gold-fill {
+  0% {
+    background-position: center 100%;
+    opacity: 0.3;
+  }
+  15% {
+    opacity: 0.6;
+  }
+  100% {
+    background-position: center 0%;
+    opacity: 1;
+  }
+}
+
+/* Subtle shimmer after fill completes — like light reflecting off liquid */
+@keyframes liquid-gold-shimmer {
+  0% {
+    filter: brightness(0.95);
+  }
+  50% {
+    filter: brightness(1.1);
+  }
+  100% {
+    filter: brightness(0.95);
+  }
+}
+
+/* Panel slide-in animation */
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.animate-panel {
+  animation: panel-in 0.2s ease-out forwards;
+}
+
+/* Smooth view transition */
+.transition-smooth {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Skeleton loading shimmer */
+@keyframes skeleton-pulse {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-nexus-surface) 25%,
+    var(--color-nexus-elevated) 50%,
+    var(--color-nexus-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}

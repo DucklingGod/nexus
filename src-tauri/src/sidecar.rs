@@ -1,0 +1,192 @@
+//! Manages the TypeScript agent engine running as a Node sidecar.
+//! Transport: newline-delimited JSON-RPC 2.0 over the child's stdio (SPEC §14).
+//!
+//! A background reader thread demultiplexes the engine's stdout:
+//!   - responses (have `id` + `result`/`error`) resolve the matching pending call
+//!   - notifications (have `method`, e.g. `chat.delta`) are handed to `on_notify`
+//!     which the app forwards to the UI as Tauri events (streaming).
+//!
+//! `request` is synchronous (blocks until the response); callers that may block
+//! for a while (chat) run it from an async command so the UI thread stays free.
+//! Dev resolves the engine via CARGO_MANIFEST_DIR; production will spawn the
+//! bundled sidecar binary instead (TODO).
+
+use std::collections::HashMap;
+use std::io::{BufRead, BufReader, Write};
+use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::{channel, Sender};
+use std::sync::{Arc, Mutex};
+
+use serde_json::{json, Value};
+
+type Pending = Arc<Mutex<HashMap<u64, Sender<Result<Value, String>>>>>;
+
+/// Find the Node.js executable.
+/// Priority: NEXUS_NODE env var > PATH > common Windows install locations.
+fn find_node() -> String {
+    // 1. Environment override
+    if let Ok(custom) = std::env::var("NEXUS_NODE") {
+        if std::path::Path::new(&custom).exists() {
+            return custom;
+        }
+    }
+    // 2. Try PATH (works in dev and when node is on PATH)
+    if Command::new("node").arg("--version").stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok() {
+        return "node".to_string();
+    }
+    // 3. Common Windows locations
+    for candidate in [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\Program Files (x86)\\nodejs\\node.exe",
+    ] {
+        if std::path::Path::new(candidate).exists() {
+            return candidate.to_string();
+        }
+    }
+    // 4. AppData local install
+    if let Ok(appdata) = std::env::var("LOCALAPPDATA") {
+        let p = format!("{}\\Programs\\nodejs\\node.exe", appdata);
+        if std::path::Path::new(&p).exists() {
+            return p;
+        }
+    }
+    // Fallback: hope it's on PATH
+    "node".to_string()
+}
+
+pub struct Sidecar {
+    stdin: Mutex<ChildStdin>,
+    pending: Pending,
+    next_id: AtomicU64,
+    child: Mutex<Child>,
+}
+
+impl Sidecar {
+    /// Spawn `node engine/src/main.ts` (Node 24 runs TypeScript natively).
+    /// `data_dir` is handed to the engine for its SQLite database.
+    /// `on_notify(method, params)` receives engine notifications.
+    pub fn spawn<F>(data_dir: &str, on_notify: F) -> std::io::Result<Arc<Self>>
+    where
+        F: Fn(&str, Value) + Send + 'static,
+    {
+        // Resolve engine path: use compile-time CARGO_MANIFEST_DIR (src-tauri/).
+        // Engine lives at ../engine/ relative to src-tauri/.
+        // Note: this path is baked at compile time — don't move the project after building.
+        let engine = std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../engine/src/main.ts"));
+
+        // Find node executable: NEXUS_NODE env > PATH > common Windows locations
+        let node = find_node();
+
+        let mut child = Command::new(&node)
+            .arg(&engine)
+            .env("NEXUS_DATA_DIR", data_dir)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+
+        let stdin = child.stdin.take().expect("piped stdin");
+        let stdout = child.stdout.take().expect("piped stdout");
+        let stderr = child.stderr.take().expect("piped stderr");
+
+        let pending: Pending = Arc::new(Mutex::new(HashMap::new()));
+
+        // Engine stderr (incl. "Nexus Engine Ready") → our console.
+        std::thread::spawn(move || {
+            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                eprintln!("[engine] {line}");
+            }
+        });
+
+        // Demux stdout: responses resolve pending calls; notifications → on_notify.
+        let pending_reader = pending.clone();
+        std::thread::spawn(move || {
+            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+                let Ok(v) = serde_json::from_str::<Value>(&line) else {
+                    continue;
+                };
+                if let Some(method) = v.get("method").and_then(Value::as_str) {
+                    on_notify(method, v.get("params").cloned().unwrap_or(Value::Null));
+                } else if let Some(id) = v.get("id").and_then(Value::as_u64) {
+                    if let Some(tx) = pending_reader.lock().unwrap().remove(&id) {
+                        let result = match v.get("error") {
+                            Some(err) => Err(err.to_string()),
+                            None => Ok(v.get("result").cloned().unwrap_or(Value::Null)),
+                        };
+                        let _ = tx.send(result);
+                    }
+                }
+            }
+        });
+
+        Ok(Arc::new(Self {
+            stdin: Mutex::new(stdin),
+            pending,
+            next_id: AtomicU64::new(1),
+            child: Mutex::new(child),
+        }))
+    }
+
+    /// Send a JSON-RPC request and block until its response.
+    pub fn request(&self, method: &str, params: Value) -> Result<Value, String> {
+        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
+        let (tx, rx) = channel();
+        self.pending.lock().map_err(|e| e.to_string())?.insert(id, tx);
+
+        let mut payload = serde_json::to_string(
+            &json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params }),
+        )
+        .map_err(|e| e.to_string())?;
+        payload.push('\n');
+        {
+            let mut stdin = self.stdin.lock().map_err(|e| e.to_string())?;
+            stdin.write_all(payload.as_bytes()).map_err(|e| e.to_string())?;
+            stdin.flush().map_err(|e| e.to_string())?;
+        }
+
+        rx.recv().map_err(|_| "engine closed the connection".to_string())?
+    }
+}
+
+impl Drop for Sidecar {
+    fn drop(&mut self) {
+        if let Ok(mut child) = self.child.lock() {
+            let _ = child.kill();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn spawn_test() -> Arc<Sidecar> {
+        let tmp = std::env::temp_dir();
+        Sidecar::spawn(tmp.to_str().unwrap(), |_, _| {}).expect("spawn engine")
+    }
+
+    // End-to-end: Rust spawns the Node engine, sends JSON-RPC, reads the reply
+    // through the demux reader.
+    #[test]
+    fn health_roundtrip() {
+        let sidecar = spawn_test();
+        let result = sidecar.request("engine.health", Value::Null).expect("health request");
+        assert_eq!(result["ok"], json!(true));
+        assert!(result["version"].is_string());
+    }
+
+    #[test]
+    fn unknown_method_is_error() {
+        let sidecar = spawn_test();
+        assert!(sidecar.request("does.not.exist", Value::Null).is_err());
+    }
+
+    // Two sequential requests reuse the one engine + reader thread correctly.
+    #[test]
+    fn sequential_requests() {
+        let sidecar = spawn_test();
+        assert!(sidecar.request("engine.health", Value::Null).is_ok());
+        assert!(sidecar.request("engine.health", Value::Null).is_ok());
+    }
+}
