@@ -13,6 +13,7 @@ import { matchSkillsAsync, injectSkills, synthesizeSkill } from "../skills/skill
 import { setWebKeys } from "../tools/web.ts";
 import { injectContext, isUserOnboarded } from "../context/files.ts";
 import { isAutoExtractEnabled, autoExtract } from "../context/autoExtract.ts";
+import { abortRequested } from "../main.ts";
 
 const MAX_TOOL_ROUNDS = 5;
 
@@ -155,6 +156,7 @@ async function agentLoop(
   const history = [...messages];
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    if (abortRequested) break;
     let fullText = "";
     let inputTokens = 0;
     let outputTokens = 0;

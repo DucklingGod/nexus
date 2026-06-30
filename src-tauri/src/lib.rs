@@ -47,6 +47,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::engine_health,
             commands::chat_send,
+            commands::chat_abort,
             commands::provider_test,
             commands::provider_set,
             commands::provider_get,

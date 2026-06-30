@@ -71,7 +71,7 @@ interface Props {
 }
 
 export function ChatConsole({ conversationId, onConversationCreated }: Props) {
-  const { messages, sendMessage, loading, error, pendingApproval, respondApproval, toolEvents } = useChat(conversationId, onConversationCreated);
+  const { messages, sendMessage, loading, error, stopChat, pendingApproval, respondApproval, toolEvents } = useChat(conversationId, onConversationCreated);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -479,14 +479,24 @@ export function ChatConsole({ conversationId, onConversationCreated }: Props) {
                   )}
                 </div>
 
-                {/* Send button */}
-                <button
-                  onClick={handleSend}
-                  disabled={loading || !input.trim()}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-nexus-fg/80 text-nexus-bg transition hover:bg-nexus-fg disabled:opacity-30"
-                >
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 12V4M5 7l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </button>
+                {/* Send / Stop button */}
+                {loading ? (
+                  <button
+                    onClick={stopChat}
+                    title="Stop agent"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500/80 text-white transition hover:bg-red-500 animate-pulse"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10" rx="1.5" /></svg>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim()}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-nexus-fg/80 text-nexus-bg transition hover:bg-nexus-fg disabled:opacity-30"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 12V4M5 7l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </button>
+                )}
               </div>
             </div>
           </div>

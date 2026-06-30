@@ -62,6 +62,12 @@ pub async fn chat_send(
     state.sidecar.request("chat.send", params)
 }
 
+/// Abort the current chat request (panic button).
+#[tauri::command]
+pub fn chat_abort(state: State<'_, AppState>) {
+    state.sidecar.abort();
+}
+
 /// Test a provider connection using its brokered key.
 #[tauri::command]
 pub async fn provider_test(

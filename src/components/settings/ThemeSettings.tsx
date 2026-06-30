@@ -15,13 +15,13 @@ interface SpaceFxSettings {
 
 const DEFAULTS: SpaceFxSettings = {
   starsEnabled: true,
-  starDensity: 350,
-  starBrightness: 0.85,
+  starDensity: 230,
+  starBrightness: 0.40,
   starGoldRatio: 25,
   cometsEnabled: true,
   cometFrequency: 5,
-  cometSpeed: 8,
-  canvasOpacity: 0.85,
+  cometSpeed: 6,
+  canvasOpacity: 0.75,
   glowEnabled: true,
 };
 
@@ -31,7 +31,7 @@ export function useSpaceFxSettings(): SpaceFxSettings {
   const [settings, setSettings] = useState<SpaceFxSettings>(DEFAULTS);
 
   useEffect(() => {
-    invoke<Record<string, string>>("engine_rpc", { method: "settings.get_all", params: {} })
+    invoke<Record<string, string>>("engine_rpc", { method: "settings.getAll", params: {} })
       .then(all => {
         const s = { ...DEFAULTS };
         for (const k of Object.keys(DEFAULTS) as (keyof SpaceFxSettings)[]) {
@@ -58,7 +58,7 @@ export function ThemeSettings({ onSettingsChange }: Props) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    invoke<Record<string, string>>("engine_rpc", { method: "settings.get_all", params: {} })
+    invoke<Record<string, string>>("engine_rpc", { method: "settings.getAll", params: {} })
       .then(all => {
         const loaded = { ...DEFAULTS };
         for (const k of Object.keys(DEFAULTS) as (keyof SpaceFxSettings)[]) {
@@ -81,6 +81,18 @@ export function ThemeSettings({ onSettingsChange }: Props) {
       method: "settings.set",
       params: { key: key(k), value: String(value) },
     }).catch(() => {});
+    onSettingsChange?.();
+    window.dispatchEvent(new Event("nexus-theme-changed"));
+  }
+
+  async function resetAll() {
+    setS(DEFAULTS);
+    for (const k of Object.keys(DEFAULTS) as (keyof SpaceFxSettings)[]) {
+      await invoke("engine_rpc", {
+        method: "settings.set",
+        params: { key: key(k), value: String(DEFAULTS[k]) },
+      }).catch(() => {});
+    }
     onSettingsChange?.();
     window.dispatchEvent(new Event("nexus-theme-changed"));
   }
@@ -179,11 +191,7 @@ export function ThemeSettings({ onSettingsChange }: Props) {
 
       {/* Reset */}
       <button
-        onClick={() => {
-          for (const k of Object.keys(DEFAULTS) as (keyof SpaceFxSettings)[]) {
-            update(k, DEFAULTS[k]);
-          }
-        }}
+        onClick={resetAll}
         className="text-xs text-neutral-600 hover:text-neutral-400 transition"
       >
         Reset to defaults

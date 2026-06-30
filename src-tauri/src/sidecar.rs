@@ -146,6 +146,28 @@ impl Sidecar {
 
         rx.recv().map_err(|_| "engine closed the connection".to_string())?
     }
+
+    /// Abort all pending requests — the agent loop will stop because the pending
+    /// channels are dropped, causing the engine to get a closed-connection error
+    /// on its next response write.  We also fire a `chat.abort` notification so
+    /// the engine can stop mid-stream if it wants to.
+    pub fn abort(&self) {
+        // 1. Drop all pending senders → rx.recv() in request() returns Err → caller gets error
+        if let Ok(mut map) = self.pending.lock() {
+            map.clear();
+        }
+        // 2. Tell the engine to stop (best-effort — engine may ignore if not streaming)
+        let notification = serde_json::to_string(
+            &json!({ "jsonrpc": "2.0", "method": "chat.abort", "params": {} }),
+        );
+        if let Ok(mut payload) = notification {
+            payload.push('\n');
+            if let Ok(mut stdin) = self.stdin.lock() {
+                let _ = stdin.write_all(payload.as_bytes());
+                let _ = stdin.flush();
+            }
+        }
+    }
 }
 
 impl Drop for Sidecar {

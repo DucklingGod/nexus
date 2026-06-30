@@ -40,6 +40,7 @@ interface UseChatReturn {
   loading: boolean;
   error: string | null;
   newChat: () => void;
+  stopChat: () => void;
   toolEvents: ToolEvent[];
   pendingApproval: ToolApproval | null;
   respondApproval: (approved: boolean) => void;
@@ -360,6 +361,12 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
     onConversationCreated?.("");
   }, []);
 
+  const stopChat = useCallback(() => {
+    invoke("chat_abort").catch(() => {});
+    streamingId.current = null;
+    setLoading(false);
+  }, []);
+
   const respondApproval = useCallback((approved: boolean) => {
     setPendingApproval((current) => {
       if (current) {
@@ -378,6 +385,7 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
     loading,
     error,
     newChat,
+    stopChat,
     toolEvents: allToolEvents,
     pendingApproval,
     respondApproval,

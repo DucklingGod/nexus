@@ -24,13 +24,13 @@ interface SpaceFxSettings {
 
 const DEFAULTS: SpaceFxSettings = {
   starsEnabled: true,
-  starDensity: 350,
-  starBrightness: 0.85,
+  starDensity: 230,
+  starBrightness: 0.40,
   starGoldRatio: 25,
   cometsEnabled: true,
   cometFrequency: 5,
-  cometSpeed: 8,
-  canvasOpacity: 0.85,
+  cometSpeed: 6,
+  canvasOpacity: 0.75,
   glowEnabled: true,
 };
 
@@ -38,7 +38,7 @@ function key(k: keyof SpaceFxSettings) { return `theme.spaceFx.${k}`; }
 
 async function loadSettings(): Promise<SpaceFxSettings> {
   try {
-    const all = await invoke<Record<string, string>>("engine_rpc", { method: "settings.get_all", params: {} });
+    const all = await invoke<Record<string, string>>("engine_rpc", { method: "settings.getAll", params: {} });
     const s = { ...DEFAULTS };
     for (const k of Object.keys(DEFAULTS) as (keyof SpaceFxSettings)[]) {
       const v = all[key(k)];
