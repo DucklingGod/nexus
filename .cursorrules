@@ -1,0 +1,26 @@
+# Nexus — Desktop AI Agent Platform (Tauri 2 + React/TS)
+
+## Stack
+- Shell: Tauri 2.x (Rust). Frontend: React 19 + TypeScript + Tailwind v4 (Vite).
+- Agent engine: TypeScript Node/Bun sidecar (`engine/`), JSON-RPC over stdio.
+- DB: SQLite via `better-sqlite3` + `sqlite-vec`. Secrets: OS keychain only.
+
+## Build
+- macOS: `npx tauri dev` / `npx tauri build`
+- Windows: prepend PATH: `export PATH="$HOME/.rustup/toolchains/stable-x86_64-pc-windows-msvc/bin:$PATH"`
+- Frontend check: `npm run build`
+- Rust check: `cargo check --manifest-path src-tauri/Cargo.toml`
+
+## Discipline
+- YAGNI ladder: needed → reuse → stdlib → native → existing dep → one-liner → minimal code.
+- No unrequested abstractions. Never lazy on: validation, error handling, security, tests.
+
+## Workflow Rules (MANDATORY)
+
+### After EVERY task completion:
+1. Verify build: `npm run build` + `cargo check`
+2. Commit: `git add -A && git commit -m "feat: <desc>" && git push origin master`
+3. Update wiki at `~/digital-brain/projects/ai-agent-builder/nexus-rebuild.md`
+4. Commit wiki: `cd ~/digital-brain && git add -A && git commit -m "wiki: <desc>" && git push origin master`
+
+Wiki location: `~/digital-brain/` (clone of github.com/DucklingGod/obsidian_wiki)
