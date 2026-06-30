@@ -49,7 +49,8 @@ Your agent is ready. Ask it anything, upload documents for RAG, or build visual 
 ### Chat & Intelligence
 - **Streaming responses** with markdown rendering (code blocks, tables, lists)
 - **Reasoning streaming** — see model thinking in real-time (OpenAI o1/o3, Claude extended thinking, DeepSeek R1)
-- **12+ providers** — OpenAI, Anthropic, Google, OpenRouter, Ollama, and OpenAI-compatible endpoints
+- **12+ providers** — OpenAI, Anthropic, Google, DeepSeek, and more (direct API keys)
+- **OpenRouter hub** — access 300+ models with one key, including **free models** (no credit card needed)
 - **Smart model routing** — heuristic complexity classifier routes to the cheapest capable model
 - **Semantic caching** — repeat queries answered instantly at $0 cost (cosine similarity ≥0.95)
 - **Prompt caching** — Anthropic cache_control reduces costs ~90% on repeated system prompts
