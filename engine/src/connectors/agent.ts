@@ -24,7 +24,8 @@ function systemPrompt(platform: string): string {
 function safeTools(): object[] {
   return listToolsForLLM().filter((t) => {
     const name = (t as { function?: { name?: string } }).function?.name;
-    return name ? !getTool(name)?.def.dangerous : true;
+    // Exclude dangerous tools and `delegate` (sub-agents must not delegate again).
+    return name ? (name !== "delegate" && !getTool(name)?.def.dangerous) : true;
   });
 }
 

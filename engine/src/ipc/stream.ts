@@ -11,6 +11,7 @@ import { maybeRouteModel } from "../tokens/router.ts";
 import { isCacheable, getCachedResponse, saveCachedResponse } from "../tokens/semanticCache.ts";
 import { matchSkillsAsync, injectSkills, synthesizeSkill } from "../skills/skills.ts";
 import { setWebKeys } from "../tools/web.ts";
+import { setActiveConfig } from "../agents/runtime.ts";
 import { injectContext, isUserOnboarded } from "../context/files.ts";
 import { isAutoExtractEnabled, autoExtract } from "../context/autoExtract.ts";
 import { abortRequested } from "../main.ts";
@@ -42,6 +43,7 @@ export async function streamChat(
   // Smart model routing (Task 31): route simpler messages to a cheaper model.
   const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
   const model = maybeRouteModel(config.baseUrl ?? "", requestedModel, lastUserMsg, send);
+  setActiveConfig({ ...config, model });
 
   // Semantic cache (Task 30): serve a cached answer for a repeated standalone question.
   const cacheable = getSetting("cache.enabled") === "true" && isCacheable(messages);

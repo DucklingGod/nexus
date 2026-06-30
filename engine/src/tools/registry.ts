@@ -81,6 +81,7 @@ export async function initTools(): Promise<void> {
   const { registerKnowledgeTools } = await import("./knowledge.ts");
   const { registerInstallTools } = await import("./install.ts");
   const { registerMemoryTools } = await import("./memory.ts");
+  const { registerDelegateTools } = await import("./delegate.ts");
 
   registerWebTools();
   registerFileTools();
@@ -93,6 +94,7 @@ export async function initTools(): Promise<void> {
   registerKnowledgeTools(registerTool);
   registerInstallTools();
   registerMemoryTools();
+  registerDelegateTools();
 
   process.stderr.write(`[tools] registered ${tools.size} tools: ${listTools().map(t => t.name).join(", ")}\n`);
 }
