@@ -30,6 +30,8 @@ pub fn run() {
             // Non-fatal: if the engine can't start, still open the window so the
             // user sees the UI (commands will surface the failure) instead of the
             // app silently exiting — there's no console in a release build.
+            // Always manage AppState — use a failed sidecar placeholder if spawn fails
+            // so Tauri commands don't panic with "state not managed".
             match sidecar::Sidecar::spawn(&data_dir, move |method, params| {
                 let _ = handle.emit("engine-event", json!({ "method": method, "params": params }));
             }) {
@@ -40,7 +42,11 @@ pub fn run() {
                     }
                     app.manage(AppState { sidecar });
                 }
-                Err(e) => eprintln!("Failed to start engine sidecar: {e}"),
+                Err(e) => {
+                    eprintln!("Failed to start engine sidecar: {e}");
+                    // Manage with a dummy sidecar so commands return errors instead of panicking
+                    app.manage(AppState { sidecar: Arc::new(sidecar::Sidecar::dummy()) });
+                }
             }
             Ok(())
         })

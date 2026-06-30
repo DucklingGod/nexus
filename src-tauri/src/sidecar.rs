@@ -23,7 +23,7 @@ use serde_json::{json, Value};
 type Pending = Arc<Mutex<HashMap<u64, Sender<Result<Value, String>>>>>;
 
 /// Find the Node.js executable.
-/// Priority: NEXUS_NODE env var > PATH > common Windows install locations.
+/// Priority: NEXUS_NODE env var > PATH > common Windows/macOS install locations.
 fn find_node() -> String {
     // 1. Environment override
     if let Ok(custom) = std::env::var("NEXUS_NODE") {
@@ -44,11 +44,46 @@ fn find_node() -> String {
             return candidate.to_string();
         }
     }
-    // 4. AppData local install
+    // 4. Windows AppData local install
     if let Ok(appdata) = std::env::var("LOCALAPPDATA") {
         let p = format!("{}\\Programs\\nodejs\\node.exe", appdata);
         if std::path::Path::new(&p).exists() {
             return p;
+        }
+    }
+    // 5. macOS nvm — load from shell profile
+    if cfg!(target_os = "macos") {
+        if let Ok(home) = std::env::var("HOME") {
+            // Check nvm default alias
+            let nvm_default = format!("{}/.nvm/alias/default", home);
+            if let Ok(ver) = std::fs::read_to_string(&nvm_default) {
+                let ver = ver.trim();
+                let nvm_node = format!("{}/.nvm/versions/node/{}/bin/node", home, ver);
+                if std::path::Path::new(&nvm_node).exists() {
+                    return nvm_node;
+                }
+            }
+            // Scan nvm versions directory for latest
+            let versions_dir = format!("{}/.nvm/versions/node", home);
+            if let Ok(entries) = std::fs::read_dir(&versions_dir) {
+                let mut versions: Vec<String> = entries
+                    .filter_map(|e| e.ok())
+                    .filter_map(|e| e.file_name().into_string().ok())
+                    .filter(|n| n.starts_with('v'))
+                    .collect();
+                versions.sort();
+                if let Some(latest) = versions.last() {
+                    let nvm_node = format!("{}/.nvm/versions/node/{}/bin/node", home, latest);
+                    if std::path::Path::new(&nvm_node).exists() {
+                        return nvm_node;
+                    }
+                }
+            }
+            // Homebrew
+            let brew_node = "/opt/homebrew/bin/node";
+            if std::path::Path::new(brew_node).exists() {
+                return brew_node.to_string();
+            }
         }
     }
     // Fallback: hope it's on PATH
@@ -56,13 +91,26 @@ fn find_node() -> String {
 }
 
 pub struct Sidecar {
-    stdin: Mutex<ChildStdin>,
+    stdin: Option<Mutex<ChildStdin>>,
     pending: Pending,
     next_id: AtomicU64,
-    child: Mutex<Child>,
+    child: Option<Mutex<Child>>,
+    alive: bool,
 }
 
 impl Sidecar {
+    /// Create a dummy sidecar that returns errors for all requests.
+    /// Used when the engine fails to spawn so AppState is still managed.
+    pub fn dummy() -> Self {
+        Self {
+            stdin: None,
+            pending: Arc::new(Mutex::new(HashMap::new())),
+            next_id: AtomicU64::new(1),
+            child: None,
+            alive: false,
+        }
+    }
+
     /// Spawn `node engine/src/main.ts` (Node 24 runs TypeScript natively).
     /// `data_dir` is handed to the engine for its SQLite database.
     /// `on_notify(method, params)` receives engine notifications.
@@ -120,15 +168,19 @@ impl Sidecar {
         });
 
         Ok(Arc::new(Self {
-            stdin: Mutex::new(stdin),
+            stdin: Some(Mutex::new(stdin)),
             pending,
             next_id: AtomicU64::new(1),
-            child: Mutex::new(child),
+            child: Some(Mutex::new(child)),
+            alive: true,
         }))
     }
 
     /// Send a JSON-RPC request and block until its response.
     pub fn request(&self, method: &str, params: Value) -> Result<Value, String> {
+        if !self.alive {
+            return Err("Engine not running — sidecar failed to start".to_string());
+        }
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let (tx, rx) = channel();
         self.pending.lock().map_err(|e| e.to_string())?.insert(id, tx);
@@ -139,7 +191,8 @@ impl Sidecar {
         .map_err(|e| e.to_string())?;
         payload.push('\n');
         {
-            let mut stdin = self.stdin.lock().map_err(|e| e.to_string())?;
+            let stdin = self.stdin.as_ref().ok_or("no stdin")?;
+            let mut stdin = stdin.lock().map_err(|e| e.to_string())?;
             stdin.write_all(payload.as_bytes()).map_err(|e| e.to_string())?;
             stdin.flush().map_err(|e| e.to_string())?;
         }
@@ -152,6 +205,7 @@ impl Sidecar {
     /// on its next response write.  We also fire a `chat.abort` notification so
     /// the engine can stop mid-stream if it wants to.
     pub fn abort(&self) {
+        if !self.alive { return; }
         // 1. Drop all pending senders → rx.recv() in request() returns Err → caller gets error
         if let Ok(mut map) = self.pending.lock() {
             map.clear();
@@ -160,9 +214,9 @@ impl Sidecar {
         let notification = serde_json::to_string(
             &json!({ "jsonrpc": "2.0", "method": "chat.abort", "params": {} }),
         );
-        if let Ok(mut payload) = notification {
+        if let (Ok(mut payload), Some(stdin)) = (notification, &self.stdin) {
             payload.push('\n');
-            if let Ok(mut stdin) = self.stdin.lock() {
+            if let Ok(mut stdin) = stdin.lock() {
                 let _ = stdin.write_all(payload.as_bytes());
                 let _ = stdin.flush();
             }
@@ -172,8 +226,10 @@ impl Sidecar {
 
 impl Drop for Sidecar {
     fn drop(&mut self) {
-        if let Ok(mut child) = self.child.lock() {
-            let _ = child.kill();
+        if let Some(child) = &self.child {
+            if let Ok(mut child) = child.lock() {
+                let _ = child.kill();
+            }
         }
     }
 }
