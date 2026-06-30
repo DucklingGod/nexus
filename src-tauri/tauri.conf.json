@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "Nexus",
-        "width": 1000,
-        "height": 700,
+        "width": 1100,
+        "height": 750,
         "minWidth": 800,
         "minHeight": 600,
         "decorations": false
