@@ -72,5 +72,7 @@ export const PROVIDER_PRESETS: Omit<ProviderConfig, "apiKey">[] = [
   { id: "kimi",       name: "Kimi / Moonshot",  baseUrl: "https://api.moonshot.cn/v1",       defaultModel: "moonshot-v1-8k" },
   { id: "dashscope",  name: "Alibaba / Qwen",   baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", defaultModel: "qwen-plus" },
   { id: "xiaomi",     name: "Xiaomi MiMo",      baseUrl: "https://api.xiaomi.com/v1",        defaultModel: "MiMo-V2.5" },
+  { id: "zai",        name: "Z.ai (Zhipu)",    baseUrl: "https://api.z.ai/api/paas/v4",    defaultModel: "glm-4-flash" },
+  { id: "zai-coding", name: "Z.ai Coding Plan", baseUrl: "https://api.z.ai/api/coding/paas/v4", defaultModel: "glm-4-flash" },
   { id: "ollama",     name: "Ollama (local)",   baseUrl: "http://localhost:11434/v1",        defaultModel: "llama3.2" },
 ];

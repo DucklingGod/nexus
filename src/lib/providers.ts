@@ -25,6 +25,8 @@ export const PROVIDERS: ProviderInfo[] = [
   { id: "kimi", name: "Kimi / Moonshot", baseUrl: "https://api.moonshot.cn/v1", tier: "specialized", models: "Kimi K2", authType: "api_key", envVar: "KIMI_API_KEY", description: "Long context" },
   { id: "dashscope", name: "Alibaba / Qwen", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", tier: "specialized", models: "Qwen3 series", authType: "api_key", envVar: "DASHSCOPE_API_KEY", description: "Chinese market" },
   { id: "xiaomi", name: "Xiaomi MiMo", baseUrl: "https://api.xiaomimimo.com/v1", tier: "specialized", models: "MiMo-V2.5 Pro, Flash, Omni", authType: "api_key", envVar: "XIAOMI_API_KEY", description: "Multimodal, TTS, coding" },
+  { id: "zai", name: "Z.ai (Zhipu)", baseUrl: "https://api.z.ai/api/paas/v4", tier: "specialized", models: "GLM-5.2, GLM-4-Flash", authType: "api_key", envVar: "ZAI_API_KEY", description: "Chinese LLM, coding, reasoning" },
+  { id: "zai-coding", name: "Z.ai Coding Plan", baseUrl: "https://api.z.ai/api/coding/paas/v4", tier: "specialized", models: "GLM Coding models", authType: "api_key", envVar: "ZAI_API_KEY", description: "Z.ai dedicated coding endpoint" },
   // Hub — OpenRouter: one key, 300+ models, includes free models
   { id: "openrouter", name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", tier: "major", models: "300+ models (incl. free)", authType: "api_key", envVar: "OPENROUTER_API_KEY", description: "Access all models — includes free tier", isHub: true },
   // Local
