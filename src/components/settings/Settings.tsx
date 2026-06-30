@@ -7,6 +7,7 @@ import { TokenDashboard } from "./TokenDashboard";
 import { IconKey, IconBot, IconZap, IconGear, IconBook, IconChart, IconGlobe, IconFolder, IconTerminal, IconClipboard, IconBrain, IconWrench, IconArrowLeft, IconStar, IconShield } from "../icons";
 import { About } from "../About";
 import { AuditLog } from "./AuditLog";
+import { ThemeSettings } from "./ThemeSettings";
 
 interface Props {
   onClose: () => void;
@@ -26,7 +27,7 @@ interface AgentPersonality {
   instructions: string;
 }
 
-type TabId = "provider" | "agent" | "capabilities" | "advanced" | "knowledge" | "connectors" | "context" | "usage" | "audit" | "about";
+type TabId = "provider" | "agent" | "capabilities" | "advanced" | "knowledge" | "connectors" | "context" | "theme" | "usage" | "audit" | "about";
 
 const TABS: { id: TabId; label: string; icon: React.FC<{ size?: number }> }[] = [
   { id: "provider", label: "Provider", icon: IconKey },
@@ -36,6 +37,7 @@ const TABS: { id: TabId; label: string; icon: React.FC<{ size?: number }> }[] = 
   { id: "knowledge", label: "Knowledge", icon: IconBook },
   { id: "connectors", label: "Connectors", icon: IconGlobe },
   { id: "context", label: "Context", icon: IconClipboard },
+  { id: "theme", label: "Theme", icon: IconStar },
   { id: "usage", label: "Usage", icon: IconChart },
   { id: "audit", label: "Audit", icon: IconShield },
   { id: "about", label: "About", icon: IconStar },
@@ -768,6 +770,7 @@ export function Settings({ onClose }: Props) {
           )}
 
           {/* Usage */}
+          {tab === "theme" && <ThemeSettings />}
           {tab === "usage" && <TokenDashboard />}
 
           {/* Audit */}
