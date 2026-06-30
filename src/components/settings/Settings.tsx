@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { save, open } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { secureHas, secureSet, secureDelete } from "../../lib/secure";
 import { PROVIDERS, type ProviderInfo } from "../../lib/providers";
@@ -141,6 +142,25 @@ export function Settings({ onClose }: Props) {
   function showMsg(text: string) {
     setMsg(text);
     setTimeout(() => setMsg(null), 3000);
+  }
+
+  async function handleExportAgent() {
+    const path = await save({ defaultPath: "nexus-agent.json", filters: [{ name: "JSON", extensions: ["json"] }] }).catch(() => null);
+    if (!path) return;
+    try {
+      await invoke("engine_rpc", { method: "agent.export", params: { path } });
+      showMsg("Agent exported");
+    } catch (e) { showMsg(`Error: ${e}`); }
+  }
+
+  async function handleImportAgent() {
+    const path = await open({ filters: [{ name: "JSON", extensions: ["json"] }] }).catch(() => null);
+    if (typeof path !== "string") return;
+    try {
+      const r = await invoke<{ skills: number }>("engine_rpc", { method: "agent.import", params: { path } });
+      await loadConfig();
+      showMsg(`Imported agent (+${r.skills} skills)`);
+    } catch (e) { showMsg(`Error: ${e}`); }
   }
 
   async function handleSaveApiKey() {
@@ -664,6 +684,15 @@ export function Settings({ onClose }: Props) {
                 className="mt-2 self-start rounded-lg bg-nexus-accent px-6 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">
                 {saving ? "Saving..." : "Save Advanced Settings"}
               </button>
+
+              <div className="mt-4 border-t border-nexus-border/40 pt-4">
+                <label className="mb-2 block text-sm text-nexus-muted">Export / Import agent</label>
+                <div className="flex gap-2">
+                  <button onClick={handleExportAgent} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-nexus-fg hover:bg-nexus-surface">Export agent</button>
+                  <button onClick={handleImportAgent} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-nexus-fg hover:bg-nexus-surface">Import agent</button>
+                </div>
+                <p className="mt-1 text-xs text-nexus-muted">Personality, behavior settings, custom skills, and context as a shareable JSON. Your provider and API keys are never included.</p>
+              </div>
             </div>
           )}
 

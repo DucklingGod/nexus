@@ -22,6 +22,7 @@ import { listWorkflows, getWorkflow, saveWorkflow, deleteWorkflow } from "../wor
 import { runWorkflow } from "../workflow/executor.ts";
 import { importSkills } from "../skills/import.ts";
 import { listContextFiles, setContextFile } from "../context/files.ts";
+import { exportAgent, importAgent } from "../io/agent.ts";
 import { addDocument, ingestFile, listDocuments, deleteDocument } from "../knowledge/documents.ts";
 import {
   createConversation,
@@ -192,6 +193,14 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
         const { name, content } = req.params as { name: string; content: string };
         setContextFile(name, content);
         return { ...base, result: { ok: true } };
+      }
+      case "agent.export": {
+        const { path } = req.params as { path: string };
+        return { ...base, result: exportAgent(path) };
+      }
+      case "agent.import": {
+        const { path } = req.params as { path: string };
+        return { ...base, result: importAgent(path) };
       }
       case "tools.execute": {
         const { name, arguments: args } = req.params as { name: string; arguments: Record<string, unknown> };
