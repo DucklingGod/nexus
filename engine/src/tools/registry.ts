@@ -86,6 +86,8 @@ export async function initTools(): Promise<void> {
   const { registerBrowserTools } = await import("./browser.ts");
   const { registerSchedulerTools } = await import("./scheduler.ts");
   const { registerSessionSearchTool } = await import("./session.ts");
+  const { registerMcpTools } = await import("./mcp.ts");
+  const { registerPluginTools } = await import("./plugins.ts");
 
   registerWebTools();
   registerFileTools();
@@ -103,6 +105,8 @@ export async function initTools(): Promise<void> {
   registerBrowserTools();
   registerSchedulerTools();
   registerSessionSearchTool();
+  registerMcpTools();
+  registerPluginTools();
 
   process.stderr.write(`[tools] registered ${tools.size} tools: ${listTools().map(t => t.name).join(", ")}\n`);
 }

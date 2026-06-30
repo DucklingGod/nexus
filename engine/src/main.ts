@@ -12,6 +12,10 @@ process.stderr.write("Nexus Engine Ready\n");
 // Initialize tools on startup
 initTools().catch(e => process.stderr.write(`[tools] init failed: ${e}\n`));
 
+// Auto-connect MCP servers and load plugins on startup
+import("./mcp/client.ts").then(({ autoConnect }) => autoConnect().catch(() => {})).catch(() => {});
+import("./plugins/manager.ts").then(({ loadAllPlugins }) => loadAllPlugins().catch(() => {})).catch(() => {});
+
 function send(obj: unknown): void {
   process.stdout.write(JSON.stringify(obj) + "\n");
 }
