@@ -16,6 +16,8 @@ export interface MessageMeta {
   skills?: string[];
   routedModel?: string;
   cached?: boolean;
+  model?: string;
+  usage?: { input: number; output: number };
 }
 
 export interface Message {
@@ -313,16 +315,19 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
         });
 
         setMessages((prev) => {
+          const meta = { model: response.model, usage: response.usage };
           const existing = prev.find((m) => m.id === assistantId);
           if (existing) {
-            persistMessage({ ...existing, content: existing.content || (response.content ?? "") }, convId);
-            return prev;
+            const updated = { ...existing, content: existing.content || (response.content ?? ""), meta: { ...existing.meta, ...meta } };
+            persistMessage(updated, convId);
+            return prev.map((m) => (m.id === assistantId ? updated : m));
           }
           const finalMsg: Message = {
             id: assistantId,
             role: "assistant",
             content: response.content ?? "(empty response)",
             timestamp: Date.now(),
+            meta,
           };
           persistMessage(finalMsg, convId);
           return [...prev, finalMsg];

@@ -251,7 +251,7 @@ export function ChatConsole({ conversationId, onConversationCreated }: Props) {
                         ))}
                       </div>
                     )}
-                    {msg.meta && (msg.meta.skills?.length || msg.meta.routedModel || msg.meta.cached) ? (
+                    {msg.meta && (msg.meta.skills?.length || msg.meta.routedModel || msg.meta.cached || msg.meta.model || msg.meta.usage) ? (
                       <div className="flex flex-wrap gap-1.5">
                         {msg.meta.cached && (
                           <span className="flex items-center gap-1 rounded-full border border-gold-faint bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-gold">↺ cached</span>
@@ -262,6 +262,11 @@ export function ChatConsole({ conversationId, onConversationCreated }: Props) {
                         {msg.meta.skills?.map((s) => (
                           <span key={s} title="Skill auto-applied" className="flex items-center gap-1 rounded-full border border-gold-faint bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-gold/90">✦ {s}</span>
                         ))}
+                        {(msg.meta.model || msg.meta.usage) && !msg.meta.cached && (
+                          <span title="Model and tokens for this reply" className="flex items-center gap-1 rounded-full border border-nexus-border/30 bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-muted/70">
+                            {msg.meta.model ?? ""}{msg.meta.usage ? ` · ${msg.meta.usage.input}→${msg.meta.usage.output} tok` : ""}
+                          </span>
+                        )}
                       </div>
                     ) : null}
                     <div className="max-w-[85%]">
