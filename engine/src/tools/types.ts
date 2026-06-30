@@ -12,7 +12,7 @@ export interface ToolParam {
 export interface ToolDef {
   name: string;
   description: string;
-  category: "web" | "file" | "system" | "code" | "utility" | "knowledge";
+  category: "web" | "file" | "system" | "code" | "utility" | "knowledge" | "media";
   parameters: ToolParam[];
   dangerous?: boolean; // requires user approval
 }

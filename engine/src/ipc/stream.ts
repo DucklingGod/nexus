@@ -11,6 +11,7 @@ import { maybeRouteModel } from "../tokens/router.ts";
 import { isCacheable, getCachedResponse, saveCachedResponse } from "../tokens/semanticCache.ts";
 import { matchSkillsAsync, injectSkills, synthesizeSkill } from "../skills/skills.ts";
 import { setWebKeys } from "../tools/web.ts";
+import { setMediaKeys } from "../tools/media.ts";
 import { setActiveConfig } from "../agents/runtime.ts";
 import { injectContext, isUserOnboarded } from "../context/files.ts";
 import { isAutoExtractEnabled, autoExtract } from "../context/autoExtract.ts";
@@ -31,14 +32,16 @@ export async function streamChat(
   req: RpcRequest,
   send: (obj: unknown) => void,
 ): Promise<void> {
-  const { messages, model: requestedModel, reasoningEffort, webKeys, safetyMode, ...config } = req.params as {
+  const { messages, model: requestedModel, reasoningEffort, webKeys, mediaKeys, safetyMode, ...config } = req.params as {
     messages: ChatMessage[];
     model: string;
     reasoningEffort?: "low" | "medium" | "high" | "max";
     webKeys?: { tavily?: string; brave?: string };
+    mediaKeys?: { openai?: string };
     safetyMode?: string;
   } & ProviderConfig;
   setWebKeys(webKeys);
+  setMediaKeys(mediaKeys);
   const maxTokens = Number(getSetting("model.maxTokens")) || undefined;
   // Smart model routing (Task 31): route simpler messages to a cheaper model.
   const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";

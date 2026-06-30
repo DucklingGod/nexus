@@ -49,9 +49,12 @@ pub async fn chat_send(
     // Broker optional web-search keys (Tavily/Brave) from the keychain for in-chat tool use.
     let tavily = secure::get_key("api_key_tavily")?.unwrap_or_default();
     let brave = secure::get_key("api_key_brave")?.unwrap_or_default();
+    // Broker OpenAI key for media tools (image_generate, text_to_speech).
+    let openai = secure::get_key("api_key_openai")?.unwrap_or_default();
     let mut params = json!({
         "messages": messages, "model": model, "baseUrl": base_url, "apiKey": api_key,
         "webKeys": { "tavily": tavily, "brave": brave },
+        "mediaKeys": { "openai": openai },
     });
     if let Some(effort) = reasoning_effort {
         params["reasoningEffort"] = json!(effort);
@@ -149,6 +152,7 @@ pub fn connector_start(
 ) -> Result<Value, String> {
     let api_key = key_for_local_aware(&provider, &base_url)?;
     let token = secure::get_key(&format!("api_key_{platform}"))?.unwrap_or_default();
+    let openai = secure::get_key("api_key_openai")?.unwrap_or_default();
     if token.is_empty() {
         return Err(format!("No bot token saved for {platform}. Add it first."));
     }
@@ -158,6 +162,7 @@ pub fn connector_start(
             "platform": platform,
             "token": token,
             "config": { "id": provider, "baseUrl": base_url, "apiKey": api_key, "model": model },
+            "mediaKeys": { "openai": openai },
         }),
     )
 }
