@@ -96,6 +96,7 @@ const Personality = z.object({
   role: z.string().nullish(),
   tone: z.string().nullish(),
   language: z.string().nullish(),
+  instructions: z.string().nullish(),
 });
 
 /** Async request → response dispatch. */

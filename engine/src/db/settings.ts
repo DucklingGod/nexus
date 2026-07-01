@@ -67,9 +67,10 @@ export function getAgentPersonality(): { name: string; role: string; tone: strin
 }
 
 export function setAgentPersonality(config: { name?: string | null; role?: string | null; tone?: string | null; language?: string | null; instructions?: string | null }): void {
-  if (config.name) setSetting("agent.name", config.name);
+  // Use `!= null` guards so empty strings are valid (clearing a field persists).
+  if (config.name != null) setSetting("agent.name", config.name);
   if (config.role != null) setSetting("agent.role", config.role);
-  if (config.tone) setSetting("agent.tone", config.tone);
-  if (config.language) setSetting("agent.language", config.language);
+  if (config.tone != null) setSetting("agent.tone", config.tone);
+  if (config.language != null) setSetting("agent.language", config.language);
   if (config.instructions != null) setSetting("agent.instructions", config.instructions);
 }

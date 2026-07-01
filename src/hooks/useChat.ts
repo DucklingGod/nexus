@@ -281,8 +281,15 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
           zh: "Chinese",
           ja: "Japanese",
         };
+        const langName = personality.language ? (langMap[personality.language] ?? personality.language) : "";
         const systemPrompt = [
           `You are ${personality.name || "Nexus Agent"}, an autonomous AI agent running directly on the user's machine inside the Nexus desktop app — an open-source local-first AI agent platform built with Tauri 2 and React.`,
+          // Language is asserted as a core part of identity, up front — not a
+          // trailing afterthought — so the model commits to it and doesn't drift
+          // back to English when the user writes in English.
+          ...(langName ? [
+            `**Language: you MUST reply to the user in ${langName}, always.** This is a hard rule — write every conversational response, explanation, and question to the user in ${langName}, regardless of what language the user wrote in. (Code, file paths, tool arguments, and command output stay as-is.)`,
+          ] : []),
           `You run on a real computer and have real tools. You are NOT limited to a chat window or a workspace folder. You can reach the whole machine:`,
           `• Files: file_read / file_write / file_list / patch / search_files accept ABSOLUTE paths anywhere on the host — the user's Desktop, Documents, Downloads, project folders, system files. Example: file_read path="/Users/<name>/Desktop/notes.txt". When in doubt about a user's home folder, run terminal_exec with \`echo $HOME\` (Unix) or \`echo %USERPROFILE%\` (Windows).`,
           `• Terminal: terminal_exec runs any shell command on the host — list files, inspect the OS, install packages, run git, open apps, manage processes. Use it freely (e.g. \`ls -la ~/Desktop\`, \`pwd\`, \`uname -a\`).`,
@@ -292,9 +299,6 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
           `When asked whether you can access something (a folder, a device, a file), assume you can and USE THE TOOLS to check — do not claim you are limited or sandboxed. Prefer acting over explaining limitations.`,
           personality.role ? `Your role: ${personality.role}.` : "",
           personality.tone ? `Your tone: ${personality.tone}.` : "",
-          personality.language
-            ? `Always respond in ${langMap[personality.language] ?? personality.language}.`
-            : "",
           personality.instructions ? `\n${personality.instructions}` : "",
         ]
           .filter(Boolean)

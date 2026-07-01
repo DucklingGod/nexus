@@ -124,8 +124,12 @@ pub fn agent_personality_set(
     role: Option<String>,
     tone: Option<String>,
     language: Option<String>,
+    instructions: Option<String>,
 ) -> Result<Value, String> {
-    state.sidecar.request("agent.personality.set", json!({ "name": name, "role": role, "tone": tone, "language": language }))
+    state.sidecar.request(
+        "agent.personality.set",
+        json!({ "name": name, "role": role, "tone": tone, "language": language, "instructions": instructions }),
+    )
 }
 
 /// Get agent personality.
