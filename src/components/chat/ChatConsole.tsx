@@ -68,9 +68,11 @@ const REASONING_LEVELS = [
 interface Props {
   conversationId: string | null;
   onConversationCreated: (id: string) => void;
+  inputPrefill?: string | null;
+  onConsumedPrefill?: () => void;
 }
 
-export function ChatConsole({ conversationId, onConversationCreated }: Props) {
+export function ChatConsole({ conversationId, onConversationCreated, inputPrefill, onConsumedPrefill }: Props) {
   const { messages, sendMessage, loading, error, stopChat, pendingApproval, respondApproval, toolEvents } = useChat(conversationId, onConversationCreated);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -97,6 +99,14 @@ export function ChatConsole({ conversationId, onConversationCreated }: Props) {
 
   const [input, setInput] = useState("");
   const [improving, setImproving] = useState(false);
+
+  // Apply a prefill injected by the TopBar (e.g. picking an SSH host).
+  useEffect(() => {
+    if (inputPrefill) {
+      setInput(prev => prev.trim() ? `${prev}\n${inputPrefill}` : inputPrefill);
+      onConsumedPrefill?.();
+    }
+  }, [inputPrefill, onConsumedPrefill]);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [bottomTerminalOpen, setBottomTerminalOpen] = useState(false);
   const [safetyMode, setSafetyMode] = useState("ask");

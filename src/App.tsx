@@ -23,6 +23,7 @@ function App() {
   const [learnedToast, setLearnedToast] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [taskTitle, setTaskTitle] = useState<string | null>(null);
+  const [hostPrefill, setHostPrefill] = useState<string | null>(null);
   const [loadAnimDone, setLoadAnimDone] = useState(false);
 
   // Minimum 3s so the liquid-gold animation plays fully
@@ -106,7 +107,11 @@ function App() {
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <TopBar taskTitle={showAB ? "A/B Test" : showWorkflows ? "Workflows" : showSkills ? "Skills" : showKanban ? "Kanban" : taskTitle} onOpenSettings={() => setShowSettings(true)} />
+        <TopBar
+          taskTitle={showAB ? "A/B Test" : showWorkflows ? "Workflows" : showSkills ? "Skills" : showKanban ? "Kanban" : taskTitle}
+          onOpenSettings={() => setShowSettings(true)}
+          onPickHost={(name) => setHostPrefill(`Run a command on my ${name} over SSH: `)}
+        />
         <div className="flex-1 overflow-hidden">
           {showAB ? (
             <ABTestView />
@@ -120,6 +125,8 @@ function App() {
             <ChatConsole
               conversationId={conversationId}
               onConversationCreated={(id) => setConversationId(id)}
+              inputPrefill={hostPrefill}
+              onConsumedPrefill={() => setHostPrefill(null)}
             />
           )}
         </div>

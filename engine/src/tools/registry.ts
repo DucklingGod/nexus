@@ -89,6 +89,7 @@ export async function initTools(): Promise<void> {
   const { registerMcpTools } = await import("./mcp.ts");
   const { registerPluginTools } = await import("./plugins.ts");
   const { registerKanbanTools } = await import("./kanban.ts");
+  const { registerSshTools } = await import("./ssh.ts");
 
   registerWebTools();
   registerFileTools();
@@ -109,6 +110,7 @@ export async function initTools(): Promise<void> {
   registerMcpTools();
   registerPluginTools();
   registerKanbanTools();
+  registerSshTools();
 
   process.stderr.write(`[tools] registered ${tools.size} tools: ${listTools().map(t => t.name).join(", ")}\n`);
 }

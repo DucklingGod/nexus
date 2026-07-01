@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { IconTerminal, IconGlobe, IconSettings } from "../icons";
 
@@ -15,17 +16,23 @@ function WorkspaceIcon({ name }: { name: string }) {
 interface Props {
   taskTitle?: string | null;
   onOpenSettings?: () => void;
+  onPickHost?: (name: string) => void;
 }
 
-const WORKSPACES = [
-  { id: "local", label: "Local", icon: "terminal" },
-  { id: "remote", label: "Remote", icon: "globe" },
-];
+interface SshHost { id: string; name: string; host: string; user: string; port: number }
 
-export function TopBar({ taskTitle, onOpenSettings }: Props) {
+export function TopBar({ taskTitle, onOpenSettings, onPickHost }: Props) {
   const [isMaximized, setIsMaximized] = useState(false);
   const [workspace, setWorkspace] = useState("local");
   const [showWsDropdown, setShowWsDropdown] = useState(false);
+  const [sshHosts, setSshHosts] = useState<SshHost[]>([]);
+
+  // Load configured SSH hosts so the "Remote" entry reflects reality.
+  useEffect(() => {
+    invoke<{ hosts: SshHost[] }>("engine_rpc", { method: "ssh.list", params: {} })
+      .then(r => setSshHosts(r.hosts ?? []))
+      .catch(() => setSshHosts([]));
+  }, [showWsDropdown]);
 
   async function handleMaximize() {
     const win = getCurrentWindow();
@@ -33,7 +40,7 @@ export function TopBar({ taskTitle, onOpenSettings }: Props) {
     setIsMaximized(await win.isMaximized());
   }
 
-  const ws = WORKSPACES.find(w => w.id === workspace) ?? WORKSPACES[0];
+  const ws = { id: workspace, label: workspace === "local" ? "Local" : "Remote", icon: workspace === "local" ? "terminal" : "globe" };
 
   return (
     <div
@@ -61,26 +68,33 @@ export function TopBar({ taskTitle, onOpenSettings }: Props) {
           {showWsDropdown && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowWsDropdown(false)} />
-              <div className="absolute left-0 top-full z-50 mt-1 w-40 origin-top animate-dropdown rounded-lg border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
-                <p className="px-3 py-1 text-[9px] font-medium uppercase tracking-wider text-nexus-muted/50">Workspaces</p>
-                {WORKSPACES.map(w => (
-                  <button
-                    key={w.id}
-                    onClick={() => { setWorkspace(w.id); setShowWsDropdown(false); }}
-                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-[11px] transition hover:bg-nexus-surface ${
-                      w.id === workspace ? "text-nexus-accent" : "text-nexus-fg"
-                    }`}
-                  >
-                    <WorkspaceIcon name={w.icon} />
-                    {w.label}
-                    {w.id === workspace && <span className="ml-auto text-[9px]">✓</span>}
-                  </button>
-                ))}
-                <div className="mx-2 my-1 border-t border-nexus-border/30" />
-                <button className="flex w-full items-center gap-2 px-3 py-1.5 text-[11px] text-nexus-muted transition hover:bg-nexus-surface hover:text-nexus-fg">
-                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                  Open folder…
+              <div className="absolute left-0 top-full z-50 mt-1 w-52 origin-top animate-dropdown rounded-lg border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
+                <p className="px-3 py-1 text-[9px] font-medium uppercase tracking-wider text-nexus-muted/50">This machine</p>
+                <button
+                  onClick={() => { setWorkspace("local"); setShowWsDropdown(false); }}
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-[11px] transition hover:bg-nexus-surface ${workspace === "local" ? "text-nexus-accent" : "text-nexus-fg"}`}
+                >
+                  <WorkspaceIcon name="terminal" />
+                  Local (this Mac)
+                  {workspace === "local" && <span className="ml-auto text-[9px]">✓</span>}
                 </button>
+                <div className="mx-2 my-1 border-t border-nexus-border/30" />
+                <p className="px-3 py-1 text-[9px] font-medium uppercase tracking-wider text-nexus-muted/50">Remote (SSH)</p>
+                {sshHosts.length === 0 ? (
+                  <p className="px-3 py-1.5 text-[10px] leading-relaxed text-nexus-muted/50">No hosts yet. Add one in Settings → SSH Hosts to control another machine.</p>
+                ) : (
+                  sshHosts.map(h => (
+                    <button
+                      key={h.id}
+                      onClick={() => { setWorkspace(h.id); setShowWsDropdown(false); onPickHost?.(h.name); }}
+                      className={`flex w-full items-center gap-2 px-3 py-1.5 text-[11px] transition hover:bg-nexus-surface ${workspace === h.id ? "text-nexus-accent" : "text-nexus-fg"}`}
+                    >
+                      <WorkspaceIcon name="globe" />
+                      <span className="truncate">{h.name}</span>
+                      <span className="ml-auto truncate text-[9px] text-nexus-muted/50">{h.user}@{h.host}</span>
+                    </button>
+                  ))
+                )}
               </div>
             </>
           )}

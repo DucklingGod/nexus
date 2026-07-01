@@ -18,6 +18,7 @@ import type { ProviderConfig } from "../providers/types.ts";
 import { listTools, executeTool } from "../tools/registry.ts";
 import { getLogs, clearLogs } from "./logbuffer.ts";
 import { listSkillsWithState, setSkillEnabled, addCustomSkill, deleteCustomSkill } from "../skills/skills.ts";
+import { addHost, listHosts, updateHost, deleteHost } from "../tools/sshStore.ts";
 import { startConnector, stopConnector, connectorStatus } from "../connectors/manager.ts";
 import { listWorkflows, getWorkflow, saveWorkflow, deleteWorkflow } from "../workflow/store.ts";
 import { runWorkflow } from "../workflow/executor.ts";
@@ -171,6 +172,23 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       case "skills.delete": {
         const { id } = req.params as { id: string };
         deleteCustomSkill(id);
+        return { ...base, result: { ok: true } };
+      }
+
+      // SSH hosts (remote device control — Task)
+      case "ssh.list":
+        return { ...base, result: { hosts: listHosts() } };
+      case "ssh.add": {
+        const p = req.params as { name: string; host: string; user: string; port?: number; key_path?: string };
+        return { ...base, result: { host: addHost(p) } };
+      }
+      case "ssh.update": {
+        const { id, ...input } = req.params as { id: string; name?: string; host?: string; user?: string; port?: number; key_path?: string };
+        return { ...base, result: { ok: updateHost(id, input) } };
+      }
+      case "ssh.delete": {
+        const { id } = req.params as { id: string };
+        deleteHost(id);
         return { ...base, result: { ok: true } };
       }
       case "connector.start": {
