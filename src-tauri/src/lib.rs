@@ -66,6 +66,7 @@ pub fn run() {
             commands::connector_status,
             commands::workflow_run,
             commands::complete_once,
+            commands::search_documents,
             secure::secure_set,
             secure::secure_has,
             secure::secure_delete,

@@ -41,6 +41,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_doc_chunks_doc ON doc_chunks(document_id);
 `);
 
+// Migrations: add provenance columns for Unified Search (Task 53). Existing
+// rows backfill to source_type 'local'. Both use try/catch (idempotent).
+try { db.exec("ALTER TABLE documents ADD COLUMN source_type TEXT NOT NULL DEFAULT 'local'"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE doc_chunks ADD COLUMN source_type TEXT NOT NULL DEFAULT 'local'"); } catch { /* already exists */ }
+
 // ~500-char chunks with 50-char overlap (ported).
 export function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
   const chunks: string[] = [];
@@ -75,19 +80,20 @@ export async function extractFile(path: string): Promise<string> {
   return buffer.toString("utf-8"); // txt / md / json / etc.
 }
 
-export function addDocument(title: string, source: string, text: string): { id: string; chunks: number } {
+export function addDocument(title: string, source: string, text: string, sourceType: string = "local"): { id: string; chunks: number } {
   const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  db.prepare("INSERT INTO documents (id, title, source, created_at) VALUES (?,?,?,?)").run(
+  db.prepare("INSERT INTO documents (id, title, source, source_type, created_at) VALUES (?,?,?,?,?)").run(
     id,
     title,
     source,
+    sourceType,
     Date.now(),
   );
   const chunks = chunkText(text);
   const insert = db.prepare(
-    "INSERT INTO doc_chunks (id, document_id, ordinal, text, embedding) VALUES (?,?,?,?,NULL)",
+    "INSERT INTO doc_chunks (id, document_id, ordinal, text, embedding, source_type) VALUES (?,?,?,?,NULL,?)",
   );
-  const tx = db.transaction((cs: string[]) => cs.forEach((c, i) => insert.run(`${id}-${i}`, id, i, c)));
+  const tx = db.transaction((cs: string[]) => cs.forEach((c, i) => insert.run(`${id}-${i}`, id, i, c, sourceType)));
   tx(chunks);
   return { id, chunks: chunks.length };
 }
@@ -156,6 +162,46 @@ export async function searchContext(query: string, config: EmbedConfig, topK = 4
     .sort((a, b) => b.score - a.score)
     .slice(0, topK)
     .map((r) => r.text);
+}
+
+export interface DocumentSearchResult {
+  docId: string;
+  title: string;
+  source: string | null;
+  sourceType: string;
+  text: string;
+  score: number;
+}
+
+/**
+ * Rich document search for Unified Search (Task 53): like searchContext but
+ * returns provenance (title, source, sourceType) so results can be badged by
+ * origin (Local file / Obsidian / manual). Cosine-ranked, lazy embeddings.
+ */
+export async function searchDocuments(query: string, config: EmbedConfig, topK = 6): Promise<DocumentSearchResult[]> {
+  if (docCount() === 0) return [];
+  await ensureEmbeddings(config);
+  const [qVec] = await embed(config, [query]);
+  if (!qVec) return [];
+  const rows = db
+    .prepare(`
+      SELECT c.text, c.embedding, c.source_type, d.id AS doc_id, d.title, d.source
+      FROM doc_chunks c JOIN documents d ON d.id = c.document_id
+      WHERE c.embedding IS NOT NULL
+    `)
+    .all() as { text: string; embedding: string; source_type: string; doc_id: string; title: string; source: string | null }[];
+  return rows
+    .map((r) => ({
+      docId: r.doc_id,
+      title: r.title,
+      source: r.source,
+      sourceType: r.source_type ?? "local",
+      text: r.text,
+      score: cosine(qVec, JSON.parse(r.embedding) as number[]),
+    }))
+    .filter((r) => r.score >= 0.3)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
 }
 
 // Inject retrieved document context as a system message (after the existing

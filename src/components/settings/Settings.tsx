@@ -94,6 +94,9 @@ export function Settings({ onClose }: Props) {
   const [docPath, setDocPath] = useState("");
   const [folders, setFolders] = useState<string[]>([]);
   const [folderSyncing, setFolderSyncing] = useState(false);
+  // Obsidian vaults (Task 52)
+  const [vaults, setVaults] = useState<string[]>([]);
+  const [vaultSyncing, setVaultSyncing] = useState(false);
   const [logs, setLogs] = useState<{ ts: number; text: string }[]>([]);
   const [logsAuto, setLogsAuto] = useState(true);
   const [logFilter, setLogFilter] = useState("");
@@ -373,6 +376,8 @@ export function Settings({ onClose }: Props) {
     setDocs(res.documents ?? []);
     const f = await invoke<{ folders: string[] }>("engine_rpc", { method: "folders.list", params: {} }).catch(() => ({ folders: [] }));
     setFolders(f.folders ?? []);
+    const vs = await invoke<{ vaults: string[] }>("engine_rpc", { method: "obsidian.vaults.list", params: {} }).catch(() => ({ vaults: [] }));
+    setVaults(vs.vaults ?? []);
   }
 
   async function handleAddDoc() {
@@ -419,6 +424,28 @@ export function Settings({ onClose }: Props) {
       await loadDocs();
       showMsg(`Synced — indexed ${r.indexed} of ${r.total} files`);
     } catch (e) { showMsg(`Error: ${e}`); } finally { setFolderSyncing(false); }
+  }
+
+  // --- Obsidian vaults (Task 52) ---
+  async function handleAddVault() {
+    const dir = await open({ directory: true, title: "Pick an Obsidian vault folder" }).catch(() => null);
+    if (typeof dir !== "string") return;
+    await invoke("engine_rpc", { method: "obsidian.vaults.add", params: { path: dir } }).catch(() => {});
+    const vs = await invoke<{ vaults: string[] }>("engine_rpc", { method: "obsidian.vaults.list", params: {} });
+    setVaults(vs.vaults ?? []);
+  }
+  async function handleRemoveVault(path: string) {
+    await invoke("engine_rpc", { method: "obsidian.vaults.remove", params: { path } }).catch(() => {});
+    const vs = await invoke<{ vaults: string[] }>("engine_rpc", { method: "obsidian.vaults.list", params: {} });
+    setVaults(vs.vaults ?? []);
+  }
+  async function handleSyncVaults() {
+    setVaultSyncing(true);
+    try {
+      const r = await invoke<{ indexed: number; total: number }>("engine_rpc", { method: "obsidian.vaults.sync", params: {} });
+      await loadDocs();
+      showMsg(`Synced — indexed ${r.indexed} of ${r.total} notes`);
+    } catch (e) { showMsg(`Error: ${e}`); } finally { setVaultSyncing(false); }
   }
 
   async function refreshLogs() {
@@ -917,6 +944,25 @@ export function Settings({ onClose }: Props) {
                   <div key={f} className="flex items-center justify-between rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2">
                     <span className="truncate text-xs text-nexus-fg">{f}</span>
                     <button onClick={() => handleRemoveFolder(f)} className="ml-2 flex-shrink-0 text-xs text-red-400 hover:text-red-300">Remove</button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-nexus-border/40 pt-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-nexus-fg">Obsidian vaults ({vaults.length})</h3>
+                  <div className="flex gap-2">
+                    <button onClick={handleAddVault} className="rounded-lg border border-nexus-border px-3 py-1.5 text-xs text-nexus-fg hover:bg-nexus-surface">+ Add vault</button>
+                    <button onClick={handleSyncVaults} disabled={vaultSyncing || vaults.length === 0} className="rounded-lg bg-nexus-accent px-3 py-1.5 text-xs font-medium text-black hover:opacity-90 disabled:opacity-50">{vaultSyncing ? "Syncing…" : "Sync now"}</button>
+                  </div>
+                </div>
+                <p className="text-xs text-nexus-muted">Index an Obsidian vault: strips YAML frontmatter, captures tags, and resolves <code className="text-nexus-gold-light">[[wikilinks]]</code> into linked-note context so graph neighborhood is searchable.</p>
+                {vaults.length === 0 ? (
+                  <p className="text-xs text-nexus-muted">No vaults. Add a vault folder to index its markdown notes.</p>
+                ) : vaults.map(v => (
+                  <div key={v} className="flex items-center justify-between rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2">
+                    <span className="truncate text-xs text-nexus-fg">{v}</span>
+                    <button onClick={() => handleRemoveVault(v)} className="ml-2 flex-shrink-0 text-xs text-red-400 hover:text-red-300">Remove</button>
                   </div>
                 ))}
               </div>

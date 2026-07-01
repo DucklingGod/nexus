@@ -223,3 +223,22 @@ pub async fn complete_once(
         }),
     )
 }
+
+/// Unified Search over documents (Task 53). Brokers the provider key for embeddings.
+#[tauri::command]
+pub async fn search_documents(
+    state: State<'_, AppState>,
+    query: String,
+    provider: String,
+    model: String,
+    base_url: String,
+) -> Result<Value, String> {
+    let api_key = key_for_local_aware(&provider, &base_url)?;
+    state.sidecar.request(
+        "documents.search",
+        json!({
+            "query": query,
+            "config": { "id": provider, "baseUrl": base_url, "apiKey": api_key, "model": model },
+        }),
+    )
+}

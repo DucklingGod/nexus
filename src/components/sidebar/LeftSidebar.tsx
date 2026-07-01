@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
@@ -7,6 +7,17 @@ interface Conversation {
   title: string;
   updated_at: number;
   source?: string;
+}
+
+// Unified Search result (Task 53): one shape for conversations, docs, facts.
+interface SearchResult {
+  kind: "conversation" | "document" | "fact";
+  id: string;
+  title: string;
+  subtitle?: string;       // source path / category
+  sourceType?: string;     // for documents: local | obsidian | manual
+  text?: string;           // for docs/facts: the matched snippet
+  updated_at: number;
 }
 
 interface Props {
@@ -29,7 +40,10 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
   const [activeTab, setActiveTab] = useState<"group" | "project">("project");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Conversation[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchSeq = useRef(0); // race-guard: ignore stale fan-out results
+  const providerRef = useRef<{ provider: string; model: string; baseUrl: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -40,7 +54,56 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
 
   useEffect(() => { load(); }, [load]);
 
-  // Live refresh when a connector (Telegram/Discord) receives a message.
+  // Cache the active provider config for Unified Search (search_documents brokers
+  // the key from it). Fetched once on mount.
+  useEffect(() => {
+    invoke<{ provider: string; model: string; baseUrl: string } | null>("provider_get")
+      .then(p => { providerRef.current = p; })
+      .catch(() => {});
+  }, []);
+
+  // Unified Search (Task 53): fan out across conversations, documents (RAG),
+  // and facts in parallel, then merge with source labels. Debounced + race-guarded.
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  async function runSearch(q: string) {
+    setSearchQuery(q);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!q.trim()) { setSearchResults([]); setSearching(false); return; }
+    setSearching(true);
+    const query = q.trim();
+    // Debounce so we don't fire 3 RPCs per keystroke.
+    searchTimer.current = setTimeout(async () => {
+      const seq = ++searchSeq.current;
+      const results: SearchResult[] = [];
+      const tasks: Promise<void>[] = [];
+
+      // 1. Conversations (keyword)
+      tasks.push(
+        invoke<{ conversations: Conversation[] }>("engine_rpc", { method: "conversation.search", params: { query } })
+          .then(r => { for (const c of r.conversations ?? []) results.push({ kind: "conversation", id: c.id, title: c.title || "Untitled", updated_at: c.updated_at, subtitle: c.source }); })
+          .catch(() => {}),
+      );
+      // 2. Documents (semantic) — needs the key-brokering command
+      const prov = providerRef.current;
+      if (prov) {
+        tasks.push(
+          invoke<{ results: { docId: string; title: string; source: string | null; sourceType: string; text: string }[] }>("search_documents", { query, provider: prov.provider, model: prov.model, base_url: prov.baseUrl })
+            .then(r => { for (const d of r.results ?? []) results.push({ kind: "document", id: d.docId, title: d.title, subtitle: d.source ?? undefined, sourceType: d.sourceType, text: d.text, updated_at: 0 }); })
+            .catch(() => {}),
+        );
+      }
+      // 3. Facts (keyword)
+      tasks.push(
+        invoke<{ items: { id: number; category: string; key: string; value: string }[] }>("engine_rpc", { method: "knowledge.search", params: { query } })
+          .then(r => { for (const f of r.items ?? []) results.push({ kind: "fact", id: `fact-${f.id}`, title: f.key, subtitle: f.category, text: f.value, updated_at: 0 }); })
+          .catch(() => {}),
+      );
+
+      await Promise.all(tasks);
+      // Race guard: only commit if this is still the latest query.
+      if (seq === searchSeq.current) { setSearchResults(results); setSearching(false); }
+    }, 220);
+  }
   useEffect(() => {
     const un = listen<{ method?: string }>("engine-event", (e) => {
       if (e.payload?.method === "conversation.updated") load();
@@ -62,15 +125,6 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
       await invoke("engine_rpc", { method: "conversation.delete", params: { id } });
       setConversations(prev => prev.filter(c => c.id !== id));
     } catch { /* ignore */ }
-  }
-
-  async function runSearch(q: string) {
-    setSearchQuery(q);
-    if (!q.trim()) { setSearchResults([]); return; }
-    try {
-      const r = await invoke<{ conversations: Conversation[] }>("engine_rpc", { method: "conversation.search", params: { query: q } });
-      setSearchResults(r.conversations ?? []);
-    } catch { setSearchResults([]); }
   }
 
   const local = conversations.filter(c => !c.source || c.source === "local");
@@ -102,6 +156,37 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
       <span className="text-[11px] uppercase tracking-wide text-nexus-muted">{label}</span>
       {count > 0 && <span className="ml-auto text-[9px] text-nexus-muted/40">{count}</span>}
     </div>
+  );
+
+  // Source badge for a Unified Search result.
+  const sourceMeta = (r: SearchResult): { label: string; color: string } => {
+    if (r.kind === "conversation") return { label: r.subtitle === "telegram" ? "Telegram" : r.subtitle === "discord" ? "Discord" : "Chat", color: "text-nexus-muted" };
+    if (r.kind === "fact") return { label: "Fact", color: "text-sky-400" };
+    // document: badge by origin
+    const st = r.sourceType ?? "local";
+    if (st === "obsidian") return { label: "Obsidian", color: "text-violet-400" };
+    if (st === "manual") return { label: "Note", color: "text-amber-400" };
+    return { label: "File", color: "text-emerald-400" };
+  };
+
+  const resultRow = (r: SearchResult) => (
+    <button
+      key={`${r.kind}-${r.id}`}
+      onClick={() => { if (r.kind === "conversation") onSelect(r.id); }}
+      title={r.kind === "conversation" ? r.title : (r.text ?? r.title)}
+      className="group flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 pl-6 text-left transition hover:bg-nexus-surface"
+    >
+      <div className="flex items-center gap-1.5">
+        <span className={`flex-shrink-0 text-[9px] font-medium ${sourceMeta(r).color}`}>{sourceMeta(r).label}</span>
+        <span className="truncate text-[11px] text-nexus-fg">{r.title}</span>
+      </div>
+      {r.text && (
+        <span className="truncate pl-[42px] text-[10px] text-nexus-muted/60">{r.text}</span>
+      )}
+      {r.subtitle && r.kind !== "conversation" && (
+        <span className="truncate pl-[42px] text-[9px] text-nexus-muted/40">{r.subtitle}</span>
+      )}
+    </button>
   );
 
   return (
@@ -143,7 +228,7 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
             autoFocus
             value={searchQuery}
             onChange={(e) => runSearch(e.target.value)}
-            placeholder="Search conversations…"
+            placeholder="Search everything…"
             className="mx-1 mt-1 rounded-md border border-nexus-border bg-nexus-surface px-2.5 py-1.5 text-[11px] text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent"
           />
         )}
@@ -188,9 +273,41 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
       {/* Conversation list — search results or grouped by source */}
       <div className="flex-1 overflow-y-auto px-2 py-1">
         {searchQuery.trim() ? (
-          searchResults.length === 0
-            ? <p className="px-2 py-2 text-[10px] text-nexus-muted/50">No matches</p>
-            : searchResults.map(convButton)
+          searching && searchResults.length === 0 ? (
+            <p className="px-2 py-2 text-[10px] text-nexus-muted/50">Searching…</p>
+          ) : searchResults.length === 0 ? (
+            <p className="px-2 py-2 text-[10px] text-nexus-muted/50">No matches</p>
+          ) : (
+            <>
+              {(() => {
+                const convs = searchResults.filter(r => r.kind === "conversation");
+                const docs = searchResults.filter(r => r.kind === "document");
+                const facts = searchResults.filter(r => r.kind === "fact");
+                return (
+                  <>
+                    {docs.length > 0 && (
+                      <div className="mb-1">
+                        {groupHeader("Documents", <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 2h6l4 4v8a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/></svg>, docs.length)}
+                        {docs.map(resultRow)}
+                      </div>
+                    )}
+                    {facts.length > 0 && (
+                      <div className="mb-1">
+                        {groupHeader("Facts", <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l1.8 3.8L13.5 6l-3 2.7.8 3.8L8 10.7 4.7 12.5l.8-3.8-3-2.7 3.7-.7z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/></svg>, facts.length)}
+                        {facts.map(resultRow)}
+                      </div>
+                    )}
+                    {convs.length > 0 && (
+                      <div>
+                        {groupHeader("Conversations", <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4h12v7a1 1 0 01-1 1H7l-3 2.5V12H3a1 1 0 01-1-1V4z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/></svg>, convs.length)}
+                        {convs.map(resultRow)}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </>
+          )
         ) : (
           <>
         {conversations.length === 0 && (

@@ -29,8 +29,9 @@ import { runWorkflow } from "../workflow/executor.ts";
 import { importSkills } from "../skills/import.ts";
 import { listContextFiles, setContextFile } from "../context/files.ts";
 import { exportAgent, importAgent } from "../io/agent.ts";
-import { addDocument, ingestFile, listDocuments, deleteDocument } from "../knowledge/documents.ts";
+import { addDocument, ingestFile, listDocuments, deleteDocument, searchDocuments } from "../knowledge/documents.ts";
 import { listFolders, addFolder, removeFolder, syncFolders } from "../knowledge/folders.ts";
+import { listVaults, addVault, removeVault, syncVaults } from "../knowledge/obsidian.ts";
 import {
   createConversation,
   updateConversation,
@@ -397,6 +398,12 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       }
       case "documents.list":
         return { ...base, result: { documents: listDocuments() } };
+      case "documents.search": {
+        // Unified Search (Task 53): semantic doc search with provenance.
+        // Needs a provider key for embeddings — brokered via the ProviderCfg path.
+        const { query, config } = req.params as { query: string; config: ProviderConfig };
+        return { ...base, result: { results: await searchDocuments(query, config) } };
+      }
       case "folders.list":
         return { ...base, result: { folders: listFolders() } };
       case "folders.add": {
@@ -411,6 +418,21 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       }
       case "folders.sync":
         return { ...base, result: await syncFolders() };
+      // Obsidian vaults (Task 52)
+      case "obsidian.vaults.list":
+        return { ...base, result: { vaults: listVaults() } };
+      case "obsidian.vaults.add": {
+        const { path } = req.params as { path: string };
+        addVault(path);
+        return { ...base, result: { ok: true } };
+      }
+      case "obsidian.vaults.remove": {
+        const { path } = req.params as { path: string };
+        removeVault(path);
+        return { ...base, result: { ok: true } };
+      }
+      case "obsidian.vaults.sync":
+        return { ...base, result: syncVaults() };
       case "documents.delete": {
         const { id } = req.params as { id: string };
         deleteDocument(id);
