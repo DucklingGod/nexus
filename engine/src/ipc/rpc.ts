@@ -45,6 +45,21 @@ import {
   clearCategory,
 } from "../memory/semantic.ts";
 import { getUsageStats } from "../tokens/usage.ts";
+import {
+  createBoard,
+  getBoard,
+  listBoards,
+  deleteBoard,
+  renameBoard,
+  addColumn,
+  deleteColumn,
+  renameColumn,
+  addCard,
+  moveCard,
+  updateCard,
+  deleteCard,
+  type KanbanCard,
+} from "../kanban/store.ts";
 
 export const ENGINE_VERSION = "0.1.0";
 
@@ -349,6 +364,60 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       case "usage.stats": {
         const { days } = (req.params ?? {}) as { days?: number };
         return { ...base, result: getUsageStats(days ?? 30) };
+      }
+
+      // Kanban boards
+      case "kanban.listBoards":
+        return { ...base, result: { boards: listBoards() } };
+      case "kanban.createBoard": {
+        const { name, description } = req.params as { name: string; description?: string };
+        return { ...base, result: { board: createBoard(name, description) } };
+      }
+      case "kanban.getBoard": {
+        const { id } = req.params as { id: string };
+        return { ...base, result: { board: getBoard(id) } };
+      }
+      case "kanban.deleteBoard": {
+        const { id } = req.params as { id: string };
+        deleteBoard(id);
+        return { ...base, result: { ok: true } };
+      }
+      case "kanban.renameBoard": {
+        const { id, name } = req.params as { id: string; name: string };
+        renameBoard(id, name);
+        return { ...base, result: { ok: true } };
+      }
+      case "kanban.addColumn": {
+        const { boardId, name, color } = req.params as { boardId: string; name: string; color?: string };
+        return { ...base, result: { id: addColumn(boardId, name, color) } };
+      }
+      case "kanban.deleteColumn": {
+        const { columnId } = req.params as { columnId: string };
+        deleteColumn(columnId);
+        return { ...base, result: { ok: true } };
+      }
+      case "kanban.renameColumn": {
+        const { columnId, name } = req.params as { columnId: string; name: string };
+        renameColumn(columnId, name);
+        return { ...base, result: { ok: true } };
+      }
+      case "kanban.addCard": {
+        const p = req.params as { columnId: string; title: string; description?: string; priority?: string; labels?: string[] };
+        return { ...base, result: { id: addCard(p.columnId, p.title, p.description, { priority: p.priority as KanbanCard["priority"], labels: p.labels }) } };
+      }
+      case "kanban.moveCard": {
+        const { cardId, targetColumnId } = req.params as { cardId: string; targetColumnId: string };
+        moveCard(cardId, targetColumnId);
+        return { ...base, result: { ok: true } };
+      }
+      case "kanban.updateCard": {
+        const { cardId, updates } = req.params as { cardId: string; updates: Parameters<typeof updateCard>[1] };
+        return { ...base, result: { ok: updateCard(cardId, updates) } };
+      }
+      case "kanban.deleteCard": {
+        const { cardId } = req.params as { cardId: string };
+        deleteCard(cardId);
+        return { ...base, result: { ok: true } };
       }
 
       // Knowledge (Semantic Memory)

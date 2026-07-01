@@ -15,14 +15,16 @@ interface Props {
   onNewChat: () => void;
   onOpenSkills: () => void;
   onOpenWorkflows: () => void;
+  onOpenKanban: () => void;
   onOpenAB: () => void;
   onOpenSettings: () => void;
   skillsActive?: boolean;
   workflowsActive?: boolean;
   abActive?: boolean;
+  kanbanActive?: boolean;
 }
 
-export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOpenWorkflows, onOpenAB, onOpenSettings, skillsActive, workflowsActive, abActive }: Props) {
+export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOpenWorkflows, onOpenKanban, onOpenAB, onOpenSettings, skillsActive, workflowsActive, abActive, kanbanActive }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeTab, setActiveTab] = useState<"group" | "project">("project");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -152,6 +154,10 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
         <button onClick={onOpenWorkflows} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${workflowsActive ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"}`}>
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="9.5" y="9.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M6.5 4.2h2.8a1 1 0 011 1v4.3" stroke="currentColor" strokeWidth="1.2"/></svg>
           Workflows
+        </button>
+        <button onClick={onOpenKanban} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${kanbanActive ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"}`}>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="3.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="6.5" y="2.5" width="3" height="7" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="10.5" y="2.5" width="3.5" height="9" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
+          Kanban
         </button>
         <button onClick={onOpenAB} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${abActive ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"}`}>
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 12V4M2 4l3 8M5 4l-3 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M9 12V4h2.5a2 2 0 010 4H9m0 0h2.8a2 2 0 010 4H9" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
