@@ -3,10 +3,12 @@ import { handle, type RpcRequest } from "./ipc/rpc.ts";
 import { streamChat } from "./ipc/stream.ts";
 import { initTools } from "./tools/registry.ts";
 import { resolveApproval } from "./tools/approval.ts";
+import { installLogCapture } from "./ipc/logbuffer.ts";
 
 // Engine ↔ Rust core transport: newline-delimited JSON-RPC 2.0 over stdio.
 //   stdout = JSON-RPC responses + notifications only (never logs)
-//   stderr = human-readable logs
+//   stderr = human-readable logs (also captured into a ring buffer for the UI)
+installLogCapture();
 process.stderr.write("Nexus Engine Ready\n");
 
 // Initialize tools on startup

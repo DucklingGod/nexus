@@ -16,6 +16,7 @@ import {
 import { testConnection, listModels, chat } from "../providers/client.ts";
 import type { ProviderConfig } from "../providers/types.ts";
 import { listTools, executeTool } from "../tools/registry.ts";
+import { getLogs, clearLogs } from "./logbuffer.ts";
 import { listSkillsWithState, setSkillEnabled, addCustomSkill, deleteCustomSkill } from "../skills/skills.ts";
 import { startConnector, stopConnector, connectorStatus } from "../connectors/manager.ts";
 import { listWorkflows, getWorkflow, saveWorkflow, deleteWorkflow } from "../workflow/store.ts";
@@ -149,6 +150,13 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       // Tools
       case "tools.list":
         return { ...base, result: { tools: listTools() } };
+      case "logs.get": {
+        const { limit } = (req.params ?? {}) as { limit?: number };
+        return { ...base, result: { lines: getLogs(limit ?? 500) } };
+      }
+      case "logs.clear":
+        clearLogs();
+        return { ...base, result: { ok: true } };
       case "skills.list":
         return { ...base, result: { skills: listSkillsWithState() } };
       case "skills.setEnabled": {
