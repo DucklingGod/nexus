@@ -15,6 +15,9 @@ import { setMediaKeys } from "../tools/media.ts";
 import { setActiveConfig } from "../agents/runtime.ts";
 import { injectContext, isUserOnboarded } from "../context/files.ts";
 import { isAutoExtractEnabled, autoExtract } from "../context/autoExtract.ts";
+import { logExperience, type ToolStep } from "../selfImprove/experience.ts";
+import { injectCorrections } from "../selfImprove/correction.ts";
+import { evaluateSession } from "../selfImprove/evaluate.ts";
 import { abortRequested } from "../main.ts";
 
 const MAX_TOOL_ROUNDS = 5;
@@ -66,11 +69,13 @@ export async function streamChat(
   if (matchedSkills.length > 0) {
     send({ jsonrpc: "2.0", method: "chat.skills", params: { skills: matchedSkills.map((s) => s.name) } });
   }
-  // RAG document context, then skill instructions — both into the system prompt.
-  const ragMessages = injectContext(injectSkills(
+  // RAG document context, skill instructions, and correction rules — all into
+  // the system prompt. Corrections are learned from past negative feedback.
+  const base = injectContext(injectSkills(
     await augmentWithContext(messages, config).catch(() => messages),
     matchedSkills,
   ));
+  const ragMessages = await injectCorrections(base, config).catch(() => base);
 
   // First-run onboarding: if user.md is empty (no real content), prepend an
   // onboarding instruction so the agent introduces itself and gets to know the user.
@@ -91,17 +96,33 @@ export async function streamChat(
     if (hasTools) {
       const result = await agentLoop(config, ragMessages, model, tools, send, maxTokens, reasoningEffort, safetyMode);
       if (result) {
+        const fullMsgs = [...messages, { role: "assistant", content: result.text }] as ChatMessage[];
         send({ jsonrpc: "2.0", id: req.id, result: { content: result.text, model, usage: { input: result.inputTokens, output: result.outputTokens } } });
         if (cacheable && !result.usedTools) void saveCachedResponse(lastUserMsg, result.text, config).catch(() => {});
         // Auto-skill creation: distill a reusable skill from substantial tasks (opt-in).
         if (result.usedTools && getSetting("skills.autoCreate") === "true") {
-          void synthesizeSkill(config, [...messages, { role: "assistant", content: result.text }], model)
+          void synthesizeSkill(config, fullMsgs, model)
             .then((s) => { if (s) send({ jsonrpc: "2.0", method: "chat.skill_created", params: { id: s.id, name: s.name } }); })
             .catch(() => {});
         }
+        // Experience logging (Task 47): record this task execution for pattern analysis.
+        if (getSetting("experience.enabled") === "true") {
+          const expId = logExperience({
+            input: lastUserMsg,
+            output: result.text,
+            tool_steps: result.toolSteps,
+            success: !result.toolSteps.some((s) => !s.ok),
+            model,
+          });
+          send({ jsonrpc: "2.0", method: "chat.experience_logged", params: { id: expId } });
+        }
+        // Self-evaluation (Task 49b): score the turn (opt-in).
+        if (getSetting("evaluation.enabled") === "true") {
+          void evaluateSession(config, fullMsgs, model).catch(() => {});
+        }
         // Auto-extract: distill durable facts into .md context files (opt-in).
         if (isAutoExtractEnabled()) {
-          void autoExtract(config, [...messages, { role: "assistant", content: result.text }], model).catch(() => {});
+          void autoExtract(config, fullMsgs, model).catch(() => {});
         }
       }
       return;
@@ -136,9 +157,18 @@ export async function streamChat(
     }
     send({ jsonrpc: "2.0", id: req.id, result: { content: full, model, usage: { input: inputTokens, output: outputTokens } } });
     if (cacheable) void saveCachedResponse(lastUserMsg, full, config).catch(() => {});
+    const noToolMsgs = [...messages, { role: "assistant", content: full }] as ChatMessage[];
+    // Experience logging + self-evaluation (Tasks 47 & 49b) — opt-in.
+    if (getSetting("experience.enabled") === "true") {
+      const expId = logExperience({ input: lastUserMsg, output: full, tool_steps: [], success: true, model });
+      send({ jsonrpc: "2.0", method: "chat.experience_logged", params: { id: expId } });
+    }
+    if (getSetting("evaluation.enabled") === "true") {
+      void evaluateSession(config, noToolMsgs, model).catch(() => {});
+    }
     // Auto-extract: distill durable facts into .md context files (opt-in).
     if (isAutoExtractEnabled()) {
-      void autoExtract(config, [...messages, { role: "assistant", content: full }], model).catch(() => {});
+      void autoExtract(config, noToolMsgs, model).catch(() => {});
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
@@ -157,8 +187,9 @@ async function agentLoop(
   maxTokens?: number,
   reasoningEffort?: "low" | "medium" | "high" | "max",
   safetyMode?: string,
-): Promise<{ text: string; inputTokens: number; outputTokens: number; usedTools: boolean } | null> {
+): Promise<{ text: string; inputTokens: number; outputTokens: number; usedTools: boolean; toolSteps: ToolStep[] } | null> {
   const history = [...messages];
+  const collectedSteps: ToolStep[] = [];
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     if (abortRequested) break;
@@ -203,7 +234,7 @@ async function agentLoop(
 
     // No tool calls — we're done, text was already streamed
     if (toolCallMap.size === 0) {
-      return { text: fullText, inputTokens, outputTokens, usedTools: round > 0 };
+      return { text: fullText, inputTokens, outputTokens, usedTools: round > 0, toolSteps: collectedSteps };
     }
 
     // Has tool calls — execute each one
@@ -242,6 +273,9 @@ async function agentLoop(
       // Notify frontend about tool result
       send({ jsonrpc: "2.0", method: "chat.tool_result", params: { id, name, output: result.output.slice(0, 2000), error: result.error, elapsed_ms: result.elapsed_ms } });
 
+      // Record this step for experience logging (Task 47).
+      collectedSteps.push({ name, args, ok: !result.error });
+
       // Add tool result to history
       history.push({
         role: "user",
@@ -258,5 +292,5 @@ async function agentLoop(
       send({ jsonrpc: "2.0", method: "chat.delta", params: { token: chunk.delta } });
     }
   }
-  return { text: full, inputTokens: 0, outputTokens: 0, usedTools: true };
+  return { text: full, inputTokens: 0, outputTokens: 0, usedTools: true, toolSteps: collectedSteps };
 }

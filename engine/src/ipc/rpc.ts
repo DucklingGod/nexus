@@ -19,6 +19,9 @@ import { listTools, executeTool } from "../tools/registry.ts";
 import { getLogs, clearLogs } from "./logbuffer.ts";
 import { listSkillsWithState, setSkillEnabled, addCustomSkill, deleteCustomSkill } from "../skills/skills.ts";
 import { addHost, listHosts, updateHost, deleteHost } from "../tools/sshStore.ts";
+import { listExperiences, setFeedback } from "../selfImprove/experience.ts";
+import { addCorrection, listCorrections, deleteCorrection, extractCorrection } from "../selfImprove/correction.ts";
+import { getLatestEvaluation, listEvaluations } from "../selfImprove/evaluate.ts";
 import { startConnector, stopConnector, connectorStatus } from "../connectors/manager.ts";
 import { listWorkflows, getWorkflow, saveWorkflow, deleteWorkflow } from "../workflow/store.ts";
 import { runWorkflow } from "../workflow/executor.ts";
@@ -190,6 +193,50 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
         const { id } = req.params as { id: string };
         deleteHost(id);
         return { ...base, result: { ok: true } };
+      }
+
+      // Self-improvement — experience collector (Task 47)
+      case "experience.list": {
+        const { limit } = (req.params ?? {}) as { limit?: number };
+        return { ...base, result: { experiences: listExperiences(limit ?? 50) } };
+      }
+      case "experience.feedback": {
+        const { id, feedback } = req.params as { id: string; feedback: "up" | "down" | null };
+        return { ...base, result: { ok: setFeedback(id, feedback) } };
+      }
+      case "experience.delete": {
+        // Reuse setFeedback won't delete; experiences are immutable history.
+        // (No delete RPC — experiences are the audit substrate. UI just lists.)
+        return { ...base, error: { code: -32601, message: "experiences are not deletable (audit substrate)" } };
+      }
+
+      // Self-improvement — correction memory (Task 49a)
+      case "correction.list": {
+        const { limit } = (req.params ?? {}) as { limit?: number };
+        return { ...base, result: { corrections: listCorrections(limit ?? 50) } };
+      }
+      case "correction.add": {
+        const { trigger_context, rule } = req.params as { trigger_context: string; rule: string };
+        return { ...base, result: { id: addCorrection(trigger_context, rule) } };
+      }
+      case "correction.delete": {
+        const { id } = req.params as { id: string };
+        deleteCorrection(id);
+        return { ...base, result: { ok: true } };
+      }
+      case "correction.extract": {
+        // Distill a correction rule from a thumbs-down conversation.
+        const { messages, model, ...config } = req.params as { messages: unknown[]; model: string } & ProviderConfig;
+        const c = await extractCorrection(config as ProviderConfig, messages as never, model);
+        return { ...base, result: c };
+      }
+
+      // Self-improvement — self-evaluation (Task 49b)
+      case "evaluation.last":
+        return { ...base, result: { evaluation: getLatestEvaluation() } };
+      case "evaluation.list": {
+        const { limit } = (req.params ?? {}) as { limit?: number };
+        return { ...base, result: { evaluations: listEvaluations(limit ?? 20) } };
       }
       case "connector.start": {
         const { platform, token, config } = req.params as { platform: string; token: string; config: ProviderConfig & { model: string } };

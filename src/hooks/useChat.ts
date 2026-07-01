@@ -18,6 +18,8 @@ export interface MessageMeta {
   cached?: boolean;
   model?: string;
   usage?: { input: number; output: number };
+  experienceId?: string;
+  feedback?: "up" | "down" | null;
 }
 
 export interface Message {
@@ -46,6 +48,7 @@ interface UseChatReturn {
   toolEvents: ToolEvent[];
   pendingApproval: ToolApproval | null;
   respondApproval: (approved: boolean) => void;
+  setFeedback: (messageId: string, experienceId: string, feedback: "up" | "down") => void;
 }
 
 export function useChat(conversationId: string | null, onConversationCreated?: (id: string) => void): UseChatReturn {
@@ -203,6 +206,12 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
       if (e.payload.method !== "chat.cached") return;
       patchStreamMeta({ cached: true });
     });
+    // Experience logging (Task 47): attach the logged experience id so the
+    // feedback buttons (thumbs up/down) can reference it.
+    const unlistenExp = listen<{ method: string; params: { id: string } }>("engine-event", (e) => {
+      if (e.payload.method !== "chat.experience_logged") return;
+      patchStreamMeta({ experienceId: e.payload.params.id });
+    });
 
     // Reasoning/thinking tokens (o1, Claude extended thinking, DeepSeek)
     const unlistenReasoning = listen<{ method: string; params: { token: string } }>(
@@ -227,6 +236,7 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
       unlistenSkills.then((f) => f()).catch(() => {});
       unlistenRouted.then((f) => f()).catch(() => {});
       unlistenCached.then((f) => f()).catch(() => {});
+      unlistenExp.then((f) => f()).catch(() => {});
       unlistenReasoning.then((f) => f()).catch(() => {});
     };
   }, []);
@@ -389,6 +399,16 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
     });
   }, []);
 
+  const setFeedback = useCallback((messageId: string, experienceId: string, feedback: "up" | "down") => {
+    setMessages((prev) => prev.map((m) =>
+      m.id === messageId ? { ...m, meta: { ...m.meta, feedback } } : m,
+    ));
+    invoke("engine_rpc", {
+      method: "experience.feedback",
+      params: { id: experienceId, feedback },
+    }).catch(() => {});
+  }, []);
+
   return {
     messages,
     sendMessage,
@@ -399,5 +419,6 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
     toolEvents: allToolEvents,
     pendingApproval,
     respondApproval,
+    setFeedback,
   };
 }

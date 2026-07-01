@@ -28,7 +28,7 @@ interface AgentPersonality {
   instructions: string;
 }
 
-type TabId = "provider" | "agent" | "capabilities" | "advanced" | "knowledge" | "connectors" | "ssh" | "context" | "theme" | "logs" | "usage" | "audit" | "about";
+type TabId = "provider" | "agent" | "capabilities" | "advanced" | "knowledge" | "connectors" | "ssh" | "learning" | "context" | "theme" | "logs" | "usage" | "audit" | "about";
 
 const TABS: { id: TabId; label: string; icon: React.FC<{ size?: number }> }[] = [
   { id: "provider", label: "Provider", icon: IconKey },
@@ -38,6 +38,7 @@ const TABS: { id: TabId; label: string; icon: React.FC<{ size?: number }> }[] = 
   { id: "knowledge", label: "Knowledge", icon: IconBook },
   { id: "connectors", label: "Connectors", icon: IconGlobe },
   { id: "ssh", label: "SSH Hosts", icon: IconWifi },
+  { id: "learning", label: "Learning", icon: IconBrain },
   { id: "context", label: "Context", icon: IconClipboard },
   { id: "theme", label: "Theme", icon: IconStar },
   { id: "usage", label: "Usage", icon: IconChart },
@@ -102,6 +103,18 @@ export function Settings({ onClose }: Props) {
   const [sshEditingId, setSshEditingId] = useState<string | null>(null);
   const [sshTesting, setSshTesting] = useState<string | null>(null);
 
+  // Self-improvement (Tasks 47 & 49)
+  interface Experience { id: string; input: string; output: string; tool_steps: { name: string; ok: boolean }[]; success: boolean; model: string | null; feedback: "up" | "down" | null; created_at: number }
+  interface Correction { id: string; trigger_context: string; rule: string; created_at: number }
+  interface Evaluation { id: string; completion: number; satisfaction: number; efficiency: number; note: string | null; created_at: number }
+  const [expEnabled, setExpEnabled] = useState(false);
+  const [correctionEnabled, setCorrectionEnabled] = useState(true);
+  const [evalEnabled, setEvalEnabled] = useState(false);
+  const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [corrections, setCorrections] = useState<Correction[]>([]);
+  const [lastEval, setLastEval] = useState<Evaluation | null>(null);
+  const [corrForm, setCorrForm] = useState({ trigger_context: "", rule: "" });
+
   // Capabilities (Task 14)
   const [capabilities, setCapabilities] = useState<{ name: string; enabled: boolean }[]>([]);
   const CATEGORY_META: Record<string, { label: string; icon: React.FC<{ size?: number }>; desc: string }> = {
@@ -138,6 +151,15 @@ export function Settings({ onClose }: Props) {
       setConnectors(conn.connectors ?? []);
       const ssh = await invoke<{ hosts: SshHost[] }>("engine_rpc", { method: "ssh.list", params: {} }).catch(() => ({ hosts: [] }));
       setSshHosts(ssh.hosts ?? []);
+      setExpEnabled(all["experience.enabled"] === "true");
+      setCorrectionEnabled(all["correction.enabled"] !== "false");
+      setEvalEnabled(all["evaluation.enabled"] === "true");
+      const exps = await invoke<{ experiences: Experience[] }>("engine_rpc", { method: "experience.list", params: { limit: 30 } }).catch(() => ({ experiences: [] }));
+      setExperiences(exps.experiences ?? []);
+      const corrs = await invoke<{ corrections: Correction[] }>("engine_rpc", { method: "correction.list", params: {} }).catch(() => ({ corrections: [] }));
+      setCorrections(corrs.corrections ?? []);
+      const ev = await invoke<{ evaluation: Evaluation | null }>("engine_rpc", { method: "evaluation.last", params: {} }).catch(() => ({ evaluation: null }));
+      setLastEval(ev.evaluation ?? null);
       const ctx = await invoke<{ files: { name: string; title: string; content: string }[] }>("engine_rpc", { method: "context.list", params: {} }).catch(() => ({ files: [] }));
       setContextFiles(ctx.files ?? []);
       setAutoExtract(all["memory.autoExtract"] !== "false");
@@ -944,6 +966,109 @@ export function Settings({ onClose }: Props) {
                 </div>
               )}
               <p className="text-[10px] text-nexus-muted/50">The agent reaches these hosts via the <code className="text-nexus-gold-light">ssh_exec</code> / <code className="text-nexus-gold-light">ssh_upload</code> / <code className="text-nexus-gold-light">ssh_download</code> tools. Ask it to “run a command on &lt;name&gt;” or “copy a file to &lt;name&gt;”.</p>
+            </div>
+          )}
+
+          {/* Learning — self-improvement (Tasks 47 & 49) */}
+          {tab === "learning" && (
+            <div className="flex flex-col gap-4">
+              <p className="text-xs text-nexus-muted">The agent learns from experience: it logs every task, learns correction rules from your thumbs-down feedback, and (optionally) scores itself after each turn.</p>
+
+              {/* Toggles */}
+              <div className="flex flex-col gap-2">
+                {([
+                  { key: "experience", label: "Experience logging", desc: "Record every task (input, steps, output) so patterns can be detected and the agent improves over time.", val: expEnabled, set: setExpEnabled },
+                  { key: "correction", label: "Correction memory", desc: "Learn rules from your 👎 feedback and apply them in similar future situations.", val: correctionEnabled, set: setCorrectionEnabled },
+                  { key: "evaluation", label: "Self-evaluation", desc: "After each turn, a background call scores completion / satisfaction / efficiency.", val: evalEnabled, set: setEvalEnabled },
+                ] as const).map(t => (
+                  <div key={t.key} className="flex items-center justify-between rounded-lg border border-nexus-border bg-nexus-surface p-3">
+                    <div>
+                      <p className="text-sm text-nexus-fg">{t.label}</p>
+                      <p className="text-xs text-nexus-muted">{t.desc}</p>
+                    </div>
+                    <button onClick={async () => { const v = !t.val; t.set(v); await invoke("engine_rpc", { method: "settings.set", params: { key: `${t.key}.enabled`, value: v ? "true" : "false" } }).catch(() => {}); }}
+                      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${t.val ? "bg-nexus-accent" : "bg-nexus-border"}`}>
+                      <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${t.val ? "translate-x-5" : ""}`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Last self-evaluation */}
+              {lastEval && (
+                <div className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-3">
+                  <p className="mb-2 text-sm font-medium text-nexus-fg">Last self-evaluation</p>
+                  <div className="flex gap-4 text-xs">
+                    {(["completion", "satisfaction", "efficiency"] as const).map(k => (
+                      <div key={k} className="flex flex-col items-center gap-1">
+                        <span className="text-lg font-semibold text-nexus-gold">{lastEval[k]}</span>
+                        <span className="capitalize text-nexus-muted">{k}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {lastEval.note && <p className="mt-2 text-[11px] italic text-nexus-muted/70">"{lastEval.note}"</p>}
+                </div>
+              )}
+
+              {/* Correction rules */}
+              <div>
+                <p className="mb-2 text-sm font-medium text-nexus-fg">Correction rules ({corrections.length})</p>
+                <div className="mb-2 rounded-lg border border-nexus-border bg-nexus-surface/40 p-3">
+                  <p className="mb-2 text-[11px] text-nexus-muted">Add a rule — the agent injects matching rules into future replies so it doesn't repeat a mistake.</p>
+                  <div className="flex flex-col gap-2">
+                    <input value={corrForm.trigger_context} onChange={e => setCorrForm({ ...corrForm, trigger_context: e.target.value })} placeholder="When… (the situation, e.g. 'writing git commits')"
+                      className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                    <input value={corrForm.rule} onChange={e => setCorrForm({ ...corrForm, rule: e.target.value })} placeholder="Do this instead… (e.g. 'use conventional commit format')"
+                      className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                    <button onClick={async () => {
+                      if (!corrForm.trigger_context.trim() || !corrForm.rule.trim()) { showMsg("Both fields are required"); return; }
+                      await invoke("engine_rpc", { method: "correction.add", params: { ...corrForm } });
+                      const c = await invoke<{ corrections: Correction[] }>("engine_rpc", { method: "correction.list", params: {} });
+                      setCorrections(c.corrections ?? []);
+                      setCorrForm({ trigger_context: "", rule: "" });
+                      showMsg("Correction rule added");
+                    }} className="self-start rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90">Add rule</button>
+                  </div>
+                </div>
+                {corrections.length === 0 ? (
+                  <p className="text-xs text-nexus-muted/60">No rules yet — add one above.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {corrections.map(c => (
+                      <div key={c.id} className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[11px] text-nexus-muted">When {c.trigger_context}</p>
+                            <p className="text-sm text-nexus-fg">{c.rule}</p>
+                          </div>
+                          <button onClick={() => { invoke("engine_rpc", { method: "correction.delete", params: { id: c.id } }).then(() => setCorrections(prev => prev.filter(x => x.id !== c.id))); }}
+                            className="shrink-0 rounded-md px-2 py-0.5 text-[11px] text-red-400/70 hover:bg-nexus-surface hover:text-red-400">Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Recent experiences */}
+              <div>
+                <p className="mb-2 text-sm font-medium text-nexus-fg">Recent experiences ({experiences.length})</p>
+                {experiences.length === 0 ? (
+                  <p className="text-xs text-nexus-muted/60">Enable experience logging above and chat with the agent — tasks will appear here.</p>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {experiences.slice(0, 15).map(x => (
+                      <div key={x.id} className="flex items-center gap-2 rounded-md border border-nexus-border/50 bg-nexus-surface/30 px-3 py-1.5">
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${x.success ? "bg-green-400" : "bg-red-400"}`} title={x.success ? "succeeded" : "had a failed step"} />
+                        <span className="min-w-0 flex-1 truncate text-[11px] text-nexus-fg/70">{x.input}</span>
+                        {x.tool_steps.length > 0 && <span className="shrink-0 text-[10px] text-nexus-muted/50">{x.tool_steps.length} tools</span>}
+                        {x.feedback && <span className={`shrink-0 text-[10px] ${x.feedback === "up" ? "text-green-400" : "text-red-400"}`}>{x.feedback === "up" ? "👍" : "👎"}</span>}
+                        <span className="shrink-0 text-[10px] text-nexus-muted/40">{new Date(x.created_at).toLocaleDateString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

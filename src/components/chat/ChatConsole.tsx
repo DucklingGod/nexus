@@ -73,7 +73,7 @@ interface Props {
 }
 
 export function ChatConsole({ conversationId, onConversationCreated, inputPrefill, onConsumedPrefill }: Props) {
-  const { messages, sendMessage, loading, error, stopChat, pendingApproval, respondApproval, toolEvents } = useChat(conversationId, onConversationCreated);
+  const { messages, sendMessage, loading, error, stopChat, pendingApproval, respondApproval, toolEvents, setFeedback } = useChat(conversationId, onConversationCreated);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -185,6 +185,14 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
     } catch { /* cancelled */ }
   }
 
+  // Thumbs-up/down: log feedback. On thumbs-down, the user can add a manual
+  // correction rule in Settings → Learning; the engine injects matching rules
+  // into future turns so the mistake isn't repeated. (LLM-based auto-extraction
+  // would need a key-brokering command — manual rules cover the common case.)
+  const handleFeedback = (msgId: string, expId: string, feedback: "up" | "down") => {
+    setFeedback(msgId, expId, feedback);
+  };
+
   async function improvePrompt() {
     if (!input.trim() || improving) return;
     setImproving(true);
@@ -283,6 +291,25 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                       <div className="text-sm text-nexus-fg/90">
                         <MarkdownRenderer content={msg.content} />
                       </div>
+                      {/* Feedback (Task 49): thumbs up/down */}
+                      {msg.meta?.experienceId && !loading && (
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <button
+                            onClick={() => handleFeedback(msg.id, msg.meta!.experienceId!, "up")}
+                            title="Good response"
+                            className={`rounded p-1 transition hover:bg-nexus-surface ${msg.meta?.feedback === "up" ? "text-green-400" : "text-nexus-muted/40 hover:text-nexus-fg"}`}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 7v6h2V7H2zm3 6V7l4-5c.5 0 1 .5 1 1.5V6h3c.6 0 1 .4 1 1l-1.2 5c-.1.6-.6 1-1.2 1H5z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/></svg>
+                          </button>
+                          <button
+                            onClick={() => handleFeedback(msg.id, msg.meta!.experienceId!, "down")}
+                            title="Bad response"
+                            className={`rounded p-1 transition hover:bg-nexus-surface ${msg.meta?.feedback === "down" ? "text-red-400" : "text-nexus-muted/40 hover:text-nexus-fg"}`}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 9V3h2v6H2zm3-6v6l4 5c.5 0 1-.5 1-1.5V10h3c.6 0 1-.4 1-1l-1.2-5c-.1-.6-.6-1-1.2-1H5z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/></svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
