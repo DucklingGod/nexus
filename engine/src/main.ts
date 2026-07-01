@@ -16,6 +16,9 @@ initTools().catch(e => process.stderr.write(`[tools] init failed: ${e}\n`));
 import("./mcp/client.ts").then(({ autoConnect }) => autoConnect().catch(() => {})).catch(() => {});
 import("./plugins/manager.ts").then(({ loadAllPlugins }) => loadAllPlugins().catch(() => {})).catch(() => {});
 
+// Start cron execution engine on startup
+import("./scheduler/engine.ts").then(({ startCronEngine }) => startCronEngine()).catch(() => {});
+
 function send(obj: unknown): void {
   process.stdout.write(JSON.stringify(obj) + "\n");
 }
