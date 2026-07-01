@@ -1,4 +1,26 @@
+import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
 export function About() {
+  const [confirming, setConfirming] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+
+  async function handleReset() {
+    setResetting(true);
+    setResetError(null);
+    try {
+      await invoke("engine_rpc", { method: "system.reset", params: {} });
+      // The reset cleared the `onboarded` flag. Reload the app window so the
+      // gate re-evaluates and shows the welcome/onboarding screen again.
+      setTimeout(() => { try { getCurrentWindow().emit("nexus-reset-done"); } catch { /* ignore */ } location.reload(); }, 400);
+    } catch (e) {
+      setResetError(e instanceof Error ? e.message : String(e));
+      setResetting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8 p-6">
       {/* Logo + Name */}
@@ -74,6 +96,32 @@ export function About() {
         <p className="mt-1 text-[10px] text-nexus-muted/50">
           © 2024–2026 Nexus Contributors
         </p>
+      </div>
+
+      {/* Danger Zone — Factory Reset */}
+      <div className="rounded-lg border border-red-900/40 bg-red-950/10 p-5">
+        <h3 className="text-sm font-medium text-red-300/90">Danger Zone</h3>
+        <p className="mt-1 text-xs text-nexus-muted">
+          Reset Nexus to a fresh state. This <span className="text-red-300/80">erases all conversations, knowledge, skills, memory, corrections, kanban, workflows, and agent settings</span> —
+          but <span className="text-nexus-fg/80">keeps your saved API keys and your current provider choice</span>. The app will restart to onboarding.
+        </p>
+        {resetError && <p className="mt-2 text-xs text-red-400">Reset failed: {resetError}</p>}
+        {!confirming ? (
+          <button onClick={() => setConfirming(true)} disabled={resetting}
+            className="mt-3 rounded-lg border border-red-900/50 px-4 py-2 text-xs font-medium text-red-300 transition hover:bg-red-950/40 disabled:opacity-50">
+            Reset Nexus to fresh…
+          </button>
+        ) : (
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-xs text-red-300/80">Are you sure? This cannot be undone.</span>
+            <button onClick={() => setConfirming(false)} disabled={resetting}
+              className="rounded-lg border border-nexus-border px-3 py-1.5 text-xs text-nexus-muted hover:bg-nexus-surface disabled:opacity-50">Cancel</button>
+            <button onClick={handleReset} disabled={resetting}
+              className="rounded-lg bg-red-600/90 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-red-600 disabled:opacity-50">
+              {resetting ? "Resetting…" : "Yes, reset everything"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

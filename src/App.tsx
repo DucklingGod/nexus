@@ -33,8 +33,22 @@ function App() {
   }, []);
 
   useEffect(() => {
-    invoke<{ provider: string } | null>("provider_get")
-      .then((cfg) => setReady(!!cfg?.provider))
+    // Gate on the dedicated `onboarded` flag (decoupled from provider config),
+    // so a factory reset can clear the flag and re-trigger onboarding while
+    // keeping the user's saved provider + API key. Fall back to the legacy
+    // provider-presence check for users onboarded before the flag existed.
+    invoke<{ value: string | null }>("engine_rpc", { method: "settings.get", params: { key: "onboarded" } })
+      .then((r) => {
+        if (r.value === "true") { setReady(true); return; }
+        // Legacy: treat an existing provider config as onboarded, and persist the flag.
+        invoke<{ provider: string } | null>("provider_get")
+          .then((cfg) => {
+            const ok = !!cfg?.provider;
+            setReady(ok);
+            if (ok) invoke("engine_rpc", { method: "settings.set", params: { key: "onboarded", value: "true" } }).catch(() => {});
+          })
+          .catch(() => setReady(false));
+      })
       .catch(() => setReady(false));
   }, []);
 

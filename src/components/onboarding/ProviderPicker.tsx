@@ -9,7 +9,7 @@ function ProviderCard({ provider, selected, onClick }: { provider: ProviderInfo;
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col gap-1 rounded-lg border p-4 text-left transition-all hover:border-nexus-accent hover:bg-nexus-surface ${
+      className={`flex flex-col gap-1 rounded-lg border p-3 text-left transition-all hover:border-nexus-accent hover:bg-nexus-surface ${
         selected ? "border-nexus-accent bg-nexus-surface" : "border-nexus-border bg-transparent"
       }`}
     >
@@ -24,7 +24,7 @@ function HubCard({ provider, selected, onClick }: { provider: ProviderInfo; sele
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col gap-1.5 rounded-lg border p-4 text-left transition-all hover:border-emerald-500/50 hover:bg-nexus-surface ${
+      className={`flex flex-col gap-1.5 rounded-lg border p-3 text-left transition-all hover:border-emerald-500/50 hover:bg-nexus-surface ${
         selected ? "border-emerald-500/50 bg-nexus-surface" : "border-emerald-500/20 bg-emerald-500/5"
       }`}
     >
@@ -40,7 +40,7 @@ function HubCard({ provider, selected, onClick }: { provider: ProviderInfo; sele
 
 export function ProviderPicker({ onSelect, selected }: Props) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 max-h-[62vh] overflow-y-auto pr-1">
       {/* Hub — OpenRouter */}
       {HUB_PROVIDERS.length > 0 && (
         <div>
@@ -66,7 +66,7 @@ export function ProviderPicker({ onSelect, selected }: Props) {
 
       <div>
         <h3 className="mb-3 text-sm font-medium text-neutral-400">Specialized Providers</h3>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-2">
           {DIRECT_PROVIDERS.filter(p => p.tier === "specialized").map(p => (
             <ProviderCard key={p.id} provider={p} selected={selected === p.id} onClick={() => onSelect(p)} />
           ))}

@@ -44,6 +44,8 @@ export function WelcomeScreen({ onComplete }: Props) {
         model: selectedModel,
         baseUrl: baseUrl || selectedProvider.baseUrl,
       });
+      // Mark onboarded (decoupled from provider config so reset can re-trigger this).
+      await invoke("engine_rpc", { method: "settings.set", params: { key: "onboarded", value: "true" } }).catch(() => {});
       console.log("[WelcomeScreen] provider_set result:", result);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -81,7 +83,7 @@ export function WelcomeScreen({ onComplete }: Props) {
   const currentIdx = steps.indexOf(step);
 
   return (
-    <main className="flex h-screen flex-col items-center justify-center bg-nexus-bg">
+    <main className="flex h-screen flex-col items-center justify-start overflow-y-auto bg-nexus-bg py-8">
       <div className="w-full max-w-lg">
         <div className="mb-8 flex items-center justify-center gap-2">
           {steps.map((s, i) => (

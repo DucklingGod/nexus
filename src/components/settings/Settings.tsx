@@ -65,6 +65,8 @@ export function Settings({ onClose }: Props) {
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [customModel, setCustomModel] = useState("");
+  // Saved providers (multi-key hot-swap): provider ids with a stored key + local ones.
+  const [savedProviders, setSavedProviders] = useState<string[]>([]);
 
   // Advanced model params
   const [maxTokens, setMaxTokens] = useState("");
@@ -147,6 +149,14 @@ export function Settings({ onClose }: Props) {
       setHasBrave(await secureHas("api_key_brave"));
       setHasTg(await secureHas("api_key_telegram"));
       setHasDc(await secureHas("api_key_discord"));
+      // Detect every provider with a saved key (for multi-provider hot-swap).
+      // Local providers (Ollama/LM Studio) are always available — no key needed.
+      const saved: string[] = [];
+      for (const p of PROVIDERS) {
+        if (p.authType === "local") { saved.push(p.id); continue; }
+        if (await secureHas(`api_key_${p.id}`)) saved.push(p.id);
+      }
+      setSavedProviders(saved);
       const conn = await invoke<{ connectors: { platform: string; running: boolean; status: string }[] }>("connector_status").catch(() => ({ connectors: [] }));
       setConnectors(conn.connectors ?? []);
       const ssh = await invoke<{ hosts: SshHost[] }>("engine_rpc", { method: "ssh.list", params: {} }).catch(() => ({ hosts: [] }));
@@ -208,6 +218,7 @@ export function Settings({ onClose }: Props) {
       await secureSet(`api_key_${config.provider}`, newApiKey.trim());
       setHasKey(true);
       setNewApiKey("");
+      if (!savedProviders.includes(config.provider)) setSavedProviders(prev => [...prev, config.provider]);
       showMsg("API key saved!");
     } catch (e) { showMsg(`Error: ${e}`); } finally { setSaving(false); }
   }
@@ -216,6 +227,7 @@ export function Settings({ onClose }: Props) {
     if (!config) return;
     await secureDelete(`api_key_${config.provider}`);
     setHasKey(false);
+    setSavedProviders(prev => prev.filter(id => id !== config.provider));
     showMsg("API key deleted");
   }
 
@@ -433,7 +445,15 @@ export function Settings({ onClose }: Props) {
       await fetchModels(p.baseUrl, "");
       setChangingModel(true);
     } else {
-      setChangingProvider(true);
+      // If this provider already has a saved key, skip key entry → go to model select.
+      const alreadyHas = await secureHas(`api_key_${p.id}`);
+      if (alreadyHas) {
+        setHasKey(true);
+        await fetchModels(p.id, p.baseUrl);
+        setChangingModel(true);
+      } else {
+        setChangingProvider(true);
+      }
     }
   }
 
@@ -468,6 +488,26 @@ export function Settings({ onClose }: Props) {
       setChangingProvider(false);
       setChangingModel(false);
       showMsg(`Switched to ${selectedProvider.name} / ${model}`);
+    } catch (e) { showMsg(`Error: ${e}`); } finally { setSaving(false); }
+  }
+
+  // Hot-swap to a provider whose key is already saved (no re-entry needed).
+  async function handleQuickSwitch(providerId: string) {
+    const p = PROVIDERS.find(x => x.id === providerId);
+    if (!p) return;
+    setSaving(true);
+    try {
+      // Keep the current model only if it belonged to this provider; otherwise
+      // leave model as-is and let the user pick a model after switching.
+      const keepModel = config?.provider === providerId ? config.model : "";
+      await invoke("provider_set", { provider: p.id, model: keepModel || "default", baseUrl: p.baseUrl });
+      setConfig({ provider: p.id, model: keepModel || "default", baseUrl: p.baseUrl });
+      setHasKey(await secureHas(`api_key_${p.id}`));
+      // Open model picker so the user can choose a model for the newly active provider.
+      setSelectedProvider(p);
+      await fetchModels(p.id, p.baseUrl);
+      setChangingModel(true);
+      showMsg(`Switched to ${p.name} — pick a model`);
     } catch (e) { showMsg(`Error: ${e}`); } finally { setSaving(false); }
   }
 
@@ -623,6 +663,27 @@ export function Settings({ onClose }: Props) {
                   </div>
                 </div>
               </div>
+              {/* Saved providers — one-tap hot-swap among providers with a stored key */}
+              {savedProviders.length > 0 && (
+                <div>
+                  <h3 className="mb-2 text-sm font-medium text-nexus-fg">Saved providers <span className="text-xs font-normal text-nexus-muted">— tap to switch instantly</span></h3>
+                  <div className="flex flex-wrap gap-2">
+                    {PROVIDERS.filter(p => savedProviders.includes(p.id)).map(p => (
+                      <button key={p.id} onClick={() => handleQuickSwitch(p.id)} disabled={p.id === config.provider || saving}
+                        title={p.id === config.provider ? "Currently active" : `Switch to ${p.name}`}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition disabled:opacity-60 ${
+                          p.id === config.provider
+                            ? "border-nexus-accent bg-nexus-surface text-nexus-accent"
+                            : "border-nexus-border text-nexus-fg hover:border-nexus-accent hover:bg-nexus-surface"
+                        }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${p.id === config.provider ? "bg-nexus-accent" : "bg-green-400"}`} />
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-nexus-muted/60">Each provider's key is stored separately in the OS keychain — switch anytime without re-entering it.</p>
+                </div>
+              )}
               <div>
                 <h3 className="mb-2 text-sm font-medium text-nexus-fg">API Key</h3>
                 {hasKey ? (

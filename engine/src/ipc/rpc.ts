@@ -22,6 +22,7 @@ import { addHost, listHosts, updateHost, deleteHost } from "../tools/sshStore.ts
 import { listExperiences, setFeedback } from "../selfImprove/experience.ts";
 import { addCorrection, listCorrections, deleteCorrection, extractCorrection } from "../selfImprove/correction.ts";
 import { getLatestEvaluation, listEvaluations } from "../selfImprove/evaluate.ts";
+import { resetAgentData } from "../system/reset.ts";
 import { startConnector, stopConnector, connectorStatus } from "../connectors/manager.ts";
 import { listWorkflows, getWorkflow, saveWorkflow, deleteWorkflow } from "../workflow/store.ts";
 import { runWorkflow } from "../workflow/executor.ts";
@@ -106,6 +107,10 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
     switch (req.method) {
       case "engine.health":
         return { ...base, result: { ok: true, version: ENGINE_VERSION } };
+
+      // Factory reset (Task 1): wipe all agent data; keep keychain + provider config.
+      case "system.reset":
+        return { ...base, result: resetAgentData() };
 
       // Settings
       case "settings.get": {
