@@ -6,7 +6,7 @@
 
 **The open-source desktop AI agent platform for everyone.**
 
-Build, customize, and deploy AI agents in under 2 minutes — no terminal required.
+Build, customize, and run capable AI agents in under 2 minutes — no terminal required. Runs natively on **macOS, Windows, and Linux**.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-gold.svg?style=flat-square&color=c8a24e)](LICENSE)
 [![Tauri](https://img.shields.io/badge/Tauri_2.x-Rust-blue?style=flat-square&logo=tauri)](https://tauri.app)
@@ -19,248 +19,213 @@ Build, customize, and deploy AI agents in under 2 minutes — no terminal requir
 
 ## What is Nexus?
 
-Nexus is a **local-first desktop AI agent platform** built with Tauri 2 (Rust shell) and React (TypeScript). It gives non-technical users a working AI agent through a beautiful GUI — no CLI, no config files, no cloud dependency.
+Nexus is a **local-first desktop AI agent platform** built with Tauri 2 (Rust shell) and React (TypeScript). It gives non-technical users a working AI agent through a polished GUI — no CLI, no config files, no cloud dependency. Under the hood it's a full agent runtime: tools, memory, skills, visual workflows, sub-agent orchestration, and MCP.
 
 **Core principles:**
 - **Local-first** — everything runs on your machine
-- **Bring your own key** — you pay for your own API costs, zero hosting fees
-- **Privacy by default** — API keys stored in your OS keychain, never in files
+- **Bring your own key** — you pay for your own API usage; zero hosting fees
+- **Privacy by default** — API keys live in your OS keychain, never in files
 - **No always-on promise** — your data stays yours
 
 ## Quick Start
 
-### 1. Download
-
-Grab the latest release for your platform from [Releases](https://github.com/DucklingGod/nexus/releases).
-
-### 2. Launch & Connect
-
-Open Nexus → 3-click onboarding wizard:
-1. Pick your AI provider (OpenAI, Anthropic, Google, OpenRouter, Ollama, and 7 more)
-2. Paste your API key (encrypted in OS keychain)
-3. Name your agent
-
-### 3. Start Building
-
-Your agent is ready. Ask it anything, upload documents for RAG, or build visual workflows.
+1. **Download** the latest build for your OS from [Releases](https://github.com/DucklingGod/nexus/releases) (or [build from source](#building-from-source)).
+2. **Launch & connect** — a 3-click onboarding wizard:
+   1. Pick a provider (OpenAI, Anthropic, Google, DeepSeek, OpenRouter, Ollama, LM Studio, and more)
+   2. Paste your API key (stored encrypted in the OS keychain)
+   3. Name your agent
+3. **Start building** — chat, upload documents for RAG, wire up a visual workflow, or connect an MCP server.
 
 ## Features
 
-### Chat & Intelligence
-- **Streaming responses** with markdown rendering (code blocks, tables, lists)
-- **Reasoning streaming** — see model thinking in real-time (OpenAI o1/o3, Claude extended thinking, DeepSeek R1)
-- **12+ providers** — OpenAI, Anthropic, Google, DeepSeek, and more (direct API keys)
-- **OpenRouter hub** — access 300+ models with one key, including **free models** (no credit card needed)
-- **Smart model routing** — heuristic complexity classifier routes to the cheapest capable model
-- **Semantic caching** — repeat queries answered instantly at $0 cost (cosine similarity ≥0.95)
-- **Prompt caching** — Anthropic cache_control reduces costs ~90% on repeated system prompts
-- **First-run onboarding** — agent introduces itself and gets to know new users naturally
-- **Agent self-awareness** — agent knows it runs in Nexus, knows its tools and capabilities
+### Chat & intelligence
+- **Streaming responses** with markdown (code, tables, lists) and **reasoning streaming** (OpenAI o-series, Claude extended thinking, DeepSeek R1)
+- **14+ providers** via direct keys, plus an **OpenRouter hub** for 300+ models including **free models**
+- **Smart model routing** (heuristic complexity classifier → cheapest capable model)
+- **Semantic cache** (repeat questions answered at $0, cosine ≥ 0.95) and **prompt caching** (Anthropic `cache_control`)
+- **Onboarding + self-awareness** — the agent introduces itself and knows its own tools/capabilities
+- **Observability** — a per-reply model + token chip, plus a live **Logs** tab (Settings → Logs)
 
-### Tools & Capabilities
-- **40+ built-in tools** — web search, file operations, terminal, code execution, search, patch, process management, todo lists
-- **Tool approval system** — 4 safety modes: ask (confirm every change), auto (file edits automatic), plan (planning only), full (run everything)
-- **Document RAG** — upload PDF, DOCX, XLSX, TXT, MD → extract, chunk, embed, and search with vector similarity
-- **Multi-provider web search** — DuckDuckGo (free), Tavily, Brave, SearXNG
+### Tools & capabilities (40+ built-in)
+- Web search (DuckDuckGo free / Tavily / Brave / SearXNG), file ops, terminal, code execution, patch, process, to-dos
+- **Browser automation**, **media tools** (image generation, text-to-speech), **scheduler (cron)**, **session search**, **Kanban board**
+- **MCP client** — connect any Model Context Protocol server (stdio / SSE) and the agent instantly gains its tools
+- **Plugin system** — drop in JS/TS plugins to add tools dynamically
+- **Tool approval** — 4 safety modes: *ask* (confirm changes), *auto* (file edits auto), *plan* (no changes), *full* (run everything)
 
-### Agent Builder
-- **Visual agent customization** — name, role, personality, custom instructions
-- **Capabilities toggle** — enable/disable tools per agent
-- **60 built-in skills** across 8 categories (writing, research, productivity, coding, learning, life, business, creative)
-- **Skill synthesizer** — agent learns new skills from tasks automatically (opt-in)
-- **Semantic skill matching** — vector-based skill selection for better context
+### Sub-agent orchestration
+- `delegate_task` — spin up an autonomous sub-agent with its own tool loop
+- `delegate_batch` — **parallel fan-out** (run independent sub-tasks concurrently)
+- Toolset sandboxing (safe / research / code / web / full), model override, and per-task token tracking
 
-### Persistent Memory
-- **5 context files** — rules, soul/persona, user profile, memory notes, current context
-- **Auto-extract** — background LLM distills durable facts from conversations (default ON)
-- **Cross-session persistence** — agent remembers user across restarts from day one
-- **Transparent .md layer** — users can view/edit all memory in Settings → Context
-- **remember tool** — agent proactively saves facts, preferences, and decisions
+### Agent builder & skills
+- Visual customization — name, role, personality, custom instructions; per-agent capability toggles
+- **60 built-in skills** across 8 categories, plus custom skills
+- **Hermes skill import** (parse `SKILL.md`) and `install_skills` — the agent installs skills straight from a GitHub repo
+- **Skill synthesizer** — the agent learns new skills from finished tasks (opt-in), with semantic skill matching
 
-### Visual Workflows
-- **Drag-and-drop canvas** — React Flow-based workflow builder
-- **4 block types** — trigger, agent, tool, output
-- **Execution engine** — topological sort, data flow between blocks, live status
-- **Template library** — pre-built workflow templates
+### Persistent memory (grows with you)
+- **Episodic** (conversation history) + **semantic** (vector) memory in SQLite
+- A transparent **`.md` context layer** — `rules`, `soul`, `user`, `memory`, `context` — injected every turn and editable in Settings → Context
+- **Auto-extract** — a background pass distills durable facts into memory after each chat (default on); the `remember` tool lets the agent write/prune it itself
 
-### Platform Connectors
-- **Telegram** — long-poll mode, safe tools only, typing indicator
-- **Discord** — Gateway WebSocket, safe tools only, typing indicator
-- **Connector chats** — Telegram/Discord conversations appear in sidebar
+### Knowledge & RAG
+- Upload PDF / DOCX / XLSX / CSV / TXT / MD → extract → chunk → embed → vector search
+- **Watched folders** — point Nexus at a folder and it auto-indexes new/changed files
 
-### Desktop Experience
-- **Tauri 2.x** — ~12MB (vs Electron's 200MB), native performance
-- **Frameless window** with custom titlebar
-- **Premium dark theme** — #0a0a0a base, gold #c8a24e accents
-- **Space FX** — animated sparkle stars and comets
-- **Liquid gold loading screen** — SVG turbulence filter animation
-- **Noto Sans Thai** — full Thai language support
-- **Onboarding wizard** — 3-click setup for non-technical users
+### Visual workflows
+- Drag-and-drop **React Flow** canvas, 4 block types (trigger / agent / tool / output)
+- **Execution engine** (topological order, data flow between blocks, live per-node status) + template library
+
+### Productivity & experimentation
+- **A/B testing** — run one prompt through two models side-by-side and pick a winner
+- **Prompt assistant** — one click rewrites your prompt to be clearer and more specific
+- **Export / import agent** — share personality + settings + skills + context as a JSON bundle (never your keys)
+
+### Platform connectors
+- **Telegram** (long-poll) and **Discord** (Gateway WebSocket) — Live mode, no webhook/public URL needed
+- Remote messages run with **safe tools only**; a typing indicator shows while the agent works, and those chats appear in the sidebar
+
+### Desktop experience
+- **Tauri 2** — ~12 MB native app (vs Electron's ~200 MB)
+- Frameless window, premium dark + gold theme, customizable **Space FX**, a **panic/abort** button, and i18n (incl. Thai)
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│  Tauri 2 Shell (Rust)                       │
-│  ┌───────────────────────────────────────┐  │
-│  │  React 19 + TypeScript + Tailwind v4  │  │
-│  │  (WebView — WebKit on Mac, WebView2   │  │
-│  │   on Windows, WebKitGTK on Linux)     │  │
-│  └───────────────┬───────────────────────┘  │
-│                  │ JSON-RPC / stdio          │
-│  ┌───────────────▼───────────────────────┐  │
-│  │  TypeScript Agent Engine (Node/Bun)    │  │
-│  │  ├─ Provider Router (12+ providers)    │  │
-│  │  ├─ Agent Loop (LLM → tool → result)  │  │
-│  │  ├─ Tool Registry (40+ tools)         │  │
-│  │  ├─ Memory (episodic + semantic)      │  │
-│  │  ├─ RAG (extract → chunk → embed)     │  │
-│  │  ├─ Skills (60 built-in + custom)     │  │
-│  │  ├─ Workflow Executor                 │  │
-│  │  └─ Connectors (Telegram, Discord)    │  │
-│  └───────────────┬───────────────────────┘  │
-│                  │                           │
-│  ┌───────────────▼───────────────────────┐  │
-│  │  SQLite + sqlite-vec                   │  │
-│  │  (conversations, memory, workflows,    │  │
-│  │   skills, settings, knowledge)         │  │
-│  └───────────────────────────────────────┘  │
-│                                              │
-│  OS Keychain — API keys encrypted            │
+┌──────────────────────────────────────────────┐
+│  Tauri 2 Shell (Rust)                          │
+│  ┌────────────────────────────────────────┐    │
+│  │  React 19 + TypeScript + Tailwind v4   │    │
+│  │  WebView: WebKit (macOS) · WebView2    │    │
+│  │  (Windows) · WebKitGTK (Linux)         │    │
+│  └───────────────┬────────────────────────┘    │
+│                  │ JSON-RPC over stdio          │
+│  ┌───────────────▼────────────────────────┐    │
+│  │  TypeScript Agent Engine (sidecar)      │    │
+│  │  ├─ Provider router (14+ providers)     │    │
+│  │  ├─ Agent loop (LLM → tool → result)    │    │
+│  │  ├─ Tool registry (40+ tools)           │    │
+│  │  ├─ Sub-agent orchestrator (delegate)   │    │
+│  │  ├─ MCP client + plugin loader          │    │
+│  │  ├─ Memory (episodic + semantic + .md)  │    │
+│  │  ├─ RAG (extract → chunk → embed)       │    │
+│  │  ├─ Skills (60 built-in + synthesizer)  │    │
+│  │  ├─ Workflow executor · scheduler       │    │
+│  │  └─ Connectors (Telegram · Discord)     │    │
+│  └───────────────┬────────────────────────┘    │
+│                  │                              │
+│  ┌───────────────▼────────────────────────┐    │
+│  │  SQLite + sqlite-vec                     │    │
+│  └────────────────────────────────────────┘    │
+│  OS keychain — API keys (brokered in Rust)      │
 └──────────────────────────────────────────────┘
 ```
 
-## Tech Stack
+The API key never reaches the WebView: the React UI passes only a provider id, and the Rust core brokers the key from the OS keychain into the engine over stdio.
+
+## Tech stack
 
 | Layer | Technology |
 |-------|-----------|
 | Shell | [Tauri 2.x](https://tauri.app) (Rust) |
 | Frontend | React 19 + TypeScript + Tailwind v4 |
-| Agent Engine | TypeScript sidecar (Node/Bun) — JSON-RPC/stdio |
+| Agent engine | TypeScript sidecar (Node) — JSON-RPC / stdio |
 | Database | [SQLite](https://sqlite.org) via [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) |
-| Vector Store | [sqlite-vec](https://github.com/asg017/sqlite-vec) (same SQLite file) |
+| Vector store | [sqlite-vec](https://github.com/asg017/sqlite-vec) (same SQLite file) |
 | Embeddings | Provider API (BYO-key) |
-| Workflow Canvas | [React Flow](https://reactflow.dev) |
+| Workflow canvas | [React Flow](https://reactflow.dev) |
 | Fonts | Playfair Display, Inter, Noto Sans Thai (self-hosted, offline) |
-| Icons | Custom SVG line icons (stroke-only, no fill) |
-
-## Screenshots
-
-<div align="center">
-<img src="assets/banner.png" alt="Nexus Interface" width="100%">
-<p><em>Premium dark theme with gold accents, sparkle star background, and liquid gold loading animation</em></p>
-</div>
 
 ## Roadmap
 
 | Milestone | Focus | Status |
 |-----------|-------|--------|
-| v0.1 — Wedge | Tauri scaffold + streaming chat + settings | ✅ Done |
-| v0.2 — Real Agent | Tools + memory + self-healing + token budget | ✅ Done |
-| v0.3 — Make It Yours | Agent builder + RAG + history + settings | ✅ Done |
-| v0.4 — Cost Control | Prompt cache + semantic cache + smart routing | ✅ Done |
-| v0.5 — Reach + Polish | Connectors + governance + UI polish + branding | ✅ Done |
-| v0.6 — First Public Beta | Integration tests + docs + cross-platform CI | ⏸️ Deferred |
-| **v0.7 — Visual Workflows** | Canvas + execution engine + templates | **🚧 In Progress** |
-| v0.8 — Observability | Dashboard + export/import + offline mode | Planned |
-| v0.9 — Extensibility | Multi-agent + plugins + self-improvement | Planned |
-| v1.0 — Complete Platform | Knowledge connectors + MCP | Planned |
+| v0.1 — Wedge | Tauri scaffold + streaming chat + settings | ✅ |
+| v0.2 — Real Agent | Tools + memory + self-healing + token budget | ✅ |
+| v0.3 — Make It Yours | Agent builder + RAG + history + settings | ✅ |
+| v0.4 — Cost Control | Prompt cache + semantic cache + smart routing | ✅ |
+| v0.5 — Reach + Polish | Connectors + governance + UI polish + branding | ✅ |
+| v0.7 — Visual Workflows | Canvas + execution + templates + skill import + context files | ✅ |
+| v0.8 — Observability | Per-reply observability + export/import + A/B + prompt assistant | ✅ |
+| v0.9 — Extensibility | Sub-agent orchestration + MCP + plugins + skill synthesizer | 🚧 mostly done (experience/correction remain) |
+| v1.0 — Complete Platform | Knowledge connectors + MCP + marketplace | 🚧 file connector + MCP client done |
+| v0.6 — First Public Beta | Integration tests + docs + cross-platform CI + release | ⏸️ deferred until the feature surface settles |
 
 See [PLAN.md](PLAN.md) for the full 55-task roadmap with acceptance criteria.
 
-## vs Hermes Agent
+## Nexus vs Hermes Agent
 
 | Feature | Hermes | Nexus |
 |---------|--------|-------|
-| Interface | CLI + chat | **Desktop GUI** |
-| Onboarding | Terminal setup | **3-click wizard** |
-| Agent Builder | Config files | **Visual builder** |
-| Cost Optimization | Basic | **Smart router + semantic cache + prompt caching** |
-| Sub-agent delegation | ✅ | v0.9 |
-| Platform delivery | 10+ platforms | Telegram + Discord |
-| Skill library | 1000+ skills | 60 built-in + synthesizer |
-| MCP integration | ✅ | v1.0 |
+| Interface | CLI + chat | **Desktop GUI** (3-click onboarding) |
+| Agent builder | Config files | **Visual builder** |
+| Cost optimization | Basic | **Smart router + semantic cache + prompt caching** |
+| Sub-agent delegation | ✅ | ✅ (parallel batch orchestrator) |
+| MCP + plugins | ✅ | ✅ (MCP client + plugin loader) |
+| Transparent memory (`.md`) | ✅ | ✅ (5 files + auto-extract) |
+| Skill library | 1000+ | 60 built-in + synthesizer + GitHub/Hermes import |
+| Platform delivery | 10+ platforms | Telegram + Discord (more planned) |
 
-## Building from Source
+## Building from source
 
 ### Prerequisites
 - [Node.js](https://nodejs.org) 20+
-- [Rust](https://www.rust-lang.org/tools/install) (stable toolchain)
-- [npm](https://www.npmjs.com)
+- [Rust](https://rustup.rs) (stable toolchain)
+- Platform build dependencies (see the [Tauri prerequisites guide](https://tauri.app/start/prerequisites/)):
+  - **macOS** — Xcode Command Line Tools: `xcode-select --install`
+  - **Windows** — Microsoft C++ Build Tools + WebView2 (preinstalled on Windows 11)
+  - **Linux** — `webkit2gtk`, `libssl`, `build-essential` (and friends)
 
 ### Build
 
 ```bash
 git clone https://github.com/DucklingGod/nexus.git
 cd nexus
-
-# Install dependencies
 npm install
-
-# Build frontend + Tauri binary
-export PATH="$HOME/.rustup/toolchains/stable-x86_64-pc-windows-msvc/bin:$PATH"
 npm run tauri build
-
-# Output: src-tauri/target/release/nexus.exe (~12MB)
 ```
+
+The bundle lands in `src-tauri/target/release/` — `nexus.app` / `.dmg` on macOS, `nexus.exe` / `.msi` on Windows, `nexus` / `.deb` / `.AppImage` on Linux.
 
 ### Development
 
 ```bash
-npm run tauri dev  # Opens window with hot-reload
+npm run tauri dev   # launches the app with hot-reload
 ```
 
-## Project Structure
+> The TypeScript agent engine runs from source as a sidecar, so engine-side changes take effect on relaunch without recompiling the Rust shell.
+
+## Project structure
 
 ```
 nexus/
-├── src/                    # React frontend
-│   ├── components/
-│   │   ├── chat/           # ChatConsole, MessageBubble, TopBar (memory toggle)
-│   │   ├── workflow/       # WorkflowsView (React Flow canvas)
-│   │   ├── skills/         # SkillsView, skill management
-│   │   ├── settings/       # Settings, Connectors, Context files, AuditLog
-│   │   ├── panel/          # RightPanel (activity, files)
-│   │   ├── sidebar/        # LeftSidebar (conversations, navigation)
-│   │   ├── common/         # SpaceCanvas, Skeleton, EmptyState
-│   │   └── onboarding/     # ProviderPicker, ApiKeyInput, AgentSetup
-│   ├── hooks/              # useChat (with system prompt + onboarding)
-│   └── styles/             # globals.css, fonts
-├── engine/                 # TypeScript agent engine (sidecar)
-│   ├── src/
-│   │   ├── ipc/            # JSON-RPC, stream (onboarding + auto-extract)
-│   │   ├── providers/      # OpenAI, Anthropic, Google adapters
-│   │   ├── tools/          # Tool registry + 40+ tools (incl. remember)
-│   │   ├── workflow/       # Executor, store
-│   │   ├── connectors/     # Telegram, Discord
-│   │   ├── skills/         # Built-in skills + synthesizer
-│   │   ├── context/        # 5 .md files + auto-extract + injectContext
-│   │   └── memory/         # Episodic (SQLite) + semantic (vector)
-│   └── tests/              # 44+ tests (vitest)
-├── site/                   # Vercel landing + docs (static HTML)
-├── src-tauri/              # Rust shell (Tauri)
-│   ├── src/                # IPC commands, keychain, sidecar manager
-│   └── Cargo.toml
-├── PLAN.md                 # 55-task roadmap
-├── SPEC.md                 # Full specification
-└── DESIGN.md               # Visual theme spec
+├── src/                 # React frontend (chat, workflows, skills, A/B, settings, sidebar, onboarding)
+├── engine/              # TypeScript agent engine (sidecar)
+│   └── src/
+│       ├── ipc/         # JSON-RPC dispatch, streaming, log buffer
+│       ├── providers/   # OpenAI-compatible + Anthropic/Google adapters
+│       ├── tools/       # Tool registry + 40+ tools
+│       ├── orchestrator/# Sub-agent runner (delegate)
+│       ├── mcp/         # MCP client   · plugins/  — plugin loader
+│       ├── workflow/    # Canvas executor + store
+│       ├── scheduler/   # Cron engine  · kanban/  — board store
+│       ├── connectors/  # Telegram, Discord
+│       ├── skills/      # Built-in skills + import + synthesizer
+│       ├── knowledge/   # Documents + RAG + watched folders
+│       ├── context/     # 5 .md files + auto-extract
+│       └── memory/      # Episodic (SQLite) + semantic (vector)
+├── src-tauri/           # Rust shell — IPC commands, keychain broker, sidecar manager
+├── PLAN.md · SPEC.md · DESIGN.md
 ```
 
 ## Contributing
 
-Nexus is open source under the MIT License. Contributions welcome.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-See [PLAN.md](PLAN.md) for the roadmap — pick a task and build it.
+Nexus is open source under the MIT License. Contributions welcome — fork, branch, and open a PR. See [PLAN.md](PLAN.md) for the roadmap; pick a task and build it.
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
 
 ---
 
@@ -268,6 +233,6 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 **Built with Tauri 2, React, and TypeScript**
 
-[Documentation](docs.html) · [Landing Page](landing.html) · [Report Bug](https://github.com/DucklingGod/nexus/issues) · [Request Feature](https://github.com/DucklingGod/nexus/issues)
+[Report a bug](https://github.com/DucklingGod/nexus/issues) · [Request a feature](https://github.com/DucklingGod/nexus/issues)
 
 </div>
