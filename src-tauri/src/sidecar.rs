@@ -90,6 +90,27 @@ fn find_node() -> String {
     "node".to_string()
 }
 
+/// Resolve the current user's home directory in a cross-platform way without
+/// pulling in the `dirs` crate. Returns None if it can't be determined.
+fn home_dir() -> Option<String> {
+    // Windows: %USERPROFILE%; Unix: $HOME
+    if cfg!(target_os = "windows") {
+        if let Ok(p) = std::env::var("USERPROFILE") {
+            if !p.trim().is_empty() {
+                return Some(p);
+            }
+        }
+        // %HOMEDRIVE%%HOMEPATH% fallback (e.g. C:\Users\name)
+        let drive = std::env::var("HOMEDRIVE").ok();
+        let path = std::env::var("HOMEPATH").ok();
+        if let (Some(d), Some(p)) = (drive, path) {
+            return Some(format!("{d}{p}"));
+        }
+        return None;
+    }
+    std::env::var("HOME").ok().filter(|s| !s.trim().is_empty())
+}
+
 pub struct Sidecar {
     stdin: Option<Mutex<ChildStdin>>,
     pending: Pending,
@@ -125,9 +146,20 @@ impl Sidecar {
         // Find node executable: NEXUS_NODE env > PATH > common Windows locations
         let node = find_node();
 
+        // Default the engine's working directory to the user's home so relative
+        // paths and `terminal_exec` resolve there (not the app bundle dir).
+        // Users can override via NEXUS_WORKDIR. Absolute paths reach anywhere.
+        let workdir = std::env::var("NEXUS_WORKDIR")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .or_else(home_dir)
+            .unwrap_or_else(|| data_dir.to_string());
+
         let mut child = Command::new(&node)
             .arg(&engine)
             .env("NEXUS_DATA_DIR", data_dir)
+            .env("NEXUS_WORKDIR", &workdir)
+            .current_dir(&workdir)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

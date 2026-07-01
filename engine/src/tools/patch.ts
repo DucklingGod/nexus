@@ -1,16 +1,16 @@
 // ponytail: patch — targeted find-and-replace edits in files
-// No fuzzy matching, no diff generation — just exact string replacement
+// No fuzzy matching, no diff generation — just exact string replacement.
+// Full machine reach: absolute paths resolve anywhere; relative paths under
+// the working dir. Writes are gated by the Safety Mode + approval flow.
 
 import { readFile, writeFile } from "node:fs/promises";
-import { resolve, sep } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { registerTool } from "./registry.ts";
 
 const WORKDIR = process.env.NEXUS_WORKDIR || process.cwd();
 
 function safePath(p: string): string {
-  const full = resolve(WORKDIR, p);
-  if (full !== WORKDIR && !full.startsWith(WORKDIR + sep)) throw new Error(`Path escapes sandbox: ${p}`);
-  return full;
+  return isAbsolute(p) ? resolve(p) : resolve(WORKDIR, p);
 }
 
 export function registerPatchTools(): void {
@@ -18,9 +18,9 @@ export function registerPatchTools(): void {
     {
       name: "patch",
       category: "file" as const,
-      description: "Find and replace text in a file. Use for targeted edits without rewriting the entire file.",
+      description: "Find and replace text in a file. Use for targeted edits without rewriting the entire file. Accepts absolute or relative paths anywhere on the host.",
       parameters: [
-        { name: "path", type: "string", description: "File path (relative to workspace)", required: true },
+        { name: "path", type: "string", description: "File path — absolute or relative to the working directory", required: true },
         { name: "old_string", type: "string", description: "Exact text to find", required: true },
         { name: "new_string", type: "string", description: "Replacement text", required: true },
       ],

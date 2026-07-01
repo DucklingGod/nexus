@@ -11,7 +11,7 @@ export function registerTerminalTools(): void {
     {
       name: "terminal_exec",
       category: "system" as const,
-      description: "Execute a shell command and return its output. Use for running scripts, installing packages, git operations, etc.",
+      description: "Execute a shell command on the host machine and return its output. Use for running scripts, installing packages, git operations, listing files (e.g. `ls ~/Desktop`), etc. Commands run in the working directory by default but can reference or `cd` to any absolute path.",
       parameters: [
         { name: "command", type: "string", description: "Shell command to execute", required: true },
         { name: "timeout", type: "number", description: "Timeout in seconds (default 30)" },

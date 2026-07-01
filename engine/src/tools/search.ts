@@ -1,17 +1,16 @@
 // ponytail: search_files — grep content or find files by name
-// Uses Node's fs + child_process (ripgrep if available, fallback to naive scan)
+// Uses Node's fs + child_process (ripgrep if available, fallback to naive scan).
+// Full machine reach: absolute paths resolve anywhere; relative under WORKDIR.
 
 import { readFile, readdir, stat } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { exec } from "node:child_process";
 import { registerTool } from "./registry.ts";
 
 const WORKDIR = process.env.NEXUS_WORKDIR || process.cwd();
 
 function safePath(p: string): string {
-  const full = resolve(WORKDIR, p);
-  if (!full.startsWith(WORKDIR)) throw new Error(`Path escapes sandbox: ${p}`);
-  return full;
+  return isAbsolute(p) ? resolve(p) : resolve(WORKDIR, p);
 }
 
 function runRg(args: string): Promise<string> {
@@ -20,6 +19,15 @@ function runRg(args: string): Promise<string> {
       resolve(stdout || "");
     });
   });
+}
+
+// Strip the search root from a full path for display (relative-looking output).
+function relPath(full: string, root: string): string {
+  if (full === root || full.startsWith(root + "/") || full.startsWith(root + "\\")) {
+    const r = full.slice(root.length).replace(/^[\\/]/, "");
+    return r || full;
+  }
+  return full;
 }
 
 async function naiveGrep(pattern: string, dir: string, glob?: string, limit = 30): Promise<string> {
@@ -43,8 +51,7 @@ async function naiveGrep(pattern: string, dir: string, glob?: string, limit = 30
             const lines = content.split("\n");
             for (let i = 0; i < lines.length; i++) {
               if (re.test(lines[i])) {
-                const rel = full.replace(WORKDIR + "/", "").replace(WORKDIR + "\\", "");
-                results.push(`${rel}:${i + 1}: ${lines[i].trim()}`);
+                results.push(`${relPath(full, dir)}:${i + 1}: ${lines[i].trim()}`);
                 re.lastIndex = 0;
               }
             }
@@ -63,10 +70,10 @@ export function registerSearchTools(): void {
     {
       name: "search_files",
       category: "file" as const,
-      description: "Search file contents (grep) or find files by name. Supports regex patterns and glob filters.",
+      description: "Search file contents (grep) or find files by name. Supports regex patterns and glob filters. The path may be absolute (anywhere on the host) or relative to the working directory.",
       parameters: [
         { name: "pattern", type: "string", description: "Regex pattern to search for", required: true },
-        { name: "path", type: "string", description: "Directory or file to search in (default: workspace root)" },
+        { name: "path", type: "string", description: "Directory or file to search in — absolute or relative (default: working dir root)" },
         { name: "glob", type: "string", description: "File glob filter (e.g. '*.ts', '*.py')" },
         { name: "mode", type: "string", description: "'content' (grep, default) or 'files' (find by name)" },
         { name: "limit", type: "number", description: "Max results (default 30)" },
@@ -103,7 +110,7 @@ export function registerSearchTools(): void {
                 const full = join(d, e.name);
                 if (e.isDirectory()) { await walk(full, depth + 1); }
                 else if (re.test(e.name)) {
-                  results.push(full.replace(WORKDIR + "/", "").replace(WORKDIR + "\\", ""));
+                  results.push(relPath(full, dir));
                 }
               }
             } catch { /* skip */ }

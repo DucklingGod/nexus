@@ -1,17 +1,19 @@
-// ponytail: file operations — read, write, list. Sandboxed to NEXUS_WORKDIR or cwd.
-// Ceiling: no recursive operations, no symlink following. Upgrade if needed.
+// ponytail: file operations — read, write, list.
+// Full machine reach (like Claude Code / Hermes): absolute paths resolve
+// anywhere on the host; relative paths resolve against the working dir.
+// Security boundary is the Safety Mode + approval gate (writes are `dangerous`),
+// not a path sandbox. Ceiling: no symlink following. Upgrade if needed.
 
 import { readFile, writeFile, readdir, stat, mkdir } from "node:fs/promises";
-import { join, resolve, sep } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { registerTool } from "./registry.ts";
 
-// Sandbox: all file ops restricted to this directory
+// Relative paths resolve here; absolute paths are used as-is.
 const WORKDIR = process.env.NEXUS_WORKDIR || process.cwd();
 
+// Resolve a user-supplied path: absolute → as-is, relative → under WORKDIR.
 function safePath(p: string): string {
-  const full = resolve(WORKDIR, p);
-  if (full !== WORKDIR && !full.startsWith(WORKDIR + sep)) throw new Error(`Path escapes sandbox: ${p}`);
-  return full;
+  return isAbsolute(p) ? resolve(p) : resolve(WORKDIR, p);
 }
 
 export function registerFileTools(): void {
@@ -19,9 +21,9 @@ export function registerFileTools(): void {
     {
       name: "file_read",
       category: "file" as const,
-      description: "Read a text file and return its contents.",
+      description: "Read a text file and return its contents. Accepts absolute paths anywhere on the host machine (e.g. /Users/.../Desktop/file.txt, ~/Documents/...) or paths relative to the working directory.",
       parameters: [
-        { name: "path", type: "string", description: "File path (relative to workspace)", required: true },
+        { name: "path", type: "string", description: "File path — absolute or relative to the working directory", required: true },
         { name: "max_lines", type: "number", description: "Max lines to read (default 200)" },
       ],
     },
@@ -38,9 +40,9 @@ export function registerFileTools(): void {
     {
       name: "file_write",
       category: "file" as const,
-      description: "Write text content to a file. Creates parent directories if needed.",
+      description: "Write text content to a file. Creates parent directories if needed. Accepts absolute or relative paths anywhere on the host.",
       parameters: [
-        { name: "path", type: "string", description: "File path (relative to workspace)", required: true },
+        { name: "path", type: "string", description: "File path — absolute or relative to the working directory", required: true },
         { name: "content", type: "string", description: "Content to write", required: true },
       ],
       dangerous: true,
@@ -58,9 +60,9 @@ export function registerFileTools(): void {
     {
       name: "file_list",
       category: "file" as const,
-      description: "List files and directories in a path.",
+      description: "List files and directories in a path. Accepts absolute or relative paths anywhere on the host.",
       parameters: [
-        { name: "path", type: "string", description: "Directory path (relative to workspace, default '.')", required: false },
+        { name: "path", type: "string", description: "Directory path — absolute or relative to the working directory (default '.')", required: false },
       ],
     },
     async (args) => {
