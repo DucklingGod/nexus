@@ -2,9 +2,9 @@
 
 > Depends on: SPEC.md
 > Created: 2026-06-28
-> Last updated: 2026-07-01 (v0.9 complete)
+> Last updated: 2026-07-02 (v1.0 mostly done — Obsidian + Unified Search + MCP Marketplace done; Notion deferred)
 > Repo: github.com/DucklingGod/nexus (canonical standalone repo "Nexus-App"; flattened layout — engine/ src/ src-tauri/ at root)
-> Status: In build — v0.1–v0.5, v0.7, v0.8, v0.9 complete; v0.6 deferred; v1.0 in progress
+> Status: In build — v0.1–v0.5, v0.7, v0.8, v0.9 complete; v0.6 deferred; v1.0 mostly done (Notion connector deferred)
 
 ---
 
@@ -24,7 +24,7 @@ breakdown is unchanged below). Current status against it:
 | v0.7 — Visual Workflows | 34-37 (+37B/37C) | ✅ Complete — canvas, per-block config, execution engine, templates, Hermes skill import, persistent context files (auto-extract) |
 | v0.8 — Observability + Power Tools | 38-40, 42-44 | ✅ Complete — per-reply observability (38), export/import (39), prompt assistant (42), A/B testing (43); Ollama/LM Studio (40) + usage analytics (44) already covered |
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
-| v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 In progress — **local file connector (50)** + **MCP client (54)** done; Notion/Obsidian (51-52), unified search (53), MCP marketplace UI (55) remain. **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control (ssh_exec/upload/download + host management) so the agent can drive any machine on the user's Tailscale network like Claude Code / Hermes. |
+| v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
