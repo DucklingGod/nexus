@@ -23,10 +23,12 @@ import { listExperiences, setFeedback } from "../selfImprove/experience.ts";
 import { addCorrection, listCorrections, deleteCorrection, extractCorrection } from "../selfImprove/correction.ts";
 import { getLatestEvaluation, listEvaluations } from "../selfImprove/evaluate.ts";
 import { resetAgentData } from "../system/reset.ts";
+import { getServers, addServer, removeServer, toggleServer, connectServer, disconnectServer, getServerStates, type McpServerConfig } from "../mcp/client.ts";
+import { fetchCatalog } from "../mcp/registry.ts";
 import { startConnector, stopConnector, connectorStatus } from "../connectors/manager.ts";
 import { listWorkflows, getWorkflow, saveWorkflow, deleteWorkflow } from "../workflow/store.ts";
 import { runWorkflow } from "../workflow/executor.ts";
-import { importSkills } from "../skills/import.ts";
+import { importSkills, importSkillsFromGithub } from "../skills/import.ts";
 import { listContextFiles, setContextFile } from "../context/files.ts";
 import { exportAgent, importAgent } from "../io/agent.ts";
 import { addDocument, ingestFile, listDocuments, deleteDocument, searchDocuments } from "../knowledge/documents.ts";
@@ -112,6 +114,40 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       // Factory reset (Task 1): wipe all agent data; keep keychain + provider config.
       case "system.reset":
         return { ...base, result: resetAgentData() };
+
+      // MCP server management (Task 55c) — thin wrappers over client.ts.
+      case "mcp.list":
+        return { ...base, result: { servers: getServerStates() } };
+      case "mcp.add": {
+        const cfg = req.params as Omit<McpServerConfig, "enabled"> & { enabled?: boolean };
+        addServer(cfg);
+        return { ...base, result: { ok: true } };
+      }
+      case "mcp.remove": {
+        const { id } = req.params as { id: string };
+        removeServer(id);
+        return { ...base, result: { ok: true } };
+      }
+      case "mcp.toggle": {
+        const { id, enabled } = req.params as { id: string; enabled: boolean };
+        toggleServer(id, enabled);
+        return { ...base, result: { ok: true } };
+      }
+      case "mcp.connect": {
+        const { id } = req.params as { id: string };
+        return { ...base, result: { server: await connectServer(id) } };
+      }
+      case "mcp.disconnect": {
+        const { id } = req.params as { id: string };
+        disconnectServer(id);
+        return { ...base, result: { ok: true } };
+      }
+
+      // MCP marketplace catalog (Task 55b) — live fetch from the official registry.
+      case "mcp.catalog": {
+        const { limit, cursor, query } = (req.params ?? {}) as { limit?: number; cursor?: string; query?: string };
+        return { ...base, result: await fetchCatalog({ limit, cursor, query }) };
+      }
 
       // Settings
       case "settings.get": {
@@ -282,6 +318,11 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       case "skills.import": {
         const { dir } = (req.params ?? {}) as { dir?: string };
         return { ...base, result: importSkills(dir) };
+      }
+      case "skills.importGithub": {
+        // Marketplace (Task 55d) — install skills from a public GitHub repo.
+        const { url } = (req.params ?? {}) as { url: string };
+        return { ...base, result: await importSkillsFromGithub(url) };
       }
       case "context.list":
         return { ...base, result: { files: listContextFiles() } };

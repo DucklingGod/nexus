@@ -7,6 +7,7 @@ import { Settings } from "./components/settings/Settings";
 import { LeftSidebar } from "./components/sidebar/LeftSidebar";
 import { TopBar } from "./components/chat/TopBar";
 import { SkillsView } from "./components/skills/SkillsView";
+import { MarketplaceView } from "./components/mcp/MarketplaceView";
 import { WorkflowsView } from "./components/workflow/WorkflowsView";
 import { ABTestView } from "./components/lab/ABTestView";
 import { KanbanView } from "./components/kanban/KanbanView";
@@ -20,6 +21,7 @@ function App() {
   const [showWorkflows, setShowWorkflows] = useState(false);
   const [showAB, setShowAB] = useState(false);
   const [showKanban, setShowKanban] = useState(false);
+  const [showMarketplace, setShowMarketplace] = useState(false);
   const [learnedToast, setLearnedToast] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [taskTitle, setTaskTitle] = useState<string | null>(null);
@@ -107,22 +109,24 @@ function App() {
       <SpaceCanvas />
       <LeftSidebar
         currentId={conversationId}
-        onSelect={(id) => { setConversationId(id); setShowSkills(false); setShowWorkflows(false); setShowAB(false); setShowKanban(false); }}
-        onNewChat={() => { setConversationId(null); setShowSkills(false); setShowWorkflows(false); setShowAB(false); setShowKanban(false); }}
-        onOpenSkills={() => { setShowSkills(true); setShowWorkflows(false); setShowAB(false); setShowKanban(false); }}
-        onOpenWorkflows={() => { setShowWorkflows(true); setShowSkills(false); setShowAB(false); setShowKanban(false); }}
-        onOpenKanban={() => { setShowKanban(true); setShowSkills(false); setShowWorkflows(false); setShowAB(false); }}
-        onOpenAB={() => { setShowAB(true); setShowSkills(false); setShowWorkflows(false); setShowKanban(false); }}
+        onSelect={(id) => { setConversationId(id); setShowSkills(false); setShowWorkflows(false); setShowAB(false); setShowKanban(false); setShowMarketplace(false); }}
+        onNewChat={() => { setConversationId(null); setShowSkills(false); setShowWorkflows(false); setShowAB(false); setShowKanban(false); setShowMarketplace(false); }}
+        onOpenSkills={() => { setShowSkills(true); setShowWorkflows(false); setShowAB(false); setShowKanban(false); setShowMarketplace(false); }}
+        onOpenWorkflows={() => { setShowWorkflows(true); setShowSkills(false); setShowAB(false); setShowKanban(false); setShowMarketplace(false); }}
+        onOpenKanban={() => { setShowKanban(true); setShowSkills(false); setShowWorkflows(false); setShowAB(false); setShowMarketplace(false); }}
+        onOpenMarketplace={() => { setShowMarketplace(true); setShowSkills(false); setShowWorkflows(false); setShowAB(false); setShowKanban(false); }}
+        onOpenAB={() => { setShowAB(true); setShowSkills(false); setShowWorkflows(false); setShowKanban(false); setShowMarketplace(false); }}
         onOpenSettings={() => setShowSettings(true)}
         skillsActive={showSkills}
         workflowsActive={showWorkflows}
         abActive={showAB}
         kanbanActive={showKanban}
+        marketplaceActive={showMarketplace}
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar
-          taskTitle={showAB ? "A/B Test" : showWorkflows ? "Workflows" : showSkills ? "Skills" : showKanban ? "Kanban" : taskTitle}
+          taskTitle={showAB ? "A/B Test" : showWorkflows ? "Workflows" : showSkills ? "Skills" : showKanban ? "Kanban" : showMarketplace ? "Marketplace" : taskTitle}
           onOpenSettings={() => setShowSettings(true)}
           onPickHost={(name) => setHostPrefill(`Run a command on my ${name} over SSH: `)}
         />
@@ -135,6 +139,8 @@ function App() {
             <SkillsView />
           ) : showKanban ? (
             <KanbanView />
+          ) : showMarketplace ? (
+            <MarketplaceView />
           ) : (
             <ChatConsole
               conversationId={conversationId}

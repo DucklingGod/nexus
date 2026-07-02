@@ -27,15 +27,17 @@ interface Props {
   onOpenSkills: () => void;
   onOpenWorkflows: () => void;
   onOpenKanban: () => void;
+  onOpenMarketplace: () => void;
   onOpenAB: () => void;
   onOpenSettings: () => void;
   skillsActive?: boolean;
   workflowsActive?: boolean;
   abActive?: boolean;
   kanbanActive?: boolean;
+  marketplaceActive?: boolean;
 }
 
-export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOpenWorkflows, onOpenKanban, onOpenAB, onOpenSettings, skillsActive, workflowsActive, abActive, kanbanActive }: Props) {
+export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOpenWorkflows, onOpenKanban, onOpenMarketplace, onOpenAB, onOpenSettings, skillsActive, workflowsActive, abActive, kanbanActive, marketplaceActive }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeTab, setActiveTab] = useState<"group" | "project">("project");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -243,6 +245,10 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
         <button onClick={onOpenKanban} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${kanbanActive ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"}`}>
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="3.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="6.5" y="2.5" width="3" height="7" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="10.5" y="2.5" width="3.5" height="9" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
           Kanban
+        </button>
+        <button onClick={onOpenMarketplace} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${marketplaceActive ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"}`}>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 4l1.5 8a1 1 0 001 1h7a1 1 0 001-1L14 4M2 4l1-1.5h10L14 4M6 7v2M10 7v2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Marketplace
         </button>
         <button onClick={onOpenAB} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${abActive ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"}`}>
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 12V4M2 4l3 8M5 4l-3 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M9 12V4h2.5a2 2 0 010 4H9m0 0h2.8a2 2 0 010 4H9" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>

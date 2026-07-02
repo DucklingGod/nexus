@@ -1,9 +1,10 @@
 // MCP (Model Context Protocol) client for Nexus.
-// Connects to external MCP servers via stdio (local subprocess) or SSE (remote).
-// Discovers tools from the server and dynamically registers them in the Nexus tool registry.
+// Connects to external MCP servers via stdio (local subprocess) or HTTP
+// (streamable-HTTP remote — the MCP spec's request/response mode). Discovers
+// tools from the server and dynamically registers them in the Nexus tool registry.
 //
 // MCP server config is stored in settings as JSON: mcp.servers
-// Format: [{ id, name, type: "stdio"|"sse", command?, args?, url?, env? }]
+// Format: [{ id, name, type: "stdio"|"http", command?, args?, url?, env? }]
 
 import { ChildProcess, spawn } from "node:child_process";
 import { getSetting, setSetting } from "../db/settings.ts";
@@ -17,7 +18,7 @@ import type { ToolResult } from "../tools/types.ts";
 export interface McpServerConfig {
   id: string;
   name: string;
-  type: "stdio" | "sse";
+  type: "stdio" | "http";
   command?: string;
   args?: string[];
   env?: Record<string, string>;
@@ -135,12 +136,21 @@ function handleMessage(serverId: string, line: string): void {
 }
 
 async function sendRequest(serverId: string, method: string, params: unknown = {}): Promise<unknown> {
+  const config = getServers().find((s) => s.id === serverId);
+  if (!config) throw new Error(`MCP server ${serverId} not found`);
+
+  // HTTP transport: POST the JSON-RPC request, accept JSON or text/event-stream.
+  if (config.type === "http") {
+    if (!config.url) throw new Error("HTTP MCP server requires a URL");
+    return sendHttpRequest(config.url, method, params, config.env);
+  }
+
+  // stdio transport: write to the subprocess stdin, await the matching reply.
   const proc = activeProcesses.get(serverId);
   if (!proc || !proc.stdin || proc.killed) {
     throw new Error(`MCP server ${serverId} is not connected`);
   }
-
-    const id = nextRequestId++;
+  const id = nextRequestId++;
   return new Promise((resolve, reject) => {
     pendingRequests.set(id, { resolve, reject });
     const req = JSON.stringify({ jsonrpc: "2.0", id, method, params });
@@ -156,14 +166,69 @@ async function sendRequest(serverId: string, method: string, params: unknown = {
   });
 }
 
+/**
+ * streamable-HTTP transport (MCP spec): POST a JSON-RPC request to the server
+ * URL. The response is either `application/json` (a single JSON-RPC object) or
+ * `text/event-stream` (SSE: read `data:` lines until we reach the JSON-RPC
+ * result message). Covers initialize / tools/list / tools/call — the only
+ * request/response methods Nexus uses. No persistent connection is held.
+ */
+async function sendHttpRequest(url: string, method: string, params: unknown, env?: Record<string, string>): Promise<unknown> {
+  const id = nextRequestId++;
+  const body = JSON.stringify({ jsonrpc: "2.0", id, method, params });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Accept": "application/json, text/event-stream",
+  };
+  // Optional bearer token / custom headers via env (e.g. MCP_AUTH_TOKEN).
+  if (env?.MCP_AUTH_TOKEN) headers["Authorization"] = `Bearer ${env.MCP_AUTH_TOKEN}`;
+
+  const res = await fetch(url, { method: "POST", headers, body });
+  if (!res.ok) throw new Error(`MCP HTTP ${method} failed: ${res.status} ${res.statusText}`);
+
+  const contentType = res.headers.get("content-type") ?? "";
+  let payload: unknown;
+  if (contentType.includes("text/event-stream")) {
+    // Read SSE: collect `data:` lines, parse each as JSON, return the message
+    // with a matching or result id.
+    const text = await res.text();
+    const dataLines = text.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim());
+    payload = null;
+    for (const line of dataLines) {
+      try {
+        const msg = JSON.parse(line);
+        // The result/response message — prefer it.
+        if (msg.id === id || msg.result !== undefined || msg.error !== undefined) { payload = msg; break; }
+      } catch { /* partial/non-JSON keepalive line — skip */ }
+    }
+    if (payload === null && dataLines.length > 0) {
+      // Fall back to the last parseable line.
+      for (let i = dataLines.length - 1; i >= 0; i--) {
+        try { payload = JSON.parse(dataLines[i]); break; } catch { /* skip */ }
+      }
+    }
+  } else {
+    payload = await res.json();
+  }
+
+  const msg = payload as { id?: number; result?: unknown; error?: { message?: string } } | null;
+  if (!msg) throw new Error(`MCP HTTP ${method}: empty response`);
+  if (msg.error) throw new Error(String(msg.error.message ?? "MCP HTTP error"));
+  return msg.result;
+}
+
 export async function connectServer(id: string): Promise<McpServerState> {
   const servers = getServers();
   const config = servers.find((s) => s.id === id);
   if (!config) throw new Error(`MCP server ${id} not found`);
 
-  // Already connected
-  if (activeProcesses.has(id)) {
+  // Already connected (stdio has a live process; http is stateless but we keep
+  // a state entry to mark it connected).
+  if (config.type === "stdio" && activeProcesses.has(id)) {
     return serverStates.get(id) ?? { config, status: "connected", tools: [] };
+  }
+  if (config.type === "http" && serverStates.get(id)?.status === "connected") {
+    return serverStates.get(id)!;
   }
 
   const state: McpServerState = { config, status: "connecting", tools: [] };
@@ -191,10 +256,17 @@ export async function connectServer(id: string): Promise<McpServerState> {
       // Send initialized notification (no response expected)
       const initNotif = JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" });
       proc.stdin.write(initNotif + "\n");
-    } else if (config.type === "sse") {
-      // SSE: no subprocess, just verify URL is reachable
-      if (!config.url) throw new Error("SSE server requires a URL");
-      // For SSE we use HTTP fetch directly per-request (stateless)
+    } else if (config.type === "http") {
+      // streamable-HTTP: no subprocess. Verify URL and run the initialize
+      // handshake over the same request/response transport.
+      if (!config.url) throw new Error("HTTP MCP server requires a URL");
+      await sendRequest(id, "initialize", {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "nexus", version: "0.1.0" },
+      });
+      // notifications/initialized is a notification (no response) — fire-and-forget.
+      void sendHttpRequest(config.url, "notifications/initialized", {}, config.env).catch(() => {});
     }
 
     // Discover tools

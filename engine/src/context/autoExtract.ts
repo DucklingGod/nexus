@@ -60,13 +60,8 @@ export async function autoExtract(
     // Use a small/fast model for extraction to save tokens
     const extractModel = pickExtractModel(model);
     const res = await chat(config, { messages: extractMessages, model: extractModel, maxTokens: 1024 });
-    const text = res.content?.trim() ?? "";
-    if (!text || text === "[]") return;
-
-    // Parse the JSON array — handle markdown fences if the model wraps them
-    const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-    const entries = JSON.parse(cleaned);
-    if (!Array.isArray(entries) || entries.length === 0) return;
+    const entries = parseExtractJson(res.content ?? "");
+    if (entries.length === 0) return; // nothing valid — common, not an error
 
     let saved = 0;
     for (const entry of entries) {
@@ -83,6 +78,35 @@ export async function autoExtract(
     // Extraction failures are silent — never bother the user
     console.warn("[auto-extract] Failed:", e instanceof Error ? e.message : String(e));
   }
+}
+
+/**
+ * Parse the model's extraction reply into a clean array of {file, note}.
+ * Models frequently return prose / markdown / fenced JSON / tool-call blobs
+ * instead of a bare JSON array, so this is defensive: extract the substring
+ * between the first '[' and the last ']', validate each entry, and return []
+ * if nothing parses. Never throws. Exported for testing.
+ */
+export function parseExtractJson(text: string): { file?: string; note?: string }[] {
+  const t = text.trim();
+  if (!t || t === "[]") return [];
+  // Strip markdown code fences if present.
+  const stripped = t.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  // Find the JSON array bounds — tolerates leading/trailing prose, fences,
+  // and "<tool_call>" wrappers some models emit.
+  const start = stripped.indexOf("[");
+  const end = stripped.lastIndexOf("]");
+  if (start < 0 || end <= start) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stripped.slice(start, end + 1));
+  } catch {
+    return []; // not valid JSON — nothing to extract
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter((e): e is Record<string, unknown> => !!e && typeof e === "object")
+    .map((e) => ({ file: typeof e.file === "string" ? e.file : undefined, note: typeof e.note === "string" ? e.note : undefined }));
 }
 
 /**

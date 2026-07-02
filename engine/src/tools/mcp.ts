@@ -47,14 +47,14 @@ export function registerMcpTools(): void {
       description:
         "Add and connect to an MCP server. Two types:\n" +
         "  • stdio — runs a local subprocess (e.g. npx -y @modelcontextprotocol/server-sqlite)\n" +
-        "  • sse — connects to a remote HTTP/SSE endpoint",
+        "  • http — connects to a remote streamable-HTTP endpoint",
       parameters: [
         { name: "id", type: "string", description: "Unique server ID (lowercase, no spaces)", required: true },
         { name: "name", type: "string", description: "Human-readable name", required: true },
         {
           name: "type",
           type: "string",
-          description: '"stdio" or "sse"',
+          description: '"stdio" or "http"',
           required: true,
         },
         {
@@ -71,7 +71,7 @@ export function registerMcpTools(): void {
         {
           name: "url",
           type: "string",
-          description: "For sse: the server URL endpoint",
+          description: "For http: the server URL endpoint",
         },
         {
           name: "env",
@@ -84,7 +84,7 @@ export function registerMcpTools(): void {
     async (args) => {
       const id = String(args.id);
       const name = String(args.name);
-      const type = String(args.type) as "stdio" | "sse";
+      const type = String(args.type) as "stdio" | "http";
 
       addServer({
         id,
