@@ -2,7 +2,35 @@
 // OpenAI, OpenRouter, DeepSeek, xAI, MiniMax, Kimi, DashScope, Xiaomi, Ollama, LM Studio — ALL same format
 // Anthropic + Google have different formats but we handle them via adapter
 
-import type { ProviderConfig, ChatRequest, ChatResponse, StreamChunk, StreamToolCallDelta, ModelInfo } from "./types.ts";
+import type { ProviderConfig, ChatRequest, ChatResponse, StreamChunk, StreamToolCallDelta, ModelInfo, ChatMessage } from "./types.ts";
+
+// ── Vision (Task 58): per-provider message content shape ────────────────────
+// Messages without images keep their plain string content unchanged (every
+// provider accepts that); only messages with `images` get the richer
+// multipart content array each API expects.
+
+function toOpenAIMessage(m: ChatMessage): { role: string; content: unknown } {
+  if (!m.images?.length) return { role: m.role, content: m.content };
+  const parts: object[] = [];
+  if (m.content) parts.push({ type: "text", text: m.content });
+  for (const img of m.images) parts.push({ type: "image_url", image_url: { url: `data:${img.mediaType};base64,${img.data}` } });
+  return { role: m.role, content: parts };
+}
+
+function toAnthropicMessage(m: ChatMessage): { role: string; content: unknown } {
+  if (!m.images?.length) return { role: m.role, content: m.content };
+  const parts: object[] = [];
+  if (m.content) parts.push({ type: "text", text: m.content });
+  for (const img of m.images) parts.push({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data } });
+  return { role: m.role, content: parts };
+}
+
+function toGoogleParts(m: ChatMessage): object[] {
+  const parts: object[] = [];
+  if (m.content) parts.push({ text: m.content });
+  for (const img of m.images ?? []) parts.push({ inline_data: { mime_type: img.mediaType, data: img.data } });
+  return parts;
+}
 
 /**
  * Stateful streaming filter that strips pseudo-tag blocks from content that
@@ -259,7 +287,7 @@ export async function chat(config: ProviderConfig, req: ChatRequest): Promise<Ch
   // Standard OpenAI-compatible
   const body: Record<string, unknown> = {
     model: req.model,
-    messages: req.messages,
+    messages: req.messages.map(toOpenAIMessage),
     max_tokens: req.maxTokens ?? 1024,
   };
   if (req.tools?.length) body.tools = req.tools;
@@ -317,7 +345,7 @@ export async function* chatStream(config: ProviderConfig, req: ChatRequest): Asy
   // Standard OpenAI-compatible streaming
   const body: Record<string, unknown> = {
     model: req.model,
-    messages: req.messages,
+    messages: req.messages.map(toOpenAIMessage),
     max_tokens: req.maxTokens ?? 1024,
     stream: true,
     stream_options: { include_usage: true },
@@ -412,7 +440,7 @@ async function chatAnthropic(config: ProviderConfig, req: ChatRequest, headers: 
       model: req.model,
       max_tokens: req.maxTokens ?? 1024,
       ...(systemMsg ? { system: anthropicSystem(systemMsg.content) } : {}),
-      messages: nonSystem.map(m => ({ role: m.role, content: m.content })),
+      messages: nonSystem.map(toAnthropicMessage),
     }),
   });
   if (!res.ok) throw new Error(`Anthropic error ${res.status}: ${await res.text()}`);
@@ -435,7 +463,7 @@ async function* chatStreamAnthropic(config: ProviderConfig, req: ChatRequest, he
       max_tokens: req.maxTokens ?? 1024,
       stream: true,
       ...(systemMsg ? { system: anthropicSystem(systemMsg.content) } : {}),
-      messages: nonSystem.map(m => ({ role: m.role, content: m.content })),
+      messages: nonSystem.map(toAnthropicMessage),
     }),
   });
   if (!res.ok) throw new Error(`Anthropic error ${res.status}: ${await res.text()}`);
@@ -486,7 +514,7 @@ async function chatGoogle(config: ProviderConfig, req: ChatRequest): Promise<Cha
   const systemMsg = req.messages.find(m => m.role === "system");
   const contents = req.messages.filter(m => m.role !== "system").map(m => ({
     role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
+    parts: toGoogleParts(m),
   }));
   const res = await fetch(`${config.baseUrl}/models/${req.model}:generateContent?key=${config.apiKey}`, {
     method: "POST",
@@ -510,7 +538,7 @@ async function* chatStreamGoogle(config: ProviderConfig, req: ChatRequest): Asyn
   const systemMsg = req.messages.find(m => m.role === "system");
   const contents = req.messages.filter(m => m.role !== "system").map(m => ({
     role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
+    parts: toGoogleParts(m),
   }));
   const res = await fetch(`${config.baseUrl}/models/${req.model}:streamGenerateContent?alt=sse&key=${config.apiKey}`, {
     method: "POST",

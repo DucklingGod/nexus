@@ -47,6 +47,52 @@ describe("chat — OpenAI-compatible", () => {
   });
 });
 
+describe("chat — vision attachments (Task 58)", () => {
+  it("OpenAI: sends image_url content parts only for messages with images", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      choices: [{ message: { content: "I see a cat" } }],
+      usage: { prompt_tokens: 10, completion_tokens: 4 },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await chat(openai, {
+      messages: [
+        { role: "system", content: "be helpful" },
+        { role: "user", content: "what is this?", images: [{ data: "AAAA", mediaType: "image/png" }] },
+      ],
+      model: "gpt-4o",
+    });
+
+    const [, init] = fetchMock.mock.calls[0];
+    const body = JSON.parse(init.body as string);
+    expect(body.messages[0].content).toBe("be helpful"); // no images -> untouched string
+    expect(body.messages[1].content).toEqual([
+      { type: "text", text: "what is this?" },
+      { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } },
+    ]);
+  });
+
+  it("Anthropic: sends base64 image source blocks", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      content: [{ text: "a dog" }],
+      usage: { input_tokens: 10, output_tokens: 4 },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await chat(anthropic, {
+      messages: [{ role: "user", content: "describe this", images: [{ data: "BBBB", mediaType: "image/jpeg" }] }],
+      model: "claude-x",
+    });
+
+    const [, init] = fetchMock.mock.calls[0];
+    const body = JSON.parse(init.body as string);
+    expect(body.messages[0].content).toEqual([
+      { type: "text", text: "describe this" },
+      { type: "image", source: { type: "base64", media_type: "image/jpeg", data: "BBBB" } },
+    ]);
+  });
+});
+
 describe("chat — Anthropic adapter", () => {
   it("uses output_tokens for usage.output (regression for the token bug)", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({

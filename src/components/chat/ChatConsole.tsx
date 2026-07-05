@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useChat } from "../../hooks/useChat";
+import { useChat, type ImageAttachment } from "../../hooks/useChat";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { RightPanel } from "../panel/RightPanel";
 import { ErrorToast } from "../common/ErrorToast";
@@ -99,6 +99,12 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
 
   const [input, setInput] = useState("");
   const [improving, setImproving] = useState(false);
+  // Vision (Task 58): images picked for the NEXT send only — not persisted,
+  // consistent with how the rest of the composer state works.
+  const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
+  const [attachingImage, setAttachingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [lastSentImages, setLastSentImages] = useState<ImageAttachment[] | undefined>(undefined);
 
   // Apply a prefill injected by the TopBar (e.g. picking an SSH host).
   useEffect(() => {
@@ -175,10 +181,13 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
   async function handleSend() {
     if (!input.trim() || loading) return;
     const msg = input;
+    const images = pendingImages.length ? pendingImages : undefined;
     setLastSentContent(msg);
     setLastReasoningLevel(reasoningLevel);
+    setLastSentImages(images);
     setInput("");
-    await sendMessage(msg, reasoningLevel, safetyMode);
+    setPendingImages([]);
+    await sendMessage(msg, reasoningLevel, safetyMode, images);
   }
 
   async function attachFile() {
@@ -188,6 +197,30 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
         setInput(prev => prev.trim() ? `${prev}\nRead this file: ${path}` : `Read this file: ${path}`);
       }
     } catch { /* cancelled */ }
+  }
+
+  async function attachImage() {
+    if (attachingImage) return;
+    try {
+      const path = await open({
+        multiple: false,
+        title: "Attach an image for a vision model",
+        filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp"] }],
+      });
+      if (typeof path !== "string") return;
+      setAttachingImage(true);
+      setImageError(null);
+      const img = await invoke<ImageAttachment>("engine_rpc", { method: "image.readBase64", params: { path } });
+      setPendingImages(prev => [...prev, img]);
+    } catch (e) {
+      setImageError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAttachingImage(false);
+    }
+  }
+
+  function removePendingImage(index: number) {
+    setPendingImages(prev => prev.filter((_, i) => i !== index));
   }
 
   // Thumbs-up/down: log feedback. On thumbs-down, the user can add a manual
@@ -213,9 +246,9 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
 
   const handleRetry = useCallback(() => {
     if (lastSentContent) {
-      sendMessage(lastSentContent, lastReasoningLevel, safetyMode);
+      sendMessage(lastSentContent, lastReasoningLevel, safetyMode, lastSentImages);
     }
-  }, [lastSentContent, lastReasoningLevel, safetyMode, sendMessage]);
+  }, [lastSentContent, lastReasoningLevel, safetyMode, lastSentImages, sendMessage]);
 
   const errorInfo = useMemo(() => error ? getUserMessage(error) : null, [error]);
 
@@ -251,6 +284,13 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                 {msg.role === "user" ? (
                   <div className="flex justify-end">
                     <div className="max-w-[80%] rounded-2xl bg-nexus-surface px-4 py-2.5">
+                      {msg.images && msg.images.length > 0 && (
+                        <div className="mb-2 flex flex-wrap gap-1.5">
+                          {msg.images.map((img, i) => (
+                            <img key={i} src={`data:${img.mediaType};base64,${img.data}`} alt="" className="h-16 w-16 rounded-md object-cover" />
+                          ))}
+                        </div>
+                      )}
                       <p className="text-sm text-nexus-fg">{msg.content}</p>
                       <p className="mt-1 text-[9px] text-nexus-muted/40">{new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
                     </div>
@@ -363,6 +403,23 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
         {/* Bottom input — ZCode style */}
         <div className="px-4 pb-4 pt-2">
           <div className="mx-auto max-w-3xl rounded-xl border border-nexus-border/40 bg-nexus-surface/60 shadow-lg shadow-black/20">
+            {/* Pending image attachments (Task 58 — vision input) */}
+            {pendingImages.length > 0 && (
+              <div className="flex flex-wrap gap-2 border-b border-nexus-border/20 px-3 pt-2.5">
+                {pendingImages.map((img, i) => (
+                  <div key={i} className="group relative h-14 w-14 overflow-hidden rounded-md border border-nexus-border/40">
+                    <img src={`data:${img.mediaType};base64,${img.data}`} alt="" className="h-full w-full object-cover" />
+                    <button onClick={() => removePendingImage(i)} title="Remove"
+                      className="absolute right-0 top-0 flex h-4 w-4 items-center justify-center rounded-bl bg-black/60 text-[9px] text-white opacity-0 transition group-hover:opacity-100">
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {imageError && (
+              <p className="border-b border-nexus-border/20 px-3 pt-2 text-[10px] text-red-400">{imageError}</p>
+            )}
             {/* Input field */}
             <textarea
               value={input}
@@ -379,6 +436,11 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                 {/* + attach file */}
                 <button onClick={attachFile} title="Attach a file" className="rounded-md p-1 text-nexus-muted/40 transition hover:bg-nexus-surface hover:text-nexus-muted">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2"/><path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                </button>
+
+                {/* Attach an image for vision models */}
+                <button onClick={attachImage} disabled={attachingImage} title="Attach an image" className="rounded-md p-1 text-nexus-muted/40 transition hover:bg-nexus-surface hover:text-nexus-muted disabled:opacity-40">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.2"/><circle cx="5.5" cy="6.5" r="1" fill="currentColor"/><path d="M3 11.5l3.5-3.5 2 2 2.5-3 3 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>
 
                 {/* ✨ Improve prompt */}

@@ -17,6 +17,7 @@ import { testConnection, listModels, chat } from "../providers/client.ts";
 import type { ProviderConfig } from "../providers/types.ts";
 import { listTools, executeTool } from "../tools/registry.ts";
 import { getLogs, clearLogs } from "./logbuffer.ts";
+import { readImageBase64 } from "../tools/attachments.ts";
 import { listSkillsWithState, setSkillEnabled, addCustomSkill, deleteCustomSkill } from "../skills/skills.ts";
 import { addHost, listHosts, updateHost, deleteHost } from "../tools/sshStore.ts";
 import { listExperiences, setFeedback } from "../selfImprove/experience.ts";
@@ -204,6 +205,11 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       case "logs.clear":
         clearLogs();
         return { ...base, result: { ok: true } };
+      case "image.readBase64": {
+        // Task 58 — read a local image file for vision-model attachments.
+        const { path } = (req.params ?? {}) as { path: string };
+        return { ...base, result: await readImageBase64(path) };
+      }
       case "skills.list":
         return { ...base, result: { skills: listSkillsWithState() } };
       case "skills.setEnabled": {

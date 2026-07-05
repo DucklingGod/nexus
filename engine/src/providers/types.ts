@@ -2,9 +2,21 @@
 // User provides: base_url + api_key → system lists available models → user picks any
 // No hardcoded provider list needed!
 
+/** An image attached to a chat message (Task 58 — vision input). Base64 body,
+ *  no `data:` URI prefix — each provider adapter wraps it in its own format. */
+export interface ImagePart {
+  data: string;
+  mediaType: string; // e.g. "image/png"
+}
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
+  /** Optional images (vision models only). Kept as a sibling field rather than
+   *  widening `content` to a union, so every existing consumer that treats
+   *  `content` as plain text (skills, orchestrator, budgeting, memory) needs
+   *  no changes — only the provider request-building code looks at this. */
+  images?: ImagePart[];
 }
 
 export interface ChatRequest {

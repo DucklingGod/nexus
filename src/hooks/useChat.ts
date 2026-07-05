@@ -22,6 +22,8 @@ export interface MessageMeta {
   feedback?: "up" | "down" | null;
 }
 
+export interface ImageAttachment { data: string; mediaType: string }
+
 export interface Message {
   id: string;
   role: "user" | "assistant";
@@ -30,6 +32,8 @@ export interface Message {
   toolEvents?: ToolEvent[];
   meta?: MessageMeta;
   reasoning?: string;
+  /** Vision attachments (Task 58) — session-only, not persisted to SQLite. */
+  images?: ImageAttachment[];
 }
 
 export interface ToolApproval {
@@ -40,7 +44,7 @@ export interface ToolApproval {
 
 interface UseChatReturn {
   messages: Message[];
-  sendMessage: (content: string, reasoningEffort?: string, safetyMode?: string) => Promise<void>;
+  sendMessage: (content: string, reasoningEffort?: string, safetyMode?: string, images?: ImageAttachment[]) => Promise<void>;
   loading: boolean;
   error: string | null;
   newChat: () => void;
@@ -242,7 +246,7 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
   }, []);
 
   const sendMessage = useCallback(
-    async (content: string, reasoningEffort?: string, safetyMode?: string) => {
+    async (content: string, reasoningEffort?: string, safetyMode?: string, images?: ImageAttachment[]) => {
       if (!content.trim() || loading) return;
 
       const convId = await ensureConversation();
@@ -252,6 +256,7 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
         role: "user",
         content: content.trim(),
         timestamp: Date.now(),
+        images: images?.length ? images : undefined,
       };
       const assistantId = `msg-${nextId.current++}`;
       streamingId.current = assistantId;
@@ -317,7 +322,7 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
         const chatMessages = [
           { role: "system" as const, content: systemPrompt },
           ...history.map((m) => ({ role: m.role, content: m.content })),
-          { role: "user" as const, content: content.trim() },
+          { role: "user" as const, content: content.trim(), images: images?.length ? images : undefined },
         ];
 
         const response = await invoke<{
