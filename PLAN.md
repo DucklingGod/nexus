@@ -25,7 +25,7 @@ breakdown is unchanged below). Current status against it:
 | v0.8 — Observability + Power Tools | 38-40, 42-44 | ✅ Complete — per-reply observability (38), export/import (39), prompt assistant (42), A/B testing (43); Ollama/LM Studio (40) + usage analytics (44) already covered |
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
-| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**, **57 (Slack/Matrix/Email gateways) done**; 58-63 (vision, MoA, local presets, prompt optimizer, clean installer, amplify) remain, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
+| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**, **57 (Slack/Matrix/Email gateways) done**, **58 (vision input) done**; 59-63 (MoA, local presets, prompt optimizer, clean installer, amplify) remain, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -58,7 +58,7 @@ and leapfrog on the axes Hermes structurally can't win (non-technical UX, cost, 
 |---|------|--------|
 | 56 | agentskills.io ecosystem absorption (discovery + GUI + auth token + resource bundling) | ✅ done (`8edaa4d` `c8f701a` `abc50af`) |
 | 57 | Messaging gateways (Slack, Email, Matrix; WhatsApp/Signal harder) | ✅ done (`9498b2e`) — 5 gateways total (Telegram, Discord, Slack, Matrix, Email) |
-| 58 | Vision input (multimodal images) | ⬜ |
+| 58 | Vision input (multimodal images) | ✅ done (`9cc1d11`) |
 | 59 | MoA (Mixture-of-Agents) | ⬜ |
 | 60 | Local backend presets (vLLM, llama.cpp) | ⬜ |
 | 61 | DSPy/GEPA-style prompt optimizer | ⬜ |
@@ -120,7 +120,10 @@ Added Slack (Socket Mode, raw WebSocket), Matrix (`/sync` long-poll, plain HTTPS
 
 **Verify:** engine `tsc` + tests; manual: save a token, Start, message the bot, confirm a reply + the conversation appears in the left panel grouped by source. **Done when** at least Email + Slack connect, reply, and persist as conversations.
 
-### Task 58 — Vision input (multimodal images)
+### Task 58 — Vision input (multimodal images) ✅ DONE (`9cc1d11`)
+Implemented narrower than originally sketched below, for a deliberate YAGNI reason: rather than widening `ChatMessage.content` to `string | ContentPart[]` (which would have forced changes across ~15 call sites in skills/orchestrator/budget/memory that only ever handle plain text), `content` stays a plain string and a new optional `images?: ImagePart[]` sibling field carries attachments — every existing text-only consumer needed zero changes. `client.ts` gained `toOpenAIMessage`/`toAnthropicMessage`/`toGoogleParts` mapping a message's images into each API's multipart format (only when present); a new `tools/attachments.ts` (`readImageBase64`, pure Node `fs`, no new Rust/Tauri fs-plugin dep — confirmed `chat_send`'s `messages: Vec<Value>` already passes through opaque JSON) backs a `image.readBase64` RPC; the UI got an attach-image button, pending-attachment thumbnails, and sent-message thumbnails (session-only, not persisted to SQLite). 85 engine tests pass (12 new).
+
+**Original spec (superseded by the leaner design above — kept for context):**
 **Goal:** let users attach images to a chat message; send them to vision-capable models.
 **Files:** `engine/src/providers/types.ts` (`ChatMessage.content`), `engine/src/providers/client.ts` (request building — OpenAI path around the `messages` map + `content: msg?.content ?? ""`; Anthropic path `nonSystem.map(m => ({ role, content: m.content }))`), `src/components/chat/ChatConsole.tsx` (attach button), `chat_send` in `mod.rs` (no key change; images ride in `messages`).
 **Steps:**
