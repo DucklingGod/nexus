@@ -5,7 +5,7 @@ import { listToolsForLLM, executeTool, getTool } from "../tools/registry.ts";
 import { requestApproval } from "../tools/approval.ts";
 import { getSetting } from "../db/settings.ts";
 import { augmentWithContext } from "../knowledge/documents.ts";
-import { recordTokenUsage } from "../tokens/usage.ts";
+import { recordTokenUsage, calculateCost } from "../tokens/usage.ts";
 import { estimateTokens } from "../tokens/budget.ts";
 import { maybeRouteModel } from "../tokens/router.ts";
 import { isCacheable, getCachedResponse, saveCachedResponse } from "../tokens/semanticCache.ts";
@@ -27,6 +27,16 @@ interface AccumulatedToolCall {
   id?: string;
   name?: string;
   arguments: string;
+}
+
+/** $ saved by the smart router picking `actualModel` over `requestedModel` for
+ *  this turn's actual token counts (Task 63 — cost dashboard flagship).
+ *  Clamped to 0: the router is a heuristic tier map, not guaranteed cheaper. */
+function routingSavings(requestedModel: string, actualModel: string, inputTokens: number, outputTokens: number): number {
+  if (actualModel === requestedModel) return 0;
+  const wouldHaveCost = calculateCost(requestedModel, inputTokens, outputTokens);
+  const actualCost = calculateCost(actualModel, inputTokens, outputTokens);
+  return Math.max(0, wouldHaveCost - actualCost);
 }
 
 /// `chat.send` streams tokens as `chat.delta` notifications, then returns the
@@ -62,6 +72,14 @@ export async function streamChat(
       send({ jsonrpc: "2.0", method: "chat.delta", params: { token: cached } });
       send({ jsonrpc: "2.0", method: "chat.cached", params: {} });
       send({ jsonrpc: "2.0", id: req.id, result: { content: cached, model, usage: { input: 0, output: 0 } } });
+      // The real API call was skipped entirely — record what it would have
+      // cost so cache savings are visible in the usage dashboard.
+      const estInput = estimateTokens(lastUserMsg);
+      const estOutput = estimateTokens(cached);
+      recordTokenUsage({
+        model, provider: config.id, input_tokens: 0, output_tokens: 0,
+        saved_usd: calculateCost(model, estInput, estOutput), saved_reason: "cache",
+      });
       return;
     }
   }
@@ -103,7 +121,7 @@ export async function streamChat(
     const hasTools = tools.length > 0;
 
     if (hasTools) {
-      const result = await agentLoop(config, ragMessages, model, tools, send, maxTokens, reasoningEffort, safetyMode);
+      const result = await agentLoop(config, ragMessages, model, tools, send, maxTokens, reasoningEffort, safetyMode, requestedModel);
       if (result) {
         const fullMsgs = [...messages, { role: "assistant", content: result.text }] as ChatMessage[];
         send({ jsonrpc: "2.0", id: req.id, result: { content: result.text, model, usage: { input: result.inputTokens, output: result.outputTokens } } });
@@ -155,12 +173,14 @@ export async function streamChat(
       }
     }
     if (inputTokens > 0 || outputTokens > 0) {
-      recordTokenUsage({ model, provider: config.id, input_tokens: inputTokens, output_tokens: outputTokens });
+      const saved = routingSavings(requestedModel, model, inputTokens, outputTokens);
+      recordTokenUsage({ model, provider: config.id, input_tokens: inputTokens, output_tokens: outputTokens, saved_usd: saved, saved_reason: saved > 0 ? "routing" : undefined });
     } else {
       const inputText = ragMessages.map(m => m.content).join(" ");
       const estInput = estimateTokens(inputText);
       const estOutput = estimateTokens(full);
-      recordTokenUsage({ model, provider: config.id, input_tokens: estInput, output_tokens: estOutput });
+      const saved = routingSavings(requestedModel, model, estInput, estOutput);
+      recordTokenUsage({ model, provider: config.id, input_tokens: estInput, output_tokens: estOutput, saved_usd: saved, saved_reason: saved > 0 ? "routing" : undefined });
       inputTokens = estInput;
       outputTokens = estOutput;
     }
@@ -196,6 +216,7 @@ async function agentLoop(
   maxTokens?: number,
   reasoningEffort?: "low" | "medium" | "high" | "max",
   safetyMode?: string,
+  requestedModel: string = model,
 ): Promise<{ text: string; inputTokens: number; outputTokens: number; usedTools: boolean; toolSteps: ToolStep[] } | null> {
   const history = [...messages];
   const collectedSteps: ToolStep[] = [];
@@ -238,7 +259,8 @@ async function agentLoop(
 
     // Record usage for this round
     if (inputTokens > 0 || outputTokens > 0) {
-      recordTokenUsage({ model, provider: config.id, input_tokens: inputTokens, output_tokens: outputTokens });
+      const saved = routingSavings(requestedModel, model, inputTokens, outputTokens);
+      recordTokenUsage({ model, provider: config.id, input_tokens: inputTokens, output_tokens: outputTokens, saved_usd: saved, saved_reason: saved > 0 ? "routing" : undefined });
     }
 
     // No tool calls — we're done, text was already streamed

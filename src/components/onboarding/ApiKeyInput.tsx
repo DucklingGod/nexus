@@ -81,6 +81,7 @@ export function ApiKeyInput({ provider, onComplete, onBack }: Props) {
           {provider.envVar && (
             <p className="mt-1 text-xs text-neutral-600">Env: {provider.envVar}</p>
           )}
+          <p className="mt-2 text-[11px] text-neutral-600">🔒 Stored in your OS keychain — never written to a file, sent to us, or visible in exports.</p>
         </div>
       )}
 

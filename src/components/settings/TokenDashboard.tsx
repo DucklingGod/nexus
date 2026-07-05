@@ -8,6 +8,8 @@ interface UsageStats {
   totalCachedTokens: number;
   totalCostUsd: number;
   totalMessages: number;
+  savedCacheUsd: number;
+  savedRoutingUsd: number;
   byDay: { date: string; input: number; output: number; cost: number; messages: number }[];
   byModel: { model: string; input: number; output: number; cost: number; messages: number }[];
 }
@@ -48,6 +50,7 @@ export function TokenDashboard() {
 
   const avgCost = stats.totalCostUsd / stats.totalMessages;
   const totalTokens = stats.totalInputTokens + stats.totalOutputTokens;
+  const totalSaved = stats.savedCacheUsd + stats.savedRoutingUsd;
 
   // Find max daily cost for chart scaling
   const maxDailyCost = Math.max(...stats.byDay.map(d => d.cost), 0.001);
@@ -106,10 +109,13 @@ export function TokenDashboard() {
         />
         <SummaryCard
           label="Savings"
-          value="—"
-          sub="Caching & routing coming soon"
+          value={`$${totalSaved.toFixed(4)}`}
+          sub={totalSaved > 0
+            ? `$${stats.savedCacheUsd.toFixed(4)} cache · $${stats.savedRoutingUsd.toFixed(4)} routing`
+            : "Enable caching/routing below to start saving"}
           icon={<IconLightbulb size={14} />}
-          muted
+          muted={totalSaved === 0}
+          highlight={totalSaved > 0}
         />
       </div>
 
@@ -216,20 +222,22 @@ export function TokenDashboard() {
   );
 }
 
-function SummaryCard({ label, value, sub, icon, muted }: {
+function SummaryCard({ label, value, sub, icon, muted, highlight }: {
   label: string;
   value: string;
   sub: string;
   icon: React.ReactNode;
   muted?: boolean;
+  /** A genuinely good number worth drawing the eye to (e.g. real $ savings). */
+  highlight?: boolean;
 }) {
   return (
-    <div className={`rounded-lg border border-nexus-border bg-nexus-surface p-3 ${muted ? "opacity-60" : ""}`}>
+    <div className={`rounded-lg border p-3 ${highlight ? "border-green-500/40 bg-green-500/5" : "border-nexus-border bg-nexus-surface"} ${muted ? "opacity-60" : ""}`}>
       <div className="mb-1 flex items-center gap-1.5">
-        <span className="text-nexus-muted">{icon}</span>
+        <span className={highlight ? "text-green-400" : "text-nexus-muted"}>{icon}</span>
         <span className="text-[10px] text-nexus-muted">{label}</span>
       </div>
-      <p className="text-lg font-semibold text-nexus-fg">{value}</p>
+      <p className={`text-lg font-semibold ${highlight ? "text-green-400" : "text-nexus-fg"}`}>{value}</p>
       <p className="text-[10px] text-nexus-muted/60">{sub}</p>
     </div>
   );

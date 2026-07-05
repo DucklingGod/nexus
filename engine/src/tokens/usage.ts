@@ -31,6 +31,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_usage_created ON usage_records(created_at);
   CREATE INDEX IF NOT EXISTS idx_usage_model ON usage_records(model);
 `);
+// Savings tracking (Task 63 — cost dashboard as a flagship feature): how much
+// a turn saved vs. the naive path (a real API call to the originally
+// requested model), whether from a semantic-cache hit or smart routing to a
+// cheaper model. Migration-safe for existing databases (documents.ts pattern).
+try { db.exec("ALTER TABLE usage_records ADD COLUMN saved_usd REAL NOT NULL DEFAULT 0"); } catch { /* already exists */ }
+try { db.exec("ALTER TABLE usage_records ADD COLUMN saved_reason TEXT"); } catch { /* already exists */ } // 'cache' | 'routing' | null
 
 // Approximate pricing per 1M tokens (USD)
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
@@ -63,11 +69,18 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
 
 function findPricing(model: string): { input: number; output: number } {
   const lower = model.toLowerCase();
+  // Prefer the LONGEST matching key, not the first one in insertion order —
+  // e.g. "gpt-4o-mini" contains "gpt-4o" as a substring, so insertion order
+  // alone would silently price it as the (much pricier) plain gpt-4o.
+  let best: { input: number; output: number } | null = null;
+  let bestLen = -1;
   for (const [key, pricing] of Object.entries(MODEL_PRICING)) {
-    if (lower.includes(key.toLowerCase())) return pricing;
+    if (lower.includes(key.toLowerCase()) && key.length > bestLen) {
+      best = pricing;
+      bestLen = key.length;
+    }
   }
-  // Default fallback
-  return { input: 1, output: 3 };
+  return best ?? { input: 1, output: 3 }; // default fallback
 }
 
 export function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
@@ -83,11 +96,15 @@ export interface UsageRecord {
   input_tokens: number;
   output_tokens: number;
   cached_tokens?: number;
+  /** $ saved vs. the naive path for this turn (a cache hit or routing to a
+   *  cheaper model), and why — surfaced in the Savings card. */
+  saved_usd?: number;
+  saved_reason?: "cache" | "routing";
 }
 
 const insertStmt = db.prepare(`
-  INSERT INTO usage_records (conversation_id, message_id, model, provider, input_tokens, output_tokens, cost_usd, cached_tokens)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO usage_records (conversation_id, message_id, model, provider, input_tokens, output_tokens, cost_usd, cached_tokens, saved_usd, saved_reason)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 export function recordTokenUsage(record: UsageRecord): void {
@@ -101,6 +118,8 @@ export function recordTokenUsage(record: UsageRecord): void {
     record.output_tokens,
     cost,
     record.cached_tokens ?? 0,
+    record.saved_usd ?? 0,
+    record.saved_reason ?? null,
   );
 }
 
@@ -110,6 +129,8 @@ export interface UsageStats {
   totalCachedTokens: number;
   totalCostUsd: number;
   totalMessages: number;
+  savedCacheUsd: number;
+  savedRoutingUsd: number;
   byDay: { date: string; input: number; output: number; cost: number; messages: number }[];
   byModel: { model: string; input: number; output: number; cost: number; messages: number }[];
 }
@@ -159,12 +180,23 @@ export function getUsageStats(days: number = 30): UsageStats {
     ORDER BY cost DESC
   `).all(sinceStr) as { model: string; input: number; output: number; cost: number; messages: number }[];
 
+  // Savings by source (cache hits vs. smart routing to a cheaper model).
+  const savings = db.prepare(`
+    SELECT
+      COALESCE(SUM(CASE WHEN saved_reason = 'cache' THEN saved_usd ELSE 0 END), 0) as cache,
+      COALESCE(SUM(CASE WHEN saved_reason = 'routing' THEN saved_usd ELSE 0 END), 0) as routing
+    FROM usage_records
+    WHERE created_at >= ?
+  `).get(sinceStr) as { cache: number; routing: number };
+
   return {
     totalInputTokens: total.totalInput,
     totalOutputTokens: total.totalOutput,
     totalCachedTokens: total.totalCached,
     totalCostUsd: total.totalCost,
     totalMessages: total.totalMessages,
+    savedCacheUsd: savings.cache,
+    savedRoutingUsd: savings.routing,
     byDay,
     byModel,
   };

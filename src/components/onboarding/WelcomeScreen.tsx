@@ -68,6 +68,10 @@ export function WelcomeScreen({ onComplete }: Props) {
             <br />
             Pick a provider, enter your API key, and start chatting.
           </p>
+          <p className="max-w-sm text-xs text-neutral-500">
+            Local-first: Nexus runs entirely on this machine. Your API keys live in your OS's
+            secure keychain — never in a file, never on our servers.
+          </p>
           <button
             onClick={() => setStep("provider")}
             className="mt-4 rounded-full bg-gold-sheen px-10 py-3 text-sm font-semibold tracking-wide text-black shadow-lg shadow-nexus-gold/10 transition hover:brightness-110"
