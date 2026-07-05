@@ -90,7 +90,13 @@ export async function streamChat(
   }
 
   try {
-    const tools = listToolsForLLM();
+    const allTools = listToolsForLLM();
+    // Some models (esp. free OpenRouter ones) don't support native OpenAI
+    // function-calling: sent a tools array, they emit <tool_call> XML as plain
+    // content instead of a structured tool_calls object — which leaks into the
+    // chat as garbage and stalls the loop. Gate tools on advertised capability.
+    const supportsTools = getSetting("model.supportsTools") !== "false";
+    const tools = supportsTools ? allTools : [];
     const hasTools = tools.length > 0;
 
     if (hasTools) {

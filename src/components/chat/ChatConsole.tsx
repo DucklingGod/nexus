@@ -117,7 +117,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
   const [providerId, setProviderId] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [showModelDropdown, setShowModelDropdown] = useState(false);
-  const [modelList, setModelList] = useState<{ id: string; isFree?: boolean }[]>([]);
+  const [modelList, setModelList] = useState<{ id: string; isFree?: boolean; supportsTools?: boolean }[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [lastSentContent, setLastSentContent] = useState<string | null>(null);
   const [lastReasoningLevel, setLastReasoningLevel] = useState<string>("medium");
@@ -164,6 +164,11 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
     try {
       await invoke("provider_set", { provider: providerId, model, baseUrl });
       setModelName(model);
+      // Persist tool-calling capability so the engine can decide whether to send
+      // a tools array. Free models that lack native function-calling will emit
+      // <tool_call> text blobs if sent tools — gating prevents that leak.
+      const supports = modelList.find(m => m.id === model)?.supportsTools ?? true;
+      await invoke("engine_rpc", { method: "settings.set", params: { key: "model.supportsTools", value: supports ? "true" : "false" } }).catch(() => {});
     } catch { /* ignore */ }
   }
 

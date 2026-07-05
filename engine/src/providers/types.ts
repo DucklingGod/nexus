@@ -50,6 +50,8 @@ export interface ModelInfo {
   name: string;
   isFree?: boolean;
   pricing?: { prompt: string; completion: string };
+  /** True if the model natively supports OpenAI-style function/tool calling. */
+  supportsTools?: boolean;
 }
 
 export interface ProviderConfig {
