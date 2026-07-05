@@ -32,6 +32,8 @@ export const PROVIDERS: ProviderInfo[] = [
   // Local
   { id: "lm-studio", name: "LM Studio", baseUrl: "http://localhost:1234/v1", tier: "local", models: "Auto-detect", authType: "local", description: "Local models via LM Studio" },
   { id: "ollama", name: "Ollama", baseUrl: "http://localhost:11434/v1", tier: "local", models: "Auto-detect", authType: "local", description: "Offline, auto-detected" },
+  { id: "vllm", name: "vLLM", baseUrl: "http://localhost:8000/v1", tier: "local", models: "Auto-detect", authType: "local", description: "High-throughput local inference server" },
+  { id: "llamacpp", name: "llama.cpp", baseUrl: "http://localhost:8080/v1", tier: "local", models: "Auto-detect", authType: "local", description: "llama-server — GGUF models, CPU/GPU" },
 ];
 
 export const DIRECT_PROVIDERS = PROVIDERS.filter(p => !p.isHub && p.tier !== "local");
