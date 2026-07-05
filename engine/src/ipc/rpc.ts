@@ -23,6 +23,7 @@ import { addHost, listHosts, updateHost, deleteHost } from "../tools/sshStore.ts
 import { listExperiences, setFeedback } from "../selfImprove/experience.ts";
 import { addCorrection, listCorrections, deleteCorrection, extractCorrection } from "../selfImprove/correction.ts";
 import { getLatestEvaluation, listEvaluations } from "../selfImprove/evaluate.ts";
+import { runOptimization, listPromptVersions, applyPromptVersion } from "../selfImprove/optimize.ts";
 import { resetAgentData } from "../system/reset.ts";
 import { getServers, addServer, removeServer, toggleServer, connectServer, disconnectServer, getServerStates, type McpServerConfig } from "../mcp/client.ts";
 import { fetchCatalog } from "../mcp/registry.ts";
@@ -286,6 +287,23 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       case "evaluation.list": {
         const { limit } = (req.params ?? {}) as { limit?: number };
         return { ...base, result: { evaluations: listEvaluations(limit ?? 20) } };
+      }
+
+      // Self-improvement — prompt optimizer (Task 61). optimize.run needs a
+      // brokered apiKey (Rust's optimize_prompt command injects it); list/apply
+      // are pure DB ops and go through the generic engine_rpc passthrough.
+      case "optimize.run": {
+        const { config } = req.params as { config: ProviderConfig & { model: string } };
+        return { ...base, result: await runOptimization(config, config.model) };
+      }
+      case "optimize.list": {
+        const { limit } = (req.params ?? {}) as { limit?: number };
+        return { ...base, result: { versions: listPromptVersions(limit ?? 20) } };
+      }
+      case "optimize.apply": {
+        const { id } = req.params as { id: string };
+        const version = applyPromptVersion(id);
+        return version ? { ...base, result: { version } } : { ...base, error: { code: -32602, message: `Unknown prompt version: ${id}` } };
       }
       case "connector.start": {
         const { platform, token, config } = req.params as { platform: string; token: string; config: ProviderConfig & { model: string } };

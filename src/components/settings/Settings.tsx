@@ -127,6 +127,7 @@ export function Settings({ onClose }: Props) {
   interface Experience { id: string; input: string; output: string; tool_steps: { name: string; ok: boolean }[]; success: boolean; model: string | null; feedback: "up" | "down" | null; created_at: number }
   interface Correction { id: string; trigger_context: string; rule: string; created_at: number }
   interface Evaluation { id: string; completion: number; satisfaction: number; efficiency: number; note: string | null; created_at: number }
+  interface PromptVersion { id: string; target: string; previous_text: string; new_text: string; reason: string | null; score: number | null; baseline_score: number | null; applied: boolean; created_at: number }
   const [expEnabled, setExpEnabled] = useState(false);
   const [correctionEnabled, setCorrectionEnabled] = useState(true);
   const [evalEnabled, setEvalEnabled] = useState(false);
@@ -134,6 +135,10 @@ export function Settings({ onClose }: Props) {
   const [corrections, setCorrections] = useState<Correction[]>([]);
   const [lastEval, setLastEval] = useState<Evaluation | null>(null);
   const [corrForm, setCorrForm] = useState({ trigger_context: "", rule: "" });
+  // Prompt optimizer (Task 61)
+  const [promptVersions, setPromptVersions] = useState<PromptVersion[]>([]);
+  const [optimizing, setOptimizing] = useState(false);
+  const [optimizeSkipReason, setOptimizeSkipReason] = useState<string | null>(null);
 
   // Capabilities (Task 14)
   const [capabilities, setCapabilities] = useState<{ name: string; enabled: boolean }[]>([]);
@@ -192,6 +197,8 @@ export function Settings({ onClose }: Props) {
       setCorrections(corrs.corrections ?? []);
       const ev = await invoke<{ evaluation: Evaluation | null }>("engine_rpc", { method: "evaluation.last", params: {} }).catch(() => ({ evaluation: null }));
       setLastEval(ev.evaluation ?? null);
+      const pv = await invoke<{ versions: PromptVersion[] }>("engine_rpc", { method: "optimize.list", params: { limit: 10 } }).catch(() => ({ versions: [] }));
+      setPromptVersions(pv.versions ?? []);
       const ctx = await invoke<{ files: { name: string; title: string; content: string }[] }>("engine_rpc", { method: "context.list", params: {} }).catch(() => ({ files: [] }));
       setContextFiles(ctx.files ?? []);
       setAutoExtract(all["memory.autoExtract"] !== "false");
@@ -388,6 +395,45 @@ export function Settings({ onClose }: Props) {
     if (!emailImapHost.trim() || !emailSmtpHost.trim() || !emailUser.trim() || !emailPass.trim()) { showMsg("All email fields are required"); return; }
     await saveConnectorToken("email", JSON.stringify({ imapHost: emailImapHost.trim(), smtpHost: emailSmtpHost.trim(), user: emailUser.trim(), pass: emailPass.trim() }));
     setEmailImapHost(""); setEmailSmtpHost(""); setEmailUser(""); setEmailPass("");
+  }
+
+  async function runOptimize() {
+    if (!config || optimizing) return;
+    setOptimizing(true);
+    setOptimizeSkipReason(null);
+    try {
+      const result = await invoke<{ proposal: PromptVersion | null; skippedReason?: string; failureCount: number }>(
+        "optimize_prompt",
+        { provider: config.provider, model: config.model, baseUrl: config.baseUrl },
+      );
+      if (result.proposal) {
+        setPromptVersions(prev => [result.proposal!, ...prev]);
+        showMsg("Optimizer proposed a new instructions variant — review it below");
+      } else {
+        setOptimizeSkipReason(result.skippedReason ?? "No proposal generated.");
+      }
+    } catch (e) {
+      showMsg(`Optimize failed: ${e}`);
+    } finally {
+      setOptimizing(false);
+    }
+  }
+
+  async function acceptProposal(id: string) {
+    try {
+      const r = await invoke<{ version: PromptVersion }>("engine_rpc", { method: "optimize.apply", params: { id } });
+      setPromptVersions(prev => prev.map(v => v.id === id ? r.version : v));
+      const pers = await invoke<AgentPersonality>("agent_personality_get");
+      setPersonality(pers);
+      showMsg("Applied — instructions updated");
+    } catch (e) {
+      showMsg(`Apply failed: ${e}`);
+    }
+  }
+
+  function rejectProposal(id: string) {
+    // Left in history (unapplied) for the record — just remove it from view.
+    setPromptVersions(prev => prev.filter(v => v.id !== id));
   }
 
   async function saveContext() {
@@ -1323,6 +1369,51 @@ export function Settings({ onClose }: Props) {
                           </div>
                           <button onClick={() => { invoke("engine_rpc", { method: "correction.delete", params: { id: c.id } }).then(() => setCorrections(prev => prev.filter(x => x.id !== c.id))); }}
                             className="shrink-0 rounded-md px-2 py-0.5 text-[11px] text-red-400/70 hover:bg-nexus-surface hover:text-red-400">Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Prompt optimizer (Task 61) */}
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-medium text-nexus-fg">Prompt optimizer</p>
+                  <button onClick={runOptimize} disabled={optimizing || !config}
+                    className="rounded-lg bg-nexus-accent px-3 py-1.5 text-xs font-medium text-black hover:opacity-90 disabled:opacity-50">
+                    {optimizing ? "Analyzing…" : "✨ Optimize instructions"}
+                  </button>
+                </div>
+                <p className="mb-2 text-[11px] text-nexus-muted">
+                  Reflects on recent 👎 feedback and failed tasks, proposes an improved version of your Custom Instructions, and judges it against the current one — never applied automatically.
+                </p>
+                {optimizeSkipReason && (
+                  <p className="mb-2 rounded-lg border border-nexus-border/60 bg-nexus-surface/30 p-3 text-[11px] text-nexus-muted">{optimizeSkipReason}</p>
+                )}
+                {promptVersions.filter(v => !v.applied).length === 0 ? (
+                  <p className="text-xs text-nexus-muted/60">No pending proposals.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {promptVersions.filter(v => !v.applied).map(v => (
+                      <div key={v.id} className="rounded-lg border border-nexus-accent/40 bg-nexus-surface/40 p-3">
+                        <div className="mb-2 flex items-center gap-2 text-[11px] text-nexus-muted">
+                          <span>Score: <span className="text-nexus-gold">{v.score}</span> vs current <span className="text-nexus-muted">{v.baseline_score}</span></span>
+                          {v.reason && <span className="italic">— {v.reason}</span>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <p className="mb-1 text-[10px] uppercase tracking-wide text-nexus-muted/60">Current</p>
+                            <p className="max-h-32 overflow-y-auto whitespace-pre-wrap rounded-md bg-nexus-bg/40 p-2 text-[11px] text-nexus-fg/70">{v.previous_text || "(none set)"}</p>
+                          </div>
+                          <div>
+                            <p className="mb-1 text-[10px] uppercase tracking-wide text-nexus-accent/80">Proposed</p>
+                            <p className="max-h-32 overflow-y-auto whitespace-pre-wrap rounded-md bg-nexus-bg/40 p-2 text-[11px] text-nexus-fg">{v.new_text}</p>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          <button onClick={() => acceptProposal(v.id)} className="rounded-lg bg-nexus-accent px-3 py-1.5 text-xs font-medium text-black hover:opacity-90">Accept</button>
+                          <button onClick={() => rejectProposal(v.id)} className="rounded-lg border border-nexus-border px-3 py-1.5 text-xs text-nexus-muted hover:bg-nexus-surface">Reject</button>
                         </div>
                       </div>
                     ))}

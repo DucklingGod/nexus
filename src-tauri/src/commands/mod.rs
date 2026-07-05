@@ -238,6 +238,25 @@ pub async fn complete_once(
     )
 }
 
+/// Run one prompt-optimization pass (Task 61). Brokers the key; never applies
+/// the result automatically — the caller reviews the proposal and calls
+/// engine_rpc("optimize.apply") explicitly to accept it.
+#[tauri::command]
+pub async fn optimize_prompt(
+    state: State<'_, AppState>,
+    provider: String,
+    model: String,
+    base_url: String,
+) -> Result<Value, String> {
+    let api_key = key_for_local_aware(&provider, &base_url)?;
+    state.sidecar.request(
+        "optimize.run",
+        json!({
+            "config": { "id": provider, "baseUrl": base_url, "apiKey": api_key, "model": model },
+        }),
+    )
+}
+
 /// Unified Search over documents (Task 53). Brokers the provider key for embeddings.
 #[tauri::command]
 pub async fn search_documents(
