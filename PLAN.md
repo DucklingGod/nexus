@@ -25,7 +25,7 @@ breakdown is unchanged below). Current status against it:
 | v0.8 — Observability + Power Tools | 38-40, 42-44 | ✅ Complete — per-reply observability (38), export/import (39), prompt assistant (42), A/B testing (43); Ollama/LM Studio (40) + usage analytics (44) already covered |
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
-| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🔜 Planned — absorb agentskills.io ecosystem (56), gateways Slack/WhatsApp/Email→Signal/Matrix (57), vision input (58), MoA (59), vLLM/llama.cpp presets (60), DSPy/GEPA-style optimizer (61), clean installer (62 = v0.6), amplify UX/cost/privacy (63). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
+| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**; 57-63 (gateways, vision, MoA, local presets, prompt optimizer, clean installer, amplify) remain, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -43,27 +43,120 @@ the open packaging task before v1.0.
 
 ---
 
-## Beyond Hermes — v1.1 Surpass Plan
+## Beyond Hermes — v1.1 Surpass Plan (detailed implementer handoff)
 
 Grounded in the **2026-07 competitive analysis** (wiki `nexus-vs-hermes`). Hermes's moat is its
 **ecosystem** (Nous brand + 750+ community skills on the agentskills.io open standard + 16 gateways),
 not its code. Strategy: **absorb the ecosystem via the open standard, close the pure-engineering gaps,
 and leapfrog on the axes Hermes structurally can't win (non-technical UX, cost, privacy, visual building).**
 
-| # | Task | Gap vs Hermes | Notes |
-|---|------|---------------|-------|
-| 56 | **agentskills.io ecosystem** — GitHub skill discovery/search + one-click install; later bundle `scripts/`/`references/` | 750+ community skills | Nexus already parses `SKILL.md` + installs from a repo recursively — only *discovery* is missing |
-| 57 | **Messaging gateways** — Slack, WhatsApp, Email (IMAP/SMTP), then Signal, Matrix | 16 vs 2 | reuse the connector manager (Telegram/Discord) |
-| 58 | **Vision input** — image → OpenAI `image_url` / Anthropic content blocks | Hermes vision toolset | multimodal message parts |
-| 59 | **MoA (Mixture-of-Agents)** — fan-out N models → aggregate/vote | Hermes MoA | extends `delegate_batch` |
-| 60 | **Local backend presets** — vLLM, llama.cpp (Ollama/LM Studio already) | 6 backends | OpenAI-compat presets |
-| 61 | **Prompt optimizer** — DSPy/GEPA-style loop on the experience collector | DSPy + GEPA self-evolution | closes the "intelligence" gap |
-| 62 | **Clean-machine installer** — bundle Node / compile sidecar | signed installers | same as v0.6 packaging |
-| 63 | **Amplify wins** — cost dashboard as flagship, non-technical templates, privacy/local-first messaging | — | protect the axes we already lead |
+> **This section is written to be executed by another agent (e.g. Claude Sonnet 5) task-by-task with
+> minimal extra context.** Read "For the implementer" first, then do one task per commit. Tasks 57, 58, 60
+> are independent and can be done in any order; 59 depends on the orchestrator; 61 depends on 47/49 (done).
 
-> **Honest framing:** capability parity-plus is a bounded roadmap, but *ecosystem/community* is earned over
-> quarters, not out-coded. Winning position = **decisively better on UX+cost+privacy+visual, at parity on
-> capability, standards-compatible so their ecosystem feeds us.**
+| # | Task | Status |
+|---|------|--------|
+| 56 | agentskills.io ecosystem absorption (discovery + GUI + auth token + resource bundling) | ✅ done (`8edaa4d` `c8f701a` `abc50af`) |
+| 57 | Messaging gateways (Slack, Email, Matrix; WhatsApp/Signal harder) | ⬜ |
+| 58 | Vision input (multimodal images) | ⬜ |
+| 59 | MoA (Mixture-of-Agents) | ⬜ |
+| 60 | Local backend presets (vLLM, llama.cpp) | ⬜ |
+| 61 | DSPy/GEPA-style prompt optimizer | ⬜ |
+| 62 | Clean-machine installer (bundle Node / compile sidecar) | ⬜ |
+| 63 | Amplify wins (cost dashboard flagship, templates, privacy messaging) | ⬜ |
+
+### For the implementer (read first)
+
+**Repo:** `C:\Users\iHC\Desktop\Nexus-App` (flattened: `engine/` TS sidecar, `src/` React UI, `src-tauri/` Rust shell). Canonical remote `github.com/DucklingGod/nexus` (branch `master`). A Mac clone at `/Users/euromoods/Desktop/Nexus-App` syncs via GitHub — see memory `nexus-cross-machine-sync`.
+
+**Architecture:** React WebView ⇄ Rust (Tauri commands, keychain broker) ⇄ TS engine sidecar over newline-delimited JSON-RPC 2.0 on stdio. UI calls either a dedicated Rust command (`invoke("chat_send", …)`) or the generic passthrough (`invoke("engine_rpc", { method, params })` → engine `rpc.ts` case dispatch). Chat streams via the `chat.send` path in `engine/src/ipc/stream.ts`.
+
+**Key-file map:**
+- Connectors: `engine/src/connectors/{manager.ts, telegram.ts, discord.ts, session.ts, agent.ts}`
+- Providers/LLM: `engine/src/providers/{client.ts (chat + chatStream + adapters), types.ts (ChatMessage, ProviderConfig, PROVIDER_PRESETS), embed.ts}`
+- Tools: `engine/src/tools/*.ts` registered via `registry.ts`; agent tools get schemas from `listToolsForLLM()`; run via `executeTool()`
+- Sub-agents: `engine/src/orchestrator/subagent.ts` (`runSubAgent`, `TOOLSET_PRESETS`), `engine/src/tools/delegate.ts`
+- Self-improvement: `engine/src/selfImprove/{experience.ts, correction.ts, evaluate.ts}`
+- RPC dispatch: `engine/src/ipc/rpc.ts`; chat loop: `engine/src/ipc/stream.ts`
+- Rust: `src-tauri/src/commands/mod.rs` (Tauri commands + keychain brokering), `src-tauri/src/lib.rs` (register new commands in `invoke_handler![…]`), `src-tauri/src/secure.rs` (keychain: `secure_set/has/delete`, internal `get_key`)
+- Frontend: `src/components/settings/Settings.tsx` (keys + connectors + web tools), `src/components/chat/ChatConsole.tsx` (chat input), `src/components/mcp/MarketplaceView.tsx`, `src/components/onboarding/ProviderPicker.tsx`; secret helper `src/lib/secure.ts` (`secureSet/secureHas/secureDelete`).
+
+**Secret handling (NON-NEGOTIABLE):** every credential lives in the OS keychain as `api_key_<name>`, saved from the UI via `secureSet("api_key_<name>", value)`, and is **brokered by Rust** (`secure::get_key` in `mod.rs`) into engine params — it must **never** appear in the settings DB, logs, exports, or be readable by the WebView (there is no `secureGet`). Pattern to copy: the GitHub token (Task 56) — `mod.rs` `chat_send` + `engine_rpc` read `api_key_github` and inject it; `engine/src/skills/import.ts` has `setGithubToken` (chat path) + a token arg (RPC path).
+
+**Safety (NON-NEGOTIABLE):** remote/connector messages may use **safe tools only** — see `connectors/agent.ts` `safeTools()` (excludes dangerous tools + all delegation). Dangerous tools (`terminal`, `code`, `file_write`, `patch`, `process`) always require the approval gate. Sub-agents must never delegate again.
+
+**Build & verify (Windows; `cargo` is NOT on PATH by default):**
+- Engine tests: `cd engine && npx vitest run` — keep all green; add tests for new logic (mock `fetch` via `vi.stubGlobal`, see `engine/src/skills/import.test.ts`).
+- Engine types: `cd engine && npx tsc --noEmit` — **ignore only the pre-existing `browser.ts` / `puppeteer-core` errors**; everything else must be 0.
+- Frontend: `npm run build` (runs `tsc && vite build`) from repo root.
+- Rust: `cd src-tauri && export PATH="$HOME/.rustup/toolchains/stable-x86_64-pc-windows-msvc/bin:$PATH" && cargo check`.
+- Full app (needed only for frontend/Rust changes): from repo root `export PATH="$HOME/.rustup/toolchains/stable-x86_64-pc-windows-msvc/bin:$PATH" && npm run tauri build`, then `cp src-tauri/target/release/Nexus.exe ./Nexus.exe` (stage as `Nexus-new.exe` if the app is running). **Engine-only changes need no rebuild** — they're live on app restart (sidecar runs from source).
+
+**Per-task workflow:** implement → verify (tests + tsc + build as applicable) → `git add <specific files>` (never the `Nexus.exe` artifact) → `git commit -m "feat: … (Task NN)"` ending with `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>` → `git push origin master` → update the wiki (`C:\Users\iHC\digital-brain\projects\ai-agent-builder\nexus-rebuild.md` v1.1 table + `nexus-vs-hermes.md` checklist) and push the `obsidian_wiki` repo.
+
+---
+
+### Task 56 — agentskills.io ecosystem absorption ✅ DONE
+Discovery (`searchSkillRepos` + `search_skills` tool + `skills.search` RPC → GitHub `agent-skills` topic), GUI browse/install tab in `MarketplaceView.tsx`, keychain-brokered GitHub token in both paths (`engine_rpc` + `chat_send`), and `scripts/`/`references/`/`assets/` bundling to `~/.nexus/skills/<name>/`. Reference implementation for keychain-token brokering + GitHub API use.
+
+### Task 57 — Messaging gateways
+**Goal:** raise gateways from 2 (Telegram, Discord) toward Hermes's 16. Add **Email (IMAP/SMTP)**, **Slack (Socket Mode)**, **Matrix** — all work in desktop "Live mode" (no public URL). *WhatsApp and Signal are deliberately deferred: neither has a desktop-friendly official path (WhatsApp Cloud API needs a public webhook; Signal needs the external `signal-cli` process) — note this, don't fake it.*
+
+**Recipe to add a platform `X` (mirror `telegram.ts`):**
+1. Create `engine/src/connectors/X.ts` exporting `startX(token, config, log): () => void` that connects, listens for inbound messages, and for each calls `handleConnectorMessage("X", chatKey, title, text, config)` then sends the returned reply. Show a "typing"/presence indicator while working if the platform supports it. Return a stop function.
+2. Register in `engine/src/connectors/manager.ts`: import `startX`, add `else if (platform === "X") entry.stop = startX(...)` in `startConnector`, and add `"X"` to the array in `connectorStatus()`.
+3. **Generalize `session.ts`:** it currently hardcodes the conv-id prefix `platform === "telegram" ? "tg" : "dc"` and types `platform` as `"telegram" | "discord"`. Change to a `string` platform with a prefix map (`{ telegram:"tg", discord:"dc", slack:"sk", email:"em", matrix:"mx" }`) so new platforms persist as conversations correctly. Also widen the `platform` type in `agent.ts`/`session.ts`.
+4. **Rust needs no change** — `connector_start` already brokers `api_key_<platform>` generically. Just save the token from the UI as `api_key_X`.
+5. **Settings UI** (`Settings.tsx` connectors section, near Telegram/Discord): add a token/credentials field saving `api_key_X` via `secureSet`, plus Start/Stop wired to `invoke("connector_start"/"connector_stop", { platform:"X", … })` and status from `connector_status`.
+
+**Per-platform notes:**
+- **Email**: poll IMAP for unseen messages, reply via SMTP (add deps `imapflow` + `nodemailer` to `engine/package.json`). Config needs host/port/user/app-password — store as a JSON blob in one keychain entry `api_key_email` (or a small structured secret). Poll loop like Telegram's; `chatKey` = sender address; reply as a threaded email.
+- **Slack**: use **Socket Mode** (app-level token `xapp-…` + bot token `xoxb-…`, both via `apps.connections.open` → WebSocket) so no public URL is needed. Add `@slack/socket-mode` + `@slack/web-api` or hit the WS directly. Handle `message` events, post replies with `chat.postMessage`.
+- **Matrix**: `matrix-js-sdk` sync loop (homeserver URL + access token). Desktop-friendly. `chatKey` = room id.
+
+**Gotchas:** keep replies under each platform's length cap (Telegram 4096, Slack 40k, Discord 2000 — Discord already handles this). Never expose tokens to the WebView. Connector agent already uses safe tools only — don't change that.
+
+**Verify:** engine `tsc` + tests; manual: save a token, Start, message the bot, confirm a reply + the conversation appears in the left panel grouped by source. **Done when** at least Email + Slack connect, reply, and persist as conversations.
+
+### Task 58 — Vision input (multimodal images)
+**Goal:** let users attach images to a chat message; send them to vision-capable models.
+**Files:** `engine/src/providers/types.ts` (`ChatMessage.content`), `engine/src/providers/client.ts` (request building — OpenAI path around the `messages` map + `content: msg?.content ?? ""`; Anthropic path `nonSystem.map(m => ({ role, content: m.content }))`), `src/components/chat/ChatConsole.tsx` (attach button), `chat_send` in `mod.rs` (no key change; images ride in `messages`).
+**Steps:**
+1. Widen `ChatMessage.content` to `string | ContentPart[]` where `ContentPart = { type:"text", text } | { type:"image", data /*base64*/, mediaType }` (Nexus-internal shape).
+2. In `client.ts`, when a message's content is an array, emit provider-specific formats:
+   - OpenAI-compatible: `content:[{type:"text",text}, {type:"image_url", image_url:{ url:"data:<mediaType>;base64,<data>" }}]`.
+   - Anthropic: `content:[{type:"text",text}, {type:"image", source:{ type:"base64", media_type:mediaType, data }}]`.
+   - Keep the string path unchanged for text-only (back-compat).
+3. UI: add an attach-image button in `ChatConsole.tsx` input (wire the existing "+" import placeholder), read the file as base64, attach as an image part; render a thumbnail in the sent message.
+**Gotchas:** cap image size/count; only send images when the selected model supports vision (gate on a capability flag like Task 56's `supportsTools`, or just try and surface provider errors). **Done when** an image + question returns a grounded answer on a vision model (e.g. gpt-4o / claude).
+
+### Task 59 — MoA (Mixture-of-Agents)
+**Goal:** fan the same query out to N models/agents, then synthesize one answer (Hermes "MoA").
+**Base:** `engine/src/orchestrator/subagent.ts` (`runSubAgent`) + `engine/src/tools/delegate.ts` (`delegate_batch` already runs ≤5 sub-agents in parallel).
+**Steps:** add `moa(query, models[], aggregatorModel, options)` in the orchestrator that runs the query across each model in parallel (reuse `runSubAgent`/`chat`), collects the candidate answers, then makes a final "aggregator" LLM call that critiques + synthesizes them into one response. Expose as a new tool `mixture_of_agents` in `delegate.ts` (non-dangerous; disallowed for sub-agents, like delegation) and/or an `moa.run` RPC for a future UI button.
+**Gotchas:** bound N (≤5) and total tokens; track usage; the aggregator prompt should ask for a synthesis, not a vote-only. **Done when** `mixture_of_agents` returns a synthesized answer with per-model candidates available.
+
+### Task 60 — Local backend presets (vLLM, llama.cpp)
+**Goal:** first-class presets for the remaining local backends (Ollama + LM Studio already covered).
+**Files:** `engine/src/providers/types.ts` `PROVIDER_PRESETS` (Ollama is `http://localhost:11434/v1`). These are OpenAI-compatible → **no adapter needed**, just presets + they'll flow through the existing OpenAI-compat path.
+**Steps:** add `{ id:"vllm", name:"vLLM (local)", baseUrl:"http://localhost:8000/v1", defaultModel:"" }` and `{ id:"llamacpp", name:"llama.cpp (local)", baseUrl:"http://localhost:8080/v1", defaultModel:"" }` (confirm default ports); ensure `ProviderPicker.tsx` renders them (it reads the presets). Local providers get no keychain key (`key_for_local_aware` already returns "" for localhost). **Done when** both appear in onboarding + provider switch and can list models / chat against a running local server.
+
+### Task 61 — DSPy/GEPA-style prompt optimizer
+**Goal:** close the self-evolution gap — improve the agent's system prompt / a skill's instructions from logged experience.
+**Base:** `engine/src/selfImprove/{experience.ts (logExperience), evaluate.ts (evaluateSession), correction.ts}`; A/B testing already exists (`complete_once`).
+**MVP (GEPA = reflective mutation + Pareto selection, kept lean):** collect low-scoring experiences for a target prompt, make an LLM "reflect on these failures and propose an improved instruction" call to generate 2-3 candidate prompts, A/B them against recent tasks (or an LLM judge), keep the winner as a new prompt version (store versions + let the user revert). Expose via an "Optimize" action in the relevant Settings/agent screen.
+**Gotchas:** never auto-apply silently — show the diff + require opt-in; keep a version history. **Done when** the optimizer produces a measurably-preferred prompt variant the user can accept/reject.
+
+### Task 62 — Clean-machine installer (the real shippability gap)
+**Goal:** the app must run without a dev Node install (today the sidecar runs from source via Node). This is also the deferred v0.6 packaging task.
+**Approach:** compile the TS engine to a single self-contained binary and ship it as a Tauri **sidecar** (`externalBin` in `tauri.conf.json` + `src-tauri/src/sidecar.rs`). Options: `bun build --compile`, Node SEA, or `deno compile` — pick one, bundle better-sqlite3/native deps carefully. Then add code-signing/notarization (macOS) + Windows signing for a clean install. **Done when** a fresh machine (no Node) installs from the `.msi`/`.dmg` and runs.
+
+### Task 63 — Amplify the wins (protect the axes we already lead)
+**Goal:** make Nexus's structural advantages obvious. **Cost dashboard as flagship** (surface the existing usage analytics prominently, add savings-from-cache/routing figures), **non-technical templates** (ship agent + workflow presets for common jobs), **privacy/local-first messaging** (onboarding + landing copy: "your keys/data never leave your machine"). Mostly UI/UX + copy; no new engine surface. **Done when** cost savings and privacy are front-and-center in the UI.
+
+> **Honest framing:** capability parity-plus is a bounded roadmap (57-63 are mostly well-scoped engineering),
+> but *ecosystem/community* is earned over quarters, not out-coded. Winning position = **decisively better on
+> UX+cost+privacy+visual, at parity on capability, standards-compatible so their ecosystem feeds us.**
 
 ---
 
