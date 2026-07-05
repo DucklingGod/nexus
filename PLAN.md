@@ -26,6 +26,7 @@ breakdown is unchanged below). Current status against it:
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
 | v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 Nearly done — **56-61, 63 all done**; **62 (clean installer) researched, not implemented** — bun single-binary compile ruled out with verified evidence (native `better-sqlite3` binding can't resolve inside a compiled binary); recommended path documented (bundle portable Node + real engine files as Tauri resources), needs a clean machine to safely implement + verify. Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`); each task written up as a **detailed implementer handoff** in the "Beyond Hermes" section below. |
+| v1.2 — Agent Reliability & Autonomy | 64+ | 🔴 **NEXT / high priority** — Task 64: fix the agent narrating "let me do X" then ending its turn (forces the user to type "ok" each step) instead of looping autonomously. Discovered from real usage; higher priority than remaining features. Detailed root-cause + layered fix in the "v1.2" section below. |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -185,6 +186,76 @@ Scoped to the two real, verified gaps found (not generic polish): (1) the Usage 
 > **Honest framing:** capability parity-plus is a bounded roadmap (57-63 are mostly well-scoped engineering),
 > but *ecosystem/community* is earned over quarters, not out-coded. Winning position = **decisively better on
 > UX+cost+privacy+visual, at parity on capability, standards-compatible so their ecosystem feeds us.**
+
+---
+
+## v1.2 — Agent Reliability & Autonomy (discovered from real usage)
+
+> Not in the original 55-task plan — surfaced by actually using the shipped app. **This is higher priority
+> than any remaining feature work: a feature-rich agent that stalls mid-task feels broken to the user.**
+
+### Task 64 — Autonomous agent loop (fix "narrate-then-stop") 🔴 HIGH PRIORITY
+**The bug (observed 2026-07-06, real session, model `nvidia/nemotron-3-ultra-550b:free`):** the agent announces an
+action as plain text — *"Let me extract the text using a Python script"*, then *"The pdfplumber library is not
+installed. Let me install it first."* — and **ends its turn each time**, forcing the user to type "ok" to nudge
+every single step. It narrates intentions instead of executing them. A proper agent (Claude Code, Hermes) runs
+install → run → parse → answer in one uninterrupted turn.
+
+**Root causes (grounded in code):**
+1. `engine/src/ipc/stream.ts` `agentLoop()` — **line ~266-269 returns the moment a round has no structured
+   `tool_calls`**, even when the assistant text clearly announced a next action. There is no "did it say it would
+   act but not call a tool?" check.
+2. `MAX_TOOL_ROUNDS = 5` (stream.ts:24) — too low for multi-step tasks (install → run → parse → answer), and not
+   user-configurable.
+3. Weak / free models (the nemotron free model here) frequently emit intent as prose instead of a structured
+   `tool_call`. The loop must be robust to that, not assume a strong model.
+4. `ContentTagFilter` in `engine/src/providers/client.ts` **drops `<tool_call>…</tool_call>` text blocks** — so a
+   model that expresses a tool call as text (common for non-native-tool-calling models) has that call silently
+   discarded, and the loop then sees "no tool_calls" and stops. This can *cause* the stall, not just fail to fix it.
+5. The system prompt (`src/hooks/useChat.ts`) tells the agent it has tools and to be proactive, but never forbids
+   "announce-then-stop" or mandates autonomous continuation.
+
+**Layered fix — ordered by leverage/effort; ship Layer 1-3 first, they cover the reported case:**
+
+- **Layer 1 — System-prompt hardening (cheapest, do first).** In `useChat.ts`'s `systemPrompt` (and mirror in
+  `engine/src/connectors/agent.ts` + `orchestrator/subagent.ts` so connectors + sub-agents get it too): add an
+  explicit autonomous-operation directive — *"You operate autonomously. When you state you will do something
+  ('let me…', 'I'll…', 'next…'), you MUST perform it immediately with a tool call in the SAME turn — never end a
+  reply with an unfulfilled intention. Keep working until the task is fully complete. NEVER ask the user to say
+  'ok' or 'continue' to proceed — just proceed. Stop only when the task is done or you genuinely need a decision
+  from the user."*
+- **Layer 2 — Auto-continuation in the loop (the real fix).** In `agentLoop`, when a round returns **no tool_calls
+  but the assistant text signals unfinished intent**, inject a synthetic user turn (*"Continue — perform the
+  action you described using your tools; do not stop to ask."*) and loop again, bounded by a **separate
+  `maxAutoContinue` budget (2-3)** so it can't run away. Detection = a pure, unit-testable helper:
+  intent regex (`/\b(let me|i'?ll|i will|next[,: ]|now i|going to|first,? i|let'?s)\b/i` near the end, or ends
+  with `:`/`...`/`first.`) **AND** names an action verb (install/run/execute/check/read/write/search/fetch/create/
+  extract). Only auto-continue when we're mid-task (a prior round used a tool) or the signal is strong — to avoid
+  false positives on a genuine "let me know if…" sign-off. Emit a `chat.autocontinue` notification so the UI can
+  show a subtle "continuing…" chip. Reset the budget whenever a real tool_call happens.
+- **Layer 3 — Raise + expose the round cap.** Bump `MAX_TOOL_ROUNDS` 5 → ~12 and add a setting `agent.maxRounds`
+  (Settings → Agent). Auto-continue rounds count within this hard cap.
+- **Layer 4 — Parse text-form `<tool_call>` blocks (reliability for weak models; heaviest, do last).** Instead of
+  `ContentTagFilter` dropping `<tool_call>…</tool_call>`, PARSE them into real tool executions — as a fallback when
+  a model produced no structured tool_calls (or is flagged `supportsTools=false`). Needs a tolerant parser for the
+  common shapes (`<tool_call>{"name":…,"arguments":{…}}</tool_call>` and `<function=name><parameter=x>…`). This is
+  what makes free/non-native models actually chain tools instead of narrating dropped calls.
+- **Layer 5 — UX safety net.** A "Continue ▸" button that appears when the agent stops with unfinished-looking
+  output (reuse the Layer-2 heuristic), sending a canned continue-turn. Cheap insurance for cases the auto-loop
+  misses, and useful in `plan`/`ask` safety modes.
+
+**Verify:** reproduce the exact scenario (a task needing install → run → parse, e.g. "read this PDF") on a mid-tier
+model and confirm it finishes end-to-end with **zero** user "ok"s. Unit-test the intent-detection helper + the
+auto-continue budget (pure functions). **Watch for runaway loops** — `maxAutoContinue` + `agent.maxRounds` must
+hard-cap total model calls.
+
+**Risks & guards:** (a) runaway cost — bounded by both caps; (b) false-positive continuation on a real sign-off —
+require an action verb + mid-task context, keep the budget small; (c) **must not bypass the approval gate** — in
+`ask`/`auto` safety modes, each continued tool call still hits `requestApproval` per tool, so autonomy never
+skips a dangerous-action confirmation.
+
+**Done when:** the PDF-extraction scenario (and similar install→run→answer tasks) complete in one turn with no
+manual nudging, on both a strong model and a mid-tier free model, without any runaway loop.
 
 ---
 
