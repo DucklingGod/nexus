@@ -40,6 +40,13 @@ interface SkillState {
   source: "builtin" | "custom";
 }
 
+interface SkillRepo {
+  fullName: string;
+  description: string;
+  stars: number;
+  url: string;
+}
+
 type Tab = "catalog" | "skills" | "installed";
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -178,50 +185,114 @@ function CatalogTab({ flash }: { flash: (m: string) => void }) {
   );
 }
 
-// ── Tab 2: Skills & plugins from a repo URL ────────────────────────────────
+// ── Tab 2: Skills — search the open ecosystem or install from a repo URL ────
 
 function SkillsTab({ flash }: { flash: (m: string) => void }) {
   const [url, setUrl] = useState("");
   const [installing, setInstalling] = useState(false);
   const [recent, setRecent] = useState<{ repo: string; imported: number }[]>([]);
+  // Ecosystem search — agentskills.io open standard via GitHub's 'agent-skills' topic.
+  const [query, setQuery] = useState("");
+  const [repos, setRepos] = useState<SkillRepo[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [installingRepo, setInstallingRepo] = useState<string | null>(null);
+
+  const search = useCallback(async () => {
+    setSearching(true); setSearchError(null);
+    try {
+      const r = await invoke<{ repos: SkillRepo[] }>("engine_rpc", { method: "skills.search", params: { query: query.trim() || undefined } });
+      setRepos(r.repos ?? []);
+    } catch (e) { setSearchError(String(e)); setRepos([]); }
+    finally { setSearching(false); }
+  }, [query]);
+
+  // Load popular on mount + debounced re-search as the user types.
+  useEffect(() => {
+    const t = setTimeout(() => search(), 400);
+    return () => clearTimeout(t);
+  }, [query, search]);
+
+  async function installRepo(repoUrl: string) {
+    setInstallingRepo(repoUrl);
+    try {
+      const r = await invoke<{ imported: number; scanned: number; repo: string }>("engine_rpc", { method: "skills.importGithub", params: { url: repoUrl } });
+      setRecent(prev => [{ repo: r.repo, imported: r.imported }, ...prev.filter(x => x.repo !== r.repo)].slice(0, 8));
+      flash(r.imported > 0 ? `Imported ${r.imported} skill${r.imported === 1 ? "" : "s"} from ${r.repo}` : `No new skills found in ${r.repo}`);
+    } catch (e) { flash(`Import failed: ${e}`); }
+    finally { setInstallingRepo(null); }
+  }
 
   async function installFromUrl() {
     if (!url.trim() || installing) return;
     setInstalling(true);
-    try {
-      const r = await invoke<{ imported: number; scanned: number; repo: string }>("engine_rpc", { method: "skills.importGithub", params: { url: url.trim() } });
-      setRecent(prev => [{ repo: r.repo, imported: r.imported }, ...prev].slice(0, 8));
-      flash(r.imported > 0 ? `Imported ${r.imported} skill${r.imported === 1 ? "" : "s"} from ${r.repo}` : `No new skills found in ${r.repo}`);
-      setUrl("");
-    } catch (e) { flash(`Import failed: ${e}`); }
-    finally { setInstalling(false); }
+    await installRepo(url.trim());
+    setUrl("");
+    setInstalling(false);
   }
-
-  const POPULAR = [
-    { url: "https://github.com/NousResearch/hermes-agent", label: "Hermes Agent skills", desc: "1000+ Hermes skills (SKILL.md)" },
-    { url: "https://github.com/modelcontextprotocol/servers", label: "MCP reference servers", desc: "Reference implementations" },
-  ];
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-xs text-nexus-muted">Install skills (SKILL.md format) or plugins from a public GitHub repository. Nexus scans the repo for skill files and imports them.</p>
-      <div className="flex gap-2">
-        <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://github.com/owner/repo"
-          className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
-        <button onClick={installFromUrl} disabled={installing || !url.trim()}
-          className="rounded-lg bg-gold-sheen px-4 py-2 text-sm font-medium text-black transition hover:brightness-110 disabled:opacity-50">
-          {installing ? "Installing…" : "Install"}
-        </button>
-      </div>
+      <p className="text-xs text-nexus-muted">
+        Search the open <code className="text-nexus-gold-light">agent-skills</code> ecosystem (the agentskills.io standard) and install with one click,
+        or paste any GitHub repo URL. Nexus scans the repo for <code className="text-nexus-gold-light">SKILL.md</code> files and imports them.
+      </p>
 
-      <div>
-        <h3 className="mb-2 text-sm font-medium text-nexus-fg">Popular skill repos</h3>
-        <div className="flex flex-col gap-2">
-          {POPULAR.map(p => (
+      {/* Ecosystem search */}
+      <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search skills — e.g. “pdf”, “excel”, “security”…"
+        className="w-full rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+
+      {searchError && (
+        <div className="rounded-lg border border-red-900/40 bg-red-950/20 p-3">
+          <p className="text-xs text-red-400">Couldn't search the ecosystem: {searchError}</p>
+          <p className="mt-1 text-[11px] text-nexus-muted">GitHub may be rate-limiting unauthenticated search — try again shortly, or install from a URL below.</p>
+        </div>
+      )}
+
+      {searching && repos.length === 0 ? (
+        <p className="text-xs text-nexus-muted">Searching the agent-skills ecosystem…</p>
+      ) : !searchError && repos.length === 0 ? (
+        <p className="text-xs text-nexus-muted">No skill repositories match “{query}”.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          {repos.map(r => (
+            <div key={r.fullName} className="flex flex-col gap-2 rounded-lg border border-nexus-border bg-nexus-surface/50 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 truncate text-sm font-medium text-nexus-fg">{r.fullName}</p>
+                <span className="flex-shrink-0 text-[10px] text-nexus-muted">★ {r.stars}</span>
+              </div>
+              <p className="line-clamp-2 text-[11px] leading-relaxed text-nexus-muted">{r.description || "No description."}</p>
+              <div className="flex items-center justify-between">
+                <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-nexus-muted/60 hover:text-nexus-gold">repo ↗</a>
+                <button onClick={() => installRepo(r.url)} disabled={installingRepo === r.url}
+                  className="rounded-md bg-gold-sheen px-3 py-1 text-[11px] font-medium text-black transition hover:brightness-110 disabled:opacity-50">
+                  {installingRepo === r.url ? "Installing…" : "Install"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Manual URL install + quick picks */}
+      <div className="mt-2 border-t border-nexus-border/40 pt-4">
+        <h3 className="mb-2 text-sm font-medium text-nexus-fg">Install from a URL</h3>
+        <div className="flex gap-2">
+          <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://github.com/owner/repo"
+            className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+          <button onClick={installFromUrl} disabled={installing || !url.trim()}
+            className="rounded-lg bg-gold-sheen px-4 py-2 text-sm font-medium text-black transition hover:brightness-110 disabled:opacity-50">
+            {installing ? "Installing…" : "Install"}
+          </button>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {[
+            { url: "https://github.com/NousResearch/hermes-agent", label: "Hermes skills" },
+            { url: "https://github.com/anthropics/skills", label: "Anthropic skills" },
+          ].map(p => (
             <button key={p.url} onClick={() => setUrl(p.url)}
-              className="flex items-center justify-between rounded-lg border border-nexus-border bg-nexus-surface/50 px-3 py-2 text-left transition hover:border-nexus-accent">
-              <div><p className="text-xs text-nexus-fg">{p.label}</p><p className="text-[10px] text-nexus-muted">{p.desc}</p></div>
-              <span className="text-[10px] text-nexus-muted">use →</span>
+              className="rounded-full border border-nexus-border bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-muted transition hover:border-nexus-accent hover:text-nexus-fg">
+              {p.label}
             </button>
           ))}
         </div>
