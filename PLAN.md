@@ -25,7 +25,7 @@ breakdown is unchanged below). Current status against it:
 | v0.8 — Observability + Power Tools | 38-40, 42-44 | ✅ Complete — per-reply observability (38), export/import (39), prompt assistant (42), A/B testing (43); Ollama/LM Studio (40) + usage analytics (44) already covered |
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
-| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**, **57 (Slack/Matrix/Email gateways) done**, **58 (vision input) done**, **59 (Mixture-of-Agents) done**, **60 (vLLM/llama.cpp presets) done**, **61 (prompt optimizer) done**; **62 (clean installer) researched — bun single-binary compile ruled out with verified evidence (native `better-sqlite3` binding can't resolve inside a compiled binary), recommended path documented, not yet implemented (needs a clean machine to verify)**; 63 (amplify) remains, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
+| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 Nearly done — **56-61, 63 all done**; **62 (clean installer) researched, not implemented** — bun single-binary compile ruled out with verified evidence (native `better-sqlite3` binding can't resolve inside a compiled binary); recommended path documented (bundle portable Node + real engine files as Tauri resources), needs a clean machine to safely implement + verify. Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`); each task written up as a **detailed implementer handoff** in the "Beyond Hermes" section below. |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -63,7 +63,7 @@ and leapfrog on the axes Hermes structurally can't win (non-technical UX, cost, 
 | 60 | Local backend presets (vLLM, llama.cpp) | ✅ done (`5cba9e5`) |
 | 61 | DSPy/GEPA-style prompt optimizer | ✅ done (`2af51a9`) |
 | 62 | Clean-machine installer (bundle Node / compile sidecar) | ⬜ |
-| 63 | Amplify wins (cost dashboard flagship, templates, privacy messaging) | ⬜ |
+| 63 | Amplify wins (cost dashboard flagship, templates, privacy messaging) | ✅ done (`b1a5852`) |
 
 ### For the implementer (read first)
 
@@ -176,7 +176,10 @@ Implemented as spec'd (LLM-judge branch, not full re-execution A/B — an explic
 
 **Done when:** a fresh machine (no Node) installs from the `.msi`/`.dmg` and runs — still open.
 
-### Task 63 — Amplify the wins (protect the axes we already lead)
+### Task 63 — Amplify the wins (protect the axes we already lead) ✅ DONE (`b1a5852`)
+Scoped to the two real, verified gaps found (not generic polish): (1) the Usage tab's "Savings" card was a literal placeholder ("—", "coming soon") despite semantic cache + smart routing being real shipped features — wired real $ tracking (`usage_records` gained `saved_usd`/`saved_reason`; cache hits record what the skipped call would've cost, routed calls record the delta vs. the originally-requested model) and surfaced it with a cache/routing breakdown, highlighted green. Found and fixed a real pricing bug along the way: `findPricing()`'s substring match picked the first key in insertion order, so `"gpt-4o-mini"` (contains `"gpt-4o"` as a substring) was silently priced at plain gpt-4o's much higher rate — same collision for grok-3/grok-3-mini. Now prefers the longest matching key. (2) Added honest, verified privacy copy at the two most trust-critical onboarding moments (welcome screen + the API key input field itself) — confirmed accurate against `io/agent.ts`'s export path first (keys never touch the settings table exports read from). Non-technical templates already existed substantially from Task 37 (v0.7) — no net-new work needed. 104 engine tests pass (5 new + 1 regression), 0 type errors, no Rust changes.
+
+**Original spec (for context):**
 **Goal:** make Nexus's structural advantages obvious. **Cost dashboard as flagship** (surface the existing usage analytics prominently, add savings-from-cache/routing figures), **non-technical templates** (ship agent + workflow presets for common jobs), **privacy/local-first messaging** (onboarding + landing copy: "your keys/data never leave your machine"). Mostly UI/UX + copy; no new engine surface. **Done when** cost savings and privacy are front-and-center in the UI.
 
 > **Honest framing:** capability parity-plus is a bounded roadmap (57-63 are mostly well-scoped engineering),
