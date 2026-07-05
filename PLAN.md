@@ -25,7 +25,7 @@ breakdown is unchanged below). Current status against it:
 | v0.8 — Observability + Power Tools | 38-40, 42-44 | ✅ Complete — per-reply observability (38), export/import (39), prompt assistant (42), A/B testing (43); Ollama/LM Studio (40) + usage analytics (44) already covered |
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
-| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**, **57 (Slack/Matrix/Email gateways) done**, **58 (vision input) done**, **59 (Mixture-of-Agents) done**, **60 (vLLM/llama.cpp presets) done**; 61-63 (prompt optimizer, clean installer, amplify) remain, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
+| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**, **57 (Slack/Matrix/Email gateways) done**, **58 (vision input) done**, **59 (Mixture-of-Agents) done**, **60 (vLLM/llama.cpp presets) done**, **61 (prompt optimizer) done**; 62-63 (clean installer, amplify) remain, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -61,7 +61,7 @@ and leapfrog on the axes Hermes structurally can't win (non-technical UX, cost, 
 | 58 | Vision input (multimodal images) | ✅ done (`9cc1d11`) |
 | 59 | MoA (Mixture-of-Agents) | ✅ done (`4f4d3d7`) |
 | 60 | Local backend presets (vLLM, llama.cpp) | ✅ done (`5cba9e5`) |
-| 61 | DSPy/GEPA-style prompt optimizer | ⬜ |
+| 61 | DSPy/GEPA-style prompt optimizer | ✅ done (`2af51a9`) |
 | 62 | Clean-machine installer (bundle Node / compile sidecar) | ⬜ |
 | 63 | Amplify wins (cost dashboard flagship, templates, privacy messaging) | ⬜ |
 
@@ -152,7 +152,10 @@ Added both to the frontend's `src/lib/providers.ts` (the actual single source of
 **Files:** `engine/src/providers/types.ts` `PROVIDER_PRESETS` (Ollama is `http://localhost:11434/v1`). These are OpenAI-compatible → **no adapter needed**, just presets + they'll flow through the existing OpenAI-compat path.
 **Steps:** add `{ id:"vllm", name:"vLLM (local)", baseUrl:"http://localhost:8000/v1", defaultModel:"" }` and `{ id:"llamacpp", name:"llama.cpp (local)", baseUrl:"http://localhost:8080/v1", defaultModel:"" }` (confirm default ports); ensure `ProviderPicker.tsx` renders them (it reads the presets). Local providers get no keychain key (`key_for_local_aware` already returns "" for localhost). **Done when** both appear in onboarding + provider switch and can list models / chat against a running local server.
 
-### Task 61 — DSPy/GEPA-style prompt optimizer
+### Task 61 — DSPy/GEPA-style prompt optimizer ✅ DONE (`2af51a9`)
+Implemented as spec'd (LLM-judge branch, not full re-execution A/B — an explicitly acceptable MVP per the spec below): `selfImprove/optimize.ts`'s `runOptimization` collects thumbs-down/failed experiences (skips below 3 — not enough real signal), proposes 2-3 candidate replacements for the personality's `instructions` field, judges every candidate plus the current text as a baseline, and stores the best one as an unapplied proposal only if it beats the baseline. New `prompt_versions` table gives version history + revert (re-apply an old version). New Rust `optimize_prompt` command brokers the key (mirrors `complete_once`); Settings → Learning tab got an "Optimize instructions" button + a proposal card with judge scores, before/after diff, and explicit Accept/Reject — never auto-applied. 99 engine tests pass (6 new), cargo check clean.
+
+**Original spec (for context):**
 **Goal:** close the self-evolution gap — improve the agent's system prompt / a skill's instructions from logged experience.
 **Base:** `engine/src/selfImprove/{experience.ts (logExperience), evaluate.ts (evaluateSession), correction.ts}`; A/B testing already exists (`complete_once`).
 **MVP (GEPA = reflective mutation + Pareto selection, kept lean):** collect low-scoring experiences for a target prompt, make an LLM "reflect on these failures and propose an improved instruction" call to generate 2-3 candidate prompts, A/B them against recent tasks (or an LLM judge), keep the winner as a new prompt version (store versions + let the user revert). Expose via an "Optimize" action in the relevant Settings/agent screen.
