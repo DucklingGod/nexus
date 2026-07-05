@@ -12,6 +12,7 @@ import { isCacheable, getCachedResponse, saveCachedResponse } from "../tokens/se
 import { matchSkillsAsync, injectSkills, synthesizeSkill } from "../skills/skills.ts";
 import { setWebKeys } from "../tools/web.ts";
 import { setMediaKeys } from "../tools/media.ts";
+import { setGithubToken } from "../skills/import.ts";
 import { setActiveConfig } from "../agents/runtime.ts";
 import { injectContext, isUserOnboarded } from "../context/files.ts";
 import { isAutoExtractEnabled, autoExtract } from "../context/autoExtract.ts";
@@ -35,16 +36,18 @@ export async function streamChat(
   req: RpcRequest,
   send: (obj: unknown) => void,
 ): Promise<void> {
-  const { messages, model: requestedModel, reasoningEffort, webKeys, mediaKeys, safetyMode, ...config } = req.params as {
+  const { messages, model: requestedModel, reasoningEffort, webKeys, mediaKeys, githubToken, safetyMode, ...config } = req.params as {
     messages: ChatMessage[];
     model: string;
     reasoningEffort?: "low" | "medium" | "high" | "max";
     webKeys?: { tavily?: string; brave?: string };
     mediaKeys?: { openai?: string };
+    githubToken?: string;
     safetyMode?: string;
   } & ProviderConfig;
   setWebKeys(webKeys);
   setMediaKeys(mediaKeys);
+  setGithubToken(githubToken);
   const maxTokens = Number(getSetting("model.maxTokens")) || undefined;
   // Smart model routing (Task 31): route simpler messages to a cheaper model.
   const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";

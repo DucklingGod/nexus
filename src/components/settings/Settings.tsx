@@ -77,6 +77,8 @@ export function Settings({ onClose }: Props) {
   const [braveKey, setBraveKey] = useState("");
   const [hasTavily, setHasTavily] = useState(false);
   const [hasBrave, setHasBrave] = useState(false);
+  const [githubKey, setGithubKey] = useState("");
+  const [hasGithub, setHasGithub] = useState(false);
   const [tgToken, setTgToken] = useState("");
   const [dcToken, setDcToken] = useState("");
   const [hasTg, setHasTg] = useState(false);
@@ -150,6 +152,7 @@ export function Settings({ onClose }: Props) {
       setSearchProvider(all["web.searchProvider"] ?? "auto");
       setHasTavily(await secureHas("api_key_tavily"));
       setHasBrave(await secureHas("api_key_brave"));
+      setHasGithub(await secureHas("api_key_github"));
       setHasTg(await secureHas("api_key_telegram"));
       setHasDc(await secureHas("api_key_discord"));
       // Detect every provider with a saved key (for multi-provider hot-swap).
@@ -303,18 +306,20 @@ export function Settings({ onClose }: Props) {
     } catch (e) { showMsg(`Connection failed: ${e}`); } finally { setSshTesting(null); }
   }
 
-  async function saveWebKey(name: "tavily" | "brave", value: string) {
+  async function saveWebKey(name: "tavily" | "brave" | "github", value: string) {
     if (!value.trim()) return;
     try {
       await secureSet(`api_key_${name}`, value.trim());
-      if (name === "tavily") { setHasTavily(true); setTavilyKey(""); } else { setHasBrave(true); setBraveKey(""); }
+      if (name === "tavily") { setHasTavily(true); setTavilyKey(""); }
+      else if (name === "brave") { setHasBrave(true); setBraveKey(""); }
+      else { setHasGithub(true); setGithubKey(""); }
       showMsg("Key saved!");
     } catch (e) { showMsg(`Error: ${e}`); }
   }
 
-  async function deleteWebKey(name: "tavily" | "brave") {
+  async function deleteWebKey(name: "tavily" | "brave" | "github") {
     await secureDelete(`api_key_${name}`);
-    if (name === "tavily") setHasTavily(false); else setHasBrave(false);
+    if (name === "tavily") setHasTavily(false); else if (name === "brave") setHasBrave(false); else setHasGithub(false);
     showMsg("Key deleted");
   }
 
@@ -861,6 +866,18 @@ export function Settings({ onClose }: Props) {
                 )}
 
                 <p className="mt-1.5 text-xs text-nexus-muted">Tavily & Brave keys are stored in your OS keychain. DuckDuckGo needs no setup but can be rate-limited; Tavily's free tier is the most reliable for agents.</p>
+                <div className="mt-3 border-t border-nexus-border/30 pt-3">
+                  <label className="block text-sm text-nexus-fg">GitHub token <span className="text-nexus-muted">(optional)</span></label>
+                  <p className="mb-2 mt-0.5 text-xs text-nexus-muted">Raises GitHub's rate limit for the Skills marketplace search &amp; install. A classic token with no scopes is enough — stored in your OS keychain.</p>
+                  <div className="flex gap-2">
+                    <input type="password" value={githubKey} onChange={e => setGithubKey(e.target.value)}
+                      placeholder={hasGithub ? "✓ token saved — enter to replace" : "GitHub token (github.com/settings/tokens)"}
+                      className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-4 py-2.5 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                    <button onClick={() => saveWebKey("github", githubKey)} disabled={!githubKey.trim()}
+                      className="rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Save</button>
+                    {hasGithub && <button onClick={() => deleteWebKey("github")} className="rounded-lg border border-nexus-border px-3 py-2 text-sm text-red-400 hover:bg-nexus-surface">Remove</button>}
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="flex cursor-pointer items-center justify-between gap-4">

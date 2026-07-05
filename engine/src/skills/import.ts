@@ -1,10 +1,15 @@
-// Hermes skill import (Task 37B). Scans a folder for SKILL.md files (the
-// Hermes/Claude Agent Skill format: YAML frontmatter with name + description,
-// then a markdown body of instructions) and imports them as Nexus custom skills.
-// Default location is the local Hermes skills dir; any folder can be picked.
+// Hermes / agentskills.io skill import (Task 37B + 56). Scans a folder for
+// SKILL.md files (the open Agent Skills format: YAML frontmatter with name +
+// description, then a markdown body of instructions) and imports them as Nexus
+// custom skills. Also discovers + installs skills from GitHub, bundling each
+// skill's scripts/ references/ assets/ resources locally so the agent can load
+// them on demand (the standard's progressive-disclosure model). GitHub calls use
+// an optional token (brokered from the keychain) to raise rate limits.
 
 import { readdirSync, readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { writeFile, mkdir } from "node:fs/promises";
+import { join, dirname } from "node:path";
+import { homedir } from "node:os";
 import { addCustomSkill, listSkills } from "./skills.ts";
 
 interface ParsedSkill { name: string; description: string; instructions: string }
@@ -63,36 +68,96 @@ export function importSkills(dir?: string): { imported: number; scanned: number;
   return { imported, scanned: files.length, dir: base };
 }
 
-interface GhTreeEntry { type: string; path: string }
+// ── GitHub token brokering ──────────────────────────────────────────────────
+// A token (classic, no scopes needed for public search) raises GitHub's rate
+// limits (search 10→30/min, core 60→5000/hr). Brokered from the keychain by
+// Rust and passed per call/stashed — it never lives in the WebView or settings.
 
-/** Download + install skills from a public GitHub repo (finds SKILL.md via the API). */
-export async function importSkillsFromGithub(url: string): Promise<{ imported: number; scanned: number; repo: string }> {
+let githubToken = "";
+export function setGithubToken(token: string | undefined): void { githubToken = token ?? ""; }
+
+function ghHeaders(token?: string): Record<string, string> {
+  const h: Record<string, string> = { "User-Agent": "Nexus", Accept: "application/vnd.github+json" };
+  const t = token || githubToken;
+  if (t) h.Authorization = `Bearer ${t}`;
+  return h;
+}
+
+interface GhTreeEntry { type: string; path: string; size?: number }
+
+// Where a skill's bundled resources (scripts/references/assets) are saved.
+function skillBundleDir(name: string): string {
+  const safe = name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "skill";
+  return join(homedir(), ".nexus", "skills", safe);
+}
+
+const RESOURCE_RE = /^(scripts|references|assets)\//i;
+const MAX_BUNDLE_FILES = 40;
+const MAX_BUNDLE_BYTES = 1_000_000;
+
+/**
+ * Download a skill's bundled resources (scripts/ references/ assets/ under its
+ * directory) into a local folder so the agent can load them on demand via
+ * file_read. Returns a note listing them, to append to the skill instructions.
+ */
+async function bundleSkillResources(
+  owner: string, repo: string, branch: string, skillDir: string,
+  entries: GhTreeEntry[], skillName: string, token?: string,
+): Promise<string> {
+  const prefix = skillDir ? `${skillDir}/` : "";
+  const files = entries
+    .filter((t) => t.type === "blob" && t.path.startsWith(prefix) && RESOURCE_RE.test(t.path.slice(prefix.length)) && (t.size ?? 0) <= MAX_BUNDLE_BYTES)
+    .slice(0, MAX_BUNDLE_FILES);
+  if (files.length === 0) return "";
+  const base = skillBundleDir(skillName);
+  const saved: string[] = [];
+  for (const f of files) {
+    try {
+      const rel = f.path.slice(prefix.length);
+      const dest = join(base, rel);
+      const res = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${f.path}`, { headers: ghHeaders(token) });
+      const buf = Buffer.from(new Uint8Array(await res.arrayBuffer()));
+      await mkdir(dirname(dest), { recursive: true });
+      await writeFile(dest, buf);
+      saved.push(rel);
+    } catch {
+      /* skip a bad resource file */
+    }
+  }
+  if (saved.length === 0) return "";
+  return `\n\n---\nBundled resources for this skill are installed locally in:\n${base}\nFiles: ${saved.join(", ")}\nUse the file_read tool to load any of them when the task needs it.`;
+}
+
+/** Download + install skills from a public GitHub repo (finds every SKILL.md). */
+export async function importSkillsFromGithub(url: string, token?: string): Promise<{ imported: number; scanned: number; repo: string }> {
   const m = url.match(/github\.com\/([^/\s]+)\/([^/\s#?]+)/i);
   if (!m) throw new Error("Not a GitHub repository URL");
   const owner = m[1];
   const repo = m[2].replace(/\.git$/, "");
-  const headers = { "User-Agent": "Nexus", Accept: "application/vnd.github+json" };
 
-  const info = (await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers }).then((r) => r.json())) as { default_branch?: string };
+  const info = (await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers: ghHeaders(token) }).then((r) => r.json())) as { default_branch?: string };
   if (!info.default_branch) throw new Error(`Repo not found or GitHub rate-limited: ${owner}/${repo}`);
   const branch = info.default_branch;
 
-  const tree = (await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, { headers }).then((r) => r.json())) as { tree?: GhTreeEntry[] };
-  const paths = (tree.tree ?? []).filter((t) => t.type === "blob" && /(^|\/)skill\.md$/i.test(t.path)).map((t) => t.path);
+  const tree = (await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, { headers: ghHeaders(token) }).then((r) => r.json())) as { tree?: GhTreeEntry[] };
+  const entries = tree.tree ?? [];
+  const paths = entries.filter((t) => t.type === "blob" && /(^|\/)skill\.md$/i.test(t.path)).map((t) => t.path);
 
   const existing = new Set(listSkills().map((s) => s.name.toLowerCase()));
   let imported = 0;
   for (const p of paths) {
     try {
-      const text = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${p}`).then((r) => r.text());
+      const text = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${p}`, { headers: ghHeaders(token) }).then((r) => r.text());
       const parsed = parseSkillMd(text);
       if (!parsed || existing.has(parsed.name.toLowerCase())) continue;
+      const skillDir = p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "";
+      const bundleNote = await bundleSkillResources(owner, repo, branch, skillDir, entries, parsed.name, token);
       addCustomSkill({
         name: parsed.name,
         category: "Imported",
         description: parsed.description || parsed.name,
         triggers: triggersFrom(parsed.name, parsed.description),
-        instructions: parsed.instructions,
+        instructions: parsed.instructions + bundleNote,
       });
       existing.add(parsed.name.toLowerCase());
       imported++;
@@ -112,11 +177,10 @@ interface SkillRepo { fullName: string; description: string; stars: number; url:
  * SKILL.md — so installing one collection repo can pull in many skills. This is
  * how Nexus absorbs the wider open-standard ecosystem instead of rebuilding it.
  */
-export async function searchSkillRepos(query?: string): Promise<{ repos: SkillRepo[] }> {
-  const headers = { "User-Agent": "Nexus", Accept: "application/vnd.github+json" };
+export async function searchSkillRepos(query?: string, token?: string): Promise<{ repos: SkillRepo[] }> {
   const q = query && query.trim() ? `${query.trim()} topic:agent-skills` : "topic:agent-skills";
   const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=20`;
-  const res = (await fetch(url, { headers }).then((r) => r.json())) as {
+  const res = (await fetch(url, { headers: ghHeaders(token) }).then((r) => r.json())) as {
     items?: Array<{ full_name: string; description: string | null; stargazers_count: number; html_url: string }>;
     message?: string;
   };

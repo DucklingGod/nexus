@@ -38,4 +38,24 @@ describe("searchSkillRepos", () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ json: async () => ({ message: "API rate limit exceeded" }) })));
     await expect(searchSkillRepos("x")).rejects.toThrow(/rate limit/i);
   });
+
+  it("adds an Authorization header when a token is provided", async () => {
+    let headers: Record<string, string> = {};
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: { headers?: Record<string, string> }) => {
+      headers = init?.headers ?? {};
+      return { json: async () => ({ items: [] }) };
+    }));
+    await searchSkillRepos("x", "ghp_test");
+    expect(headers.Authorization).toBe("Bearer ghp_test");
+  });
+
+  it("omits Authorization when no token is set", async () => {
+    let headers: Record<string, string> = {};
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: { headers?: Record<string, string> }) => {
+      headers = init?.headers ?? {};
+      return { json: async () => ({ items: [] }) };
+    }));
+    await searchSkillRepos("x");
+    expect(headers.Authorization).toBeUndefined();
+  });
 });

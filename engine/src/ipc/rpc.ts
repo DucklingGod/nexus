@@ -321,13 +321,14 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
       }
       case "skills.importGithub": {
         // Marketplace (Task 55d) — install skills from a public GitHub repo.
-        const { url } = (req.params ?? {}) as { url: string };
-        return { ...base, result: await importSkillsFromGithub(url) };
+        // githubToken (optional) is brokered from the keychain by Rust engine_rpc.
+        const { url, githubToken } = (req.params ?? {}) as { url: string; githubToken?: string };
+        return { ...base, result: await importSkillsFromGithub(url, githubToken) };
       }
       case "skills.search": {
         // Task 56 — discover agent-skills repos (agentskills.io open standard).
-        const { query } = (req.params ?? {}) as { query?: string };
-        return { ...base, result: await searchSkillRepos(query) };
+        const { query, githubToken } = (req.params ?? {}) as { query?: string; githubToken?: string };
+        return { ...base, result: await searchSkillRepos(query, githubToken) };
       }
       case "context.list":
         return { ...base, result: { files: listContextFiles() } };

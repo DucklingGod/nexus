@@ -51,10 +51,13 @@ pub async fn chat_send(
     let brave = secure::get_key("api_key_brave")?.unwrap_or_default();
     // Broker OpenAI key for media tools (image_generate, text_to_speech).
     let openai = secure::get_key("api_key_openai")?.unwrap_or_default();
+    // Broker optional GitHub token for the search_skills / install_skills tools.
+    let github = secure::get_key("api_key_github")?.unwrap_or_default();
     let mut params = json!({
         "messages": messages, "model": model, "baseUrl": base_url, "apiKey": api_key,
         "webKeys": { "tavily": tavily, "brave": brave },
         "mediaKeys": { "openai": openai },
+        "githubToken": github,
     });
     if let Some(effort) = reasoning_effort {
         params["reasoningEffort"] = json!(effort);
@@ -138,9 +141,20 @@ pub fn agent_personality_get(state: State<'_, AppState>) -> Result<Value, String
     state.sidecar.request("agent.personality.get", Value::Null)
 }
 
-/// Generic engine RPC passthrough. For methods that don't need key brokering.
+/// Generic engine RPC passthrough. Most methods need no key brokering; the skill
+/// marketplace calls get an optional GitHub token injected from the keychain to
+/// raise GitHub's rate limits. The token never reaches the WebView.
 #[tauri::command]
-pub fn engine_rpc(state: State<'_, AppState>, method: String, params: Value) -> Result<Value, String> {
+pub fn engine_rpc(state: State<'_, AppState>, method: String, mut params: Value) -> Result<Value, String> {
+    if method == "skills.search" || method == "skills.importGithub" {
+        if let Ok(Some(tok)) = secure::get_key("api_key_github") {
+            if !tok.is_empty() {
+                if let Value::Object(ref mut m) = params {
+                    m.insert("githubToken".into(), json!(tok));
+                }
+            }
+        }
+    }
     state.sidecar.request(&method, params)
 }
 
