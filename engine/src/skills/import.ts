@@ -102,3 +102,31 @@ export async function importSkillsFromGithub(url: string): Promise<{ imported: n
   }
   return { imported, scanned: paths.length, repo: `${owner}/${repo}` };
 }
+
+interface SkillRepo { fullName: string; description: string; stars: number; url: string }
+
+/**
+ * Discover agent-skill repositories on GitHub for the agentskills.io open
+ * standard (the `agent-skills` topic). Returns repos ranked by stars; each can
+ * be installed via importSkillsFromGithub, which recursively grabs every
+ * SKILL.md — so installing one collection repo can pull in many skills. This is
+ * how Nexus absorbs the wider open-standard ecosystem instead of rebuilding it.
+ */
+export async function searchSkillRepos(query?: string): Promise<{ repos: SkillRepo[] }> {
+  const headers = { "User-Agent": "Nexus", Accept: "application/vnd.github+json" };
+  const q = query && query.trim() ? `${query.trim()} topic:agent-skills` : "topic:agent-skills";
+  const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=20`;
+  const res = (await fetch(url, { headers }).then((r) => r.json())) as {
+    items?: Array<{ full_name: string; description: string | null; stargazers_count: number; html_url: string }>;
+    message?: string;
+  };
+  if (!res.items) throw new Error(res.message || "GitHub search failed or rate-limited");
+  return {
+    repos: res.items.map((i) => ({
+      fullName: i.full_name,
+      description: i.description ?? "",
+      stars: i.stargazers_count ?? 0,
+      url: i.html_url,
+    })),
+  };
+}

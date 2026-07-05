@@ -3,9 +3,28 @@
 // it requires explicit approval (it adds external instructions to the agent).
 
 import { registerTool } from "./registry.ts";
-import { importSkillsFromGithub } from "../skills/import.ts";
+import { importSkillsFromGithub, searchSkillRepos } from "../skills/import.ts";
 
 export function registerInstallTools(): void {
+  registerTool(
+    {
+      name: "search_skills",
+      category: "knowledge" as const,
+      description: "Search the open agent-skills ecosystem (agentskills.io / GitHub 'agent-skills' topic) for skill repositories by keyword. Returns repos you can then install with install_skills. Use when the user wants a capability you don't already have a skill for.",
+      parameters: [
+        { name: "query", type: "string", description: "Keywords (e.g. 'pdf', 'excel', 'security'). Omit to list the most popular.", required: false },
+      ],
+    },
+    async (args) => {
+      const { repos } = await searchSkillRepos(args.query ? String(args.query) : undefined);
+      if (repos.length === 0) return { output: "No skill repositories found. Try different keywords." };
+      const list = repos.slice(0, 10)
+        .map((r) => `• ${r.fullName} (★${r.stars}) — ${r.description || "no description"}\n  ${r.url}`)
+        .join("\n");
+      return { output: `Found ${repos.length} skill repo(s):\n${list}\n\nInstall any of them with install_skills using its URL.` };
+    },
+  );
+
   registerTool(
     {
       name: "install_skills",

@@ -25,6 +25,7 @@ breakdown is unchanged below). Current status against it:
 | v0.8 — Observability + Power Tools | 38-40, 42-44 | ✅ Complete — per-reply observability (38), export/import (39), prompt assistant (42), A/B testing (43); Ollama/LM Studio (40) + usage analytics (44) already covered |
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
+| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🔜 Planned — absorb agentskills.io ecosystem (56), gateways Slack/WhatsApp/Email→Signal/Matrix (57), vision input (58), MoA (59), vLLM/llama.cpp presets (60), DSPy/GEPA-style optimizer (61), clean installer (62 = v0.6), amplify UX/cost/privacy (63). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -39,6 +40,30 @@ Brave / SearXNG) was also added.
 TS engine from source via the sidecar (needs Node on the machine). A clean-machine
 installer — bundling Node + the engine, or compiling the sidecar to a single binary — is
 the open packaging task before v1.0.
+
+---
+
+## Beyond Hermes — v1.1 Surpass Plan
+
+Grounded in the **2026-07 competitive analysis** (wiki `nexus-vs-hermes`). Hermes's moat is its
+**ecosystem** (Nous brand + 750+ community skills on the agentskills.io open standard + 16 gateways),
+not its code. Strategy: **absorb the ecosystem via the open standard, close the pure-engineering gaps,
+and leapfrog on the axes Hermes structurally can't win (non-technical UX, cost, privacy, visual building).**
+
+| # | Task | Gap vs Hermes | Notes |
+|---|------|---------------|-------|
+| 56 | **agentskills.io ecosystem** — GitHub skill discovery/search + one-click install; later bundle `scripts/`/`references/` | 750+ community skills | Nexus already parses `SKILL.md` + installs from a repo recursively — only *discovery* is missing |
+| 57 | **Messaging gateways** — Slack, WhatsApp, Email (IMAP/SMTP), then Signal, Matrix | 16 vs 2 | reuse the connector manager (Telegram/Discord) |
+| 58 | **Vision input** — image → OpenAI `image_url` / Anthropic content blocks | Hermes vision toolset | multimodal message parts |
+| 59 | **MoA (Mixture-of-Agents)** — fan-out N models → aggregate/vote | Hermes MoA | extends `delegate_batch` |
+| 60 | **Local backend presets** — vLLM, llama.cpp (Ollama/LM Studio already) | 6 backends | OpenAI-compat presets |
+| 61 | **Prompt optimizer** — DSPy/GEPA-style loop on the experience collector | DSPy + GEPA self-evolution | closes the "intelligence" gap |
+| 62 | **Clean-machine installer** — bundle Node / compile sidecar | signed installers | same as v0.6 packaging |
+| 63 | **Amplify wins** — cost dashboard as flagship, non-technical templates, privacy/local-first messaging | — | protect the axes we already lead |
+
+> **Honest framing:** capability parity-plus is a bounded roadmap, but *ecosystem/community* is earned over
+> quarters, not out-coded. Winning position = **decisively better on UX+cost+privacy+visual, at parity on
+> capability, standards-compatible so their ecosystem feeds us.**
 
 ---
 

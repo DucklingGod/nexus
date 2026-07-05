@@ -28,7 +28,7 @@ import { fetchCatalog } from "../mcp/registry.ts";
 import { startConnector, stopConnector, connectorStatus } from "../connectors/manager.ts";
 import { listWorkflows, getWorkflow, saveWorkflow, deleteWorkflow } from "../workflow/store.ts";
 import { runWorkflow } from "../workflow/executor.ts";
-import { importSkills, importSkillsFromGithub } from "../skills/import.ts";
+import { importSkills, importSkillsFromGithub, searchSkillRepos } from "../skills/import.ts";
 import { listContextFiles, setContextFile } from "../context/files.ts";
 import { exportAgent, importAgent } from "../io/agent.ts";
 import { addDocument, ingestFile, listDocuments, deleteDocument, searchDocuments } from "../knowledge/documents.ts";
@@ -323,6 +323,11 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
         // Marketplace (Task 55d) — install skills from a public GitHub repo.
         const { url } = (req.params ?? {}) as { url: string };
         return { ...base, result: await importSkillsFromGithub(url) };
+      }
+      case "skills.search": {
+        // Task 56 — discover agent-skills repos (agentskills.io open standard).
+        const { query } = (req.params ?? {}) as { query?: string };
+        return { ...base, result: await searchSkillRepos(query) };
       }
       case "context.list":
         return { ...base, result: { files: listContextFiles() } };
