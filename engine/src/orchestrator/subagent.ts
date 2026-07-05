@@ -54,8 +54,8 @@ export type ActiveConfig = ProviderConfig & { model: string };
 // ---------------------------------------------------------------------------
 
 const TOOLSET_PRESETS: Record<string, (toolName: string) => boolean> = {
-  // safe: no dangerous tools, no delegation
-  safe: (name) => name !== "delegate" && name !== "delegate_batch" && !getTool(name)?.def.dangerous,
+  // safe: no dangerous tools, no delegation, no MoA (no recursion)
+  safe: (name) => !["delegate", "delegate_task", "delegate_batch", "mixture_of_agents"].includes(name) && !getTool(name)?.def.dangerous,
   // full: everything (including dangerous, but still no recursive delegation by default)
   full: () => true,
   // research: web + search + session search only

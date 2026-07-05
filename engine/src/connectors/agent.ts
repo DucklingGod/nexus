@@ -26,7 +26,7 @@ function safeTools(): object[] {
     const name = (t as { function?: { name?: string } }).function?.name;
     // Exclude dangerous tools and all delegation tools (sub-agents must not delegate again).
     return name
-      ? (!["delegate", "delegate_task", "delegate_batch"].includes(name) && !getTool(name)?.def.dangerous)
+      ? (!["delegate", "delegate_task", "delegate_batch", "mixture_of_agents"].includes(name) && !getTool(name)?.def.dangerous)
       : true;
   });
 }

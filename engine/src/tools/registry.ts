@@ -82,6 +82,7 @@ export async function initTools(): Promise<void> {
   const { registerInstallTools } = await import("./install.ts");
   const { registerMemoryTools } = await import("./memory.ts");
   const { registerDelegateTools } = await import("./delegate.ts");
+  const { registerMoATools } = await import("./moa.ts");
   const { registerMediaTools } = await import("./media.ts");
   const { registerBrowserTools } = await import("./browser.ts");
   const { registerSchedulerTools } = await import("./scheduler.ts");
@@ -103,6 +104,7 @@ export async function initTools(): Promise<void> {
   registerInstallTools();
   registerMemoryTools();
   registerDelegateTools();
+  registerMoATools();
   registerMediaTools();
   registerBrowserTools();
   registerSchedulerTools();
