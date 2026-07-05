@@ -25,7 +25,7 @@ breakdown is unchanged below). Current status against it:
 | v0.8 — Observability + Power Tools | 38-40, 42-44 | ✅ Complete — per-reply observability (38), export/import (39), prompt assistant (42), A/B testing (43); Ollama/LM Studio (40) + usage analytics (44) already covered |
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
-| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**; 57-63 (gateways, vision, MoA, local presets, prompt optimizer, clean installer, amplify) remain, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
+| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**, **57 (Slack/Matrix/Email gateways) done**; 58-63 (vision, MoA, local presets, prompt optimizer, clean installer, amplify) remain, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -57,7 +57,7 @@ and leapfrog on the axes Hermes structurally can't win (non-technical UX, cost, 
 | # | Task | Status |
 |---|------|--------|
 | 56 | agentskills.io ecosystem absorption (discovery + GUI + auth token + resource bundling) | ✅ done (`8edaa4d` `c8f701a` `abc50af`) |
-| 57 | Messaging gateways (Slack, Email, Matrix; WhatsApp/Signal harder) | ⬜ |
+| 57 | Messaging gateways (Slack, Email, Matrix; WhatsApp/Signal harder) | ✅ done (`9498b2e`) — 5 gateways total (Telegram, Discord, Slack, Matrix, Email) |
 | 58 | Vision input (multimodal images) | ⬜ |
 | 59 | MoA (Mixture-of-Agents) | ⬜ |
 | 60 | Local backend presets (vLLM, llama.cpp) | ⬜ |
@@ -99,7 +99,9 @@ and leapfrog on the axes Hermes structurally can't win (non-technical UX, cost, 
 ### Task 56 — agentskills.io ecosystem absorption ✅ DONE
 Discovery (`searchSkillRepos` + `search_skills` tool + `skills.search` RPC → GitHub `agent-skills` topic), GUI browse/install tab in `MarketplaceView.tsx`, keychain-brokered GitHub token in both paths (`engine_rpc` + `chat_send`), and `scripts/`/`references/`/`assets/` bundling to `~/.nexus/skills/<name>/`. Reference implementation for keychain-token brokering + GitHub API use.
 
-### Task 57 — Messaging gateways
+### Task 57 — Messaging gateways ✅ DONE (`9498b2e`)
+Added Slack (Socket Mode, raw WebSocket), Matrix (`/sync` long-poll, plain HTTPS), and Email (imapflow + nodemailer + mailparser) — 5 gateways total. Credentials for the three new platforms are a JSON blob in one keychain entry (`api_key_slack`/`matrix`/`email`) since each needs more than one field; `connector_start` in Rust already brokers generically, so no Rust changes were needed. `session.ts`'s conv-id prefix is now a lookup map, not a telegram/discord ternary. WhatsApp/Signal deferred (no desktop-friendly Live-mode path). 80 engine tests pass.
+
 **Goal:** raise gateways from 2 (Telegram, Discord) toward Hermes's 16. Add **Email (IMAP/SMTP)**, **Slack (Socket Mode)**, **Matrix** — all work in desktop "Live mode" (no public URL). *WhatsApp and Signal are deliberately deferred: neither has a desktop-friendly official path (WhatsApp Cloud API needs a public webhook; Signal needs the external `signal-cli` process) — note this, don't fake it.*
 
 **Recipe to add a platform `X` (mirror `telegram.ts`):**
