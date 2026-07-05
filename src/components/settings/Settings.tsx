@@ -83,6 +83,19 @@ export function Settings({ onClose }: Props) {
   const [dcToken, setDcToken] = useState("");
   const [hasTg, setHasTg] = useState(false);
   const [hasDc, setHasDc] = useState(false);
+  // Slack (Socket Mode needs two tokens), Matrix (homeserver + token), Email
+  // (IMAP + SMTP creds) are each saved as one JSON blob under api_key_<platform>.
+  const [slackAppToken, setSlackAppToken] = useState("");
+  const [slackBotToken, setSlackBotToken] = useState("");
+  const [hasSlack, setHasSlack] = useState(false);
+  const [matrixHomeserver, setMatrixHomeserver] = useState("");
+  const [matrixToken, setMatrixToken] = useState("");
+  const [hasMatrix, setHasMatrix] = useState(false);
+  const [emailImapHost, setEmailImapHost] = useState("");
+  const [emailSmtpHost, setEmailSmtpHost] = useState("");
+  const [emailUser, setEmailUser] = useState("");
+  const [emailPass, setEmailPass] = useState("");
+  const [hasEmail, setHasEmail] = useState(false);
   const [connectors, setConnectors] = useState<{ platform: string; running: boolean; status: string }[]>([]);
   const [contextFiles, setContextFiles] = useState<{ name: string; title: string; content: string }[]>([]);
   const [autoExtract, setAutoExtract] = useState(false);
@@ -155,6 +168,9 @@ export function Settings({ onClose }: Props) {
       setHasGithub(await secureHas("api_key_github"));
       setHasTg(await secureHas("api_key_telegram"));
       setHasDc(await secureHas("api_key_discord"));
+      setHasSlack(await secureHas("api_key_slack"));
+      setHasMatrix(await secureHas("api_key_matrix"));
+      setHasEmail(await secureHas("api_key_email"));
       // Detect every provider with a saved key (for multi-provider hot-swap).
       // Local providers (Ollama/LM Studio) are always available — no key needed.
       const saved: string[] = [];
@@ -327,22 +343,26 @@ export function Settings({ onClose }: Props) {
     const r = await invoke<{ connectors: { platform: string; running: boolean; status: string }[] }>("connector_status").catch(() => ({ connectors: [] }));
     setConnectors(r.connectors ?? []);
   }
-  async function saveConnectorToken(platform: "telegram" | "discord", value: string) {
+  const CONNECTOR_HAS_SETTERS: Record<string, (v: boolean) => void> = {
+    telegram: setHasTg, discord: setHasDc, slack: setHasSlack, matrix: setHasMatrix, email: setHasEmail,
+  };
+  async function saveConnectorToken(platform: string, value: string) {
     if (!value.trim()) return;
     try {
       await secureSet(`api_key_${platform}`, value.trim());
-      if (platform === "telegram") { setHasTg(true); setTgToken(""); } else { setHasDc(true); setDcToken(""); }
-      showMsg("Token saved!");
+      CONNECTOR_HAS_SETTERS[platform]?.(true);
+      if (platform === "telegram") setTgToken(""); else if (platform === "discord") setDcToken("");
+      showMsg("Saved!");
     } catch (e) { showMsg(`Error: ${e}`); }
   }
-  async function deleteConnectorToken(platform: "telegram" | "discord") {
+  async function deleteConnectorToken(platform: string) {
     await invoke("connector_stop", { platform }).catch(() => {});
     await secureDelete(`api_key_${platform}`);
-    if (platform === "telegram") setHasTg(false); else setHasDc(false);
+    CONNECTOR_HAS_SETTERS[platform]?.(false);
     refreshConnectors();
-    showMsg("Token removed");
+    showMsg("Removed");
   }
-  async function connectPlatform(platform: "telegram" | "discord") {
+  async function connectPlatform(platform: string) {
     if (!config) { showMsg("Set up a provider first"); return; }
     try {
       await invoke("connector_start", { platform, provider: config.provider, model: config.model, baseUrl: config.baseUrl });
@@ -350,9 +370,24 @@ export function Settings({ onClose }: Props) {
       setTimeout(refreshConnectors, 1500);
     } catch (e) { showMsg(`Error: ${e}`); }
   }
-  async function disconnectPlatform(platform: "telegram" | "discord") {
+  async function disconnectPlatform(platform: string) {
     await invoke("connector_stop", { platform }).catch(() => {});
     setTimeout(refreshConnectors, 300);
+  }
+  async function saveSlack() {
+    if (!slackAppToken.trim() || !slackBotToken.trim()) { showMsg("Both tokens are required"); return; }
+    await saveConnectorToken("slack", JSON.stringify({ appToken: slackAppToken.trim(), botToken: slackBotToken.trim() }));
+    setSlackAppToken(""); setSlackBotToken("");
+  }
+  async function saveMatrix() {
+    if (!matrixHomeserver.trim() || !matrixToken.trim()) { showMsg("Homeserver URL and token are required"); return; }
+    await saveConnectorToken("matrix", JSON.stringify({ homeserverUrl: matrixHomeserver.trim(), accessToken: matrixToken.trim() }));
+    setMatrixHomeserver(""); setMatrixToken("");
+  }
+  async function saveEmail() {
+    if (!emailImapHost.trim() || !emailSmtpHost.trim() || !emailUser.trim() || !emailPass.trim()) { showMsg("All email fields are required"); return; }
+    await saveConnectorToken("email", JSON.stringify({ imapHost: emailImapHost.trim(), smtpHost: emailSmtpHost.trim(), user: emailUser.trim(), pass: emailPass.trim() }));
+    setEmailImapHost(""); setEmailSmtpHost(""); setEmailUser(""); setEmailPass("");
   }
 
   async function saveContext() {
@@ -1037,6 +1072,127 @@ export function Settings({ onClose }: Props) {
                   </div>
                 );
               })}
+
+              {/* Slack — Socket Mode needs two tokens (app-level + bot) */}
+              {(() => {
+                const status = connectors.find(s => s.platform === "slack");
+                const running = status?.running;
+                return (
+                  <div className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-medium text-nexus-fg">Slack</span>
+                      <span className={`flex items-center gap-1.5 text-[11px] ${running ? "text-green-400" : "text-nexus-muted"}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${running ? "bg-green-400" : "bg-nexus-muted/50"}`} />
+                        {status?.status ?? "not connected"}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <input type="password" value={slackAppToken} onChange={e => setSlackAppToken(e.target.value)}
+                        placeholder={hasSlack ? "✓ saved — enter to replace app-level token" : "App-level token (xapp-…)"}
+                        className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                      <div className="flex gap-2">
+                        <input type="password" value={slackBotToken} onChange={e => setSlackBotToken(e.target.value)}
+                          placeholder={hasSlack ? "✓ saved — enter to replace bot token" : "Bot token (xoxb-…)"}
+                          className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                        <button onClick={saveSlack} disabled={!slackAppToken.trim() || !slackBotToken.trim()}
+                          className="rounded-lg border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Save</button>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-3">
+                      {running ? (
+                        <button onClick={() => disconnectPlatform("slack")} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface">Disconnect</button>
+                      ) : (
+                        <button onClick={() => connectPlatform("slack")} disabled={!hasSlack}
+                          className="rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Connect</button>
+                      )}
+                      {hasSlack && <button onClick={() => deleteConnectorToken("slack")} className="text-xs text-nexus-muted/60 hover:text-red-400">Remove</button>}
+                    </div>
+                    <p className="mt-2 text-[11px] text-nexus-muted">Create a Slack app with Socket Mode enabled (api.slack.com/apps) → generate an app-level token with the <code className="text-nexus-gold-light">connections:write</code> scope → install the app to get a bot token (<code className="text-nexus-gold-light">chat:write</code>, <code className="text-nexus-gold-light">reactions:write</code>, <code className="text-nexus-gold-light">im:history</code>, <code className="text-nexus-gold-light">app_mentions:read</code>).</p>
+                  </div>
+                );
+              })()}
+
+              {/* Matrix — homeserver URL + a bot account's access token */}
+              {(() => {
+                const status = connectors.find(s => s.platform === "matrix");
+                const running = status?.running;
+                return (
+                  <div className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-medium text-nexus-fg">Matrix</span>
+                      <span className={`flex items-center gap-1.5 text-[11px] ${running ? "text-green-400" : "text-nexus-muted"}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${running ? "bg-green-400" : "bg-nexus-muted/50"}`} />
+                        {status?.status ?? "not connected"}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <input value={matrixHomeserver} onChange={e => setMatrixHomeserver(e.target.value)}
+                        placeholder={hasMatrix ? "✓ saved — enter to replace homeserver URL" : "Homeserver URL (https://matrix.org)"}
+                        className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                      <div className="flex gap-2">
+                        <input type="password" value={matrixToken} onChange={e => setMatrixToken(e.target.value)}
+                          placeholder={hasMatrix ? "✓ saved — enter to replace access token" : "Access token"}
+                          className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                        <button onClick={saveMatrix} disabled={!matrixHomeserver.trim() || !matrixToken.trim()}
+                          className="rounded-lg border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Save</button>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-3">
+                      {running ? (
+                        <button onClick={() => disconnectPlatform("matrix")} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface">Disconnect</button>
+                      ) : (
+                        <button onClick={() => connectPlatform("matrix")} disabled={!hasMatrix}
+                          className="rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Connect</button>
+                      )}
+                      {hasMatrix && <button onClick={() => deleteConnectorToken("matrix")} className="text-xs text-nexus-muted/60 hover:text-red-400">Remove</button>}
+                    </div>
+                    <p className="mt-2 text-[11px] text-nexus-muted">Create a dedicated bot account on your homeserver, then get its access token (via /login or your homeserver's admin tools). The bot auto-joins rooms it's invited to.</p>
+                  </div>
+                );
+              })()}
+
+              {/* Email — IMAP polling + SMTP reply */}
+              {(() => {
+                const status = connectors.find(s => s.platform === "email");
+                const running = status?.running;
+                return (
+                  <div className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-medium text-nexus-fg">Email</span>
+                      <span className={`flex items-center gap-1.5 text-[11px] ${running ? "text-green-400" : "text-nexus-muted"}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${running ? "bg-green-400" : "bg-nexus-muted/50"}`} />
+                        {status?.status ?? "not connected"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={emailImapHost} onChange={e => setEmailImapHost(e.target.value)}
+                        placeholder={hasEmail ? "✓ saved — IMAP host" : "IMAP host (imap.gmail.com)"}
+                        className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                      <input value={emailSmtpHost} onChange={e => setEmailSmtpHost(e.target.value)}
+                        placeholder={hasEmail ? "✓ saved — SMTP host" : "SMTP host (smtp.gmail.com)"}
+                        className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                      <input value={emailUser} onChange={e => setEmailUser(e.target.value)}
+                        placeholder={hasEmail ? "✓ saved — address" : "Email address"}
+                        className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                      <input type="password" value={emailPass} onChange={e => setEmailPass(e.target.value)}
+                        placeholder={hasEmail ? "✓ saved — app password" : "App password"}
+                        className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                    </div>
+                    <div className="mt-2 flex items-center gap-3">
+                      <button onClick={saveEmail} disabled={!emailImapHost.trim() || !emailSmtpHost.trim() || !emailUser.trim() || !emailPass.trim()}
+                        className="rounded-lg border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Save</button>
+                      {running ? (
+                        <button onClick={() => disconnectPlatform("email")} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface">Disconnect</button>
+                      ) : (
+                        <button onClick={() => connectPlatform("email")} disabled={!hasEmail}
+                          className="rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Connect</button>
+                      )}
+                      {hasEmail && <button onClick={() => deleteConnectorToken("email")} className="text-xs text-nexus-muted/60 hover:text-red-400">Remove</button>}
+                    </div>
+                    <p className="mt-2 text-[11px] text-nexus-muted">Uses an app password, not your real password (Gmail/Outlook: generate one in your account's security settings). Polls the inbox every ~20s and replies from the same address.</p>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

@@ -3,7 +3,12 @@
 
 import { startTelegram } from "./telegram.ts";
 import { startDiscord } from "./discord.ts";
+import { startSlack } from "./slack.ts";
+import { startEmail } from "./email.ts";
+import { startMatrix } from "./matrix.ts";
 import type { ConnectorConfig } from "./agent.ts";
+
+const PLATFORMS = ["telegram", "discord", "slack", "email", "matrix"] as const;
 
 interface RunningConnector {
   stop: () => void;
@@ -30,6 +35,9 @@ export function startConnector(platform: string, token: string, config: Connecto
   try {
     if (platform === "telegram") entry.stop = startTelegram(token, config, log);
     else if (platform === "discord") entry.stop = startDiscord(token, config, log);
+    else if (platform === "slack") entry.stop = startSlack(token, config, log);
+    else if (platform === "email") entry.stop = startEmail(token, config, log);
+    else if (platform === "matrix") entry.stop = startMatrix(token, config, log);
     else {
       running.delete(platform);
       return { ok: false, error: `Unknown platform: ${platform}` };
@@ -50,7 +58,7 @@ export function stopConnector(platform: string): void {
 }
 
 export function connectorStatus(): { platform: string; running: boolean; status: string }[] {
-  return ["telegram", "discord"].map((platform) => {
+  return PLATFORMS.map((platform) => {
     const c = running.get(platform);
     return { platform, running: !!c, status: c?.status ?? "not connected" };
   });

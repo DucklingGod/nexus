@@ -11,18 +11,28 @@ import { runConnectorAgent, type ConnectorConfig } from "./agent.ts";
 
 const HISTORY_LIMIT = 20;
 
+// Short conversation-id prefix per platform (keeps ids compact + collision-free
+// across sources). Add an entry here when wiring up a new connector.
+const PREFIX: Record<string, string> = {
+  telegram: "tg",
+  discord: "dc",
+  slack: "sk",
+  email: "em",
+  matrix: "mx",
+};
+
 /**
  * Handle one incoming message: persist it, run the agent over recent history,
  * persist the reply, and notify the UI to refresh. Returns the reply text.
  */
 export async function handleConnectorMessage(
-  platform: "telegram" | "discord",
+  platform: string,
   chatKey: string,
   title: string,
   userText: string,
   config: ConnectorConfig,
 ): Promise<string> {
-  const convId = `${platform === "telegram" ? "tg" : "dc"}-${chatKey}`;
+  const convId = `${PREFIX[platform] ?? platform}-${chatKey}`;
   if (!getConversation(convId)) {
     createConversation(convId, (title || `${platform} chat`).slice(0, 60), config.id, config.model, platform);
   }
