@@ -25,7 +25,7 @@ breakdown is unchanged below). Current status against it:
 | v0.8 — Observability + Power Tools | 38-40, 42-44 | ✅ Complete — per-reply observability (38), export/import (39), prompt assistant (42), A/B testing (43); Ollama/LM Studio (40) + usage analytics (44) already covered |
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
-| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**, **57 (Slack/Matrix/Email gateways) done**, **58 (vision input) done**, **59 (Mixture-of-Agents) done**; 60-63 (local presets, prompt optimizer, clean installer, amplify) remain, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
+| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**, **57 (Slack/Matrix/Email gateways) done**, **58 (vision input) done**, **59 (Mixture-of-Agents) done**, **60 (vLLM/llama.cpp presets) done**; 61-63 (prompt optimizer, clean installer, amplify) remain, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -60,7 +60,7 @@ and leapfrog on the axes Hermes structurally can't win (non-technical UX, cost, 
 | 57 | Messaging gateways (Slack, Email, Matrix; WhatsApp/Signal harder) | ✅ done (`9498b2e`) — 5 gateways total (Telegram, Discord, Slack, Matrix, Email) |
 | 58 | Vision input (multimodal images) | ✅ done (`9cc1d11`) |
 | 59 | MoA (Mixture-of-Agents) | ✅ done (`4f4d3d7`) |
-| 60 | Local backend presets (vLLM, llama.cpp) | ⬜ |
+| 60 | Local backend presets (vLLM, llama.cpp) | ✅ done (`5cba9e5`) |
 | 61 | DSPy/GEPA-style prompt optimizer | ⬜ |
 | 62 | Clean-machine installer (bundle Node / compile sidecar) | ⬜ |
 | 63 | Amplify wins (cost dashboard flagship, templates, privacy messaging) | ⬜ |
@@ -144,7 +144,10 @@ Implemented as spec'd: `orchestrator/moa.ts` (`runMoA`) fans a query out to ≤5
 **Steps:** add `moa(query, models[], aggregatorModel, options)` in the orchestrator that runs the query across each model in parallel (reuse `runSubAgent`/`chat`), collects the candidate answers, then makes a final "aggregator" LLM call that critiques + synthesizes them into one response. Expose as a new tool `mixture_of_agents` in `delegate.ts` (non-dangerous; disallowed for sub-agents, like delegation) and/or an `moa.run` RPC for a future UI button.
 **Gotchas:** bound N (≤5) and total tokens; track usage; the aggregator prompt should ask for a synthesis, not a vote-only. **Done when** `mixture_of_agents` returns a synthesized answer with per-model candidates available.
 
-### Task 60 — Local backend presets (vLLM, llama.cpp)
+### Task 60 — Local backend presets (vLLM, llama.cpp) ✅ DONE (`5cba9e5`)
+Added both to the frontend's `src/lib/providers.ts` (the actual single source of truth for the UI — not engine's `PROVIDER_PRESETS`, which is unused/dead). vLLM `:8000`, llama.cpp `:8080` (verified against each project's docs). Zero other changes needed: `key_for_local_aware` (Rust) already skips key brokering for any localhost baseUrl, `listModels()`'s generic OpenAI-compat fallback already works, and every UI surface reads `PROVIDERS`/`LOCAL_PROVIDERS` generically (confirmed no hardcoded per-id branching elsewhere).
+
+**Original spec (for context):**
 **Goal:** first-class presets for the remaining local backends (Ollama + LM Studio already covered).
 **Files:** `engine/src/providers/types.ts` `PROVIDER_PRESETS` (Ollama is `http://localhost:11434/v1`). These are OpenAI-compatible → **no adapter needed**, just presets + they'll flow through the existing OpenAI-compat path.
 **Steps:** add `{ id:"vllm", name:"vLLM (local)", baseUrl:"http://localhost:8000/v1", defaultModel:"" }` and `{ id:"llamacpp", name:"llama.cpp (local)", baseUrl:"http://localhost:8080/v1", defaultModel:"" }` (confirm default ports); ensure `ProviderPicker.tsx` renders them (it reads the presets). Local providers get no keychain key (`key_for_local_aware` already returns "" for localhost). **Done when** both appear in onboarding + provider switch and can list models / chat against a running local server.
