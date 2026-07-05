@@ -25,7 +25,7 @@ breakdown is unchanged below). Current status against it:
 | v0.8 — Observability + Power Tools | 38-40, 42-44 | ✅ Complete — per-reply observability (38), export/import (39), prompt assistant (42), A/B testing (43); Ollama/LM Studio (40) + usage analytics (44) already covered |
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
-| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**, **57 (Slack/Matrix/Email gateways) done**, **58 (vision input) done**; 59-63 (MoA, local presets, prompt optimizer, clean installer, amplify) remain, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
+| v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 In progress — **56 (agentskills.io ecosystem absorption) done**, **57 (Slack/Matrix/Email gateways) done**, **58 (vision input) done**, **59 (Mixture-of-Agents) done**; 60-63 (local presets, prompt optimizer, clean installer, amplify) remain, each written up as a **detailed implementer handoff** in the "Beyond Hermes" section below (built for another agent, e.g. Sonnet 5, to execute task-by-task). Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`). |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -59,7 +59,7 @@ and leapfrog on the axes Hermes structurally can't win (non-technical UX, cost, 
 | 56 | agentskills.io ecosystem absorption (discovery + GUI + auth token + resource bundling) | ✅ done (`8edaa4d` `c8f701a` `abc50af`) |
 | 57 | Messaging gateways (Slack, Email, Matrix; WhatsApp/Signal harder) | ✅ done (`9498b2e`) — 5 gateways total (Telegram, Discord, Slack, Matrix, Email) |
 | 58 | Vision input (multimodal images) | ✅ done (`9cc1d11`) |
-| 59 | MoA (Mixture-of-Agents) | ⬜ |
+| 59 | MoA (Mixture-of-Agents) | ✅ done (`4f4d3d7`) |
 | 60 | Local backend presets (vLLM, llama.cpp) | ⬜ |
 | 61 | DSPy/GEPA-style prompt optimizer | ⬜ |
 | 62 | Clean-machine installer (bundle Node / compile sidecar) | ⬜ |
@@ -135,7 +135,10 @@ Implemented narrower than originally sketched below, for a deliberate YAGNI reas
 3. UI: add an attach-image button in `ChatConsole.tsx` input (wire the existing "+" import placeholder), read the file as base64, attach as an image part; render a thumbnail in the sent message.
 **Gotchas:** cap image size/count; only send images when the selected model supports vision (gate on a capability flag like Task 56's `supportsTools`, or just try and surface provider errors). **Done when** an image + question returns a grounded answer on a vision model (e.g. gpt-4o / claude).
 
-### Task 59 — MoA (Mixture-of-Agents)
+### Task 59 — MoA (Mixture-of-Agents) ✅ DONE (`4f4d3d7`)
+Implemented as spec'd: `orchestrator/moa.ts` (`runMoA`) fans a query out to ≤5 deduped models via plain `chat()` calls (no tools — MoA's value is diverse model perspectives, not independent tool work), then one aggregator call (defaults to `models[0]`) synthesizes them. Per-model failures are captured as candidate errors rather than aborting the run; a single surviving candidate short-circuits the aggregator call. Exposed as the `mixture_of_agents` tool (`tools/moa.ts`) and added to the existing "no recursive delegation" exclusion lists in `subagent.ts` + `connectors/agent.ts` (also fixed a pre-existing gap there — `delegate_task` wasn't excluded in `subagent.ts`'s list). No UI/RPC wrapper yet (no consumer planned) — agent-tool only. 93 engine tests pass (8 new).
+
+**Original spec (for context):**
 **Goal:** fan the same query out to N models/agents, then synthesize one answer (Hermes "MoA").
 **Base:** `engine/src/orchestrator/subagent.ts` (`runSubAgent`) + `engine/src/tools/delegate.ts` (`delegate_batch` already runs ≤5 sub-agents in parallel).
 **Steps:** add `moa(query, models[], aggregatorModel, options)` in the orchestrator that runs the query across each model in parallel (reuse `runSubAgent`/`chat`), collects the candidate answers, then makes a final "aggregator" LLM call that critiques + synthesizes them into one response. Expose as a new tool `mixture_of_agents` in `delegate.ts` (non-dangerous; disallowed for sub-agents, like delegation) and/or an `moa.run` RPC for a future UI button.
