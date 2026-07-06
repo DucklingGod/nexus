@@ -360,6 +360,23 @@ async function agentLoop(
       // Notify frontend about tool result
       send({ jsonrpc: "2.0", method: "chat.tool_result", params: { id, name, output: result.output.slice(0, 2000), error: result.error, elapsed_ms: result.elapsed_ms } });
 
+      // If the tool returned a file attachment, send it to the frontend
+      if ((result as any).attachment) {
+        send({ jsonrpc: "2.0", method: "chat.file_attached", params: (result as any).attachment });
+      }
+
+      // If the tool returned options (ask_user), send to frontend and pause for user input
+      if ((result as any).options) {
+        send({ jsonrpc: "2.0", method: "chat.options_presented", params: (result as any).options });
+        // Add tool result to history
+        history.push({
+          role: "user",
+          content: `[Tool Result: ${name}]\n${result.output.slice(0, 4000)}${result.error ? `\nError: ${result.error}` : ""}`,
+        });
+        // Continue to next round — the user's choice will come as a new message
+        continue;
+      }
+
       // Record this step for experience logging (Task 47).
       collectedSteps.push({ name, args, ok: !result.error });
 

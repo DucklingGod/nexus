@@ -24,6 +24,14 @@ export interface MessageMeta {
 
 export interface ImageAttachment { data: string; mediaType: string }
 
+export interface FileAttachment {
+  name: string;
+  label: string;
+  size: number;
+  data: string; // base64
+  path: string;
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant";
@@ -34,6 +42,8 @@ export interface Message {
   reasoning?: string;
   /** Vision attachments (Task 58) — session-only, not persisted to SQLite. */
   images?: ImageAttachment[];
+  /** File attachments sent by the agent via send_file tool */
+  attachments?: FileAttachment[];
 }
 
 export interface ToolApproval {
@@ -179,6 +189,20 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
       );
     });
 
+    // File attachments from send_file tool
+    const unlistenFileAttach = listen<{
+      method: string;
+      params: { name: string; label: string; size: number; data: string; path: string };
+    }>("engine-event", (e) => {
+      if (e.payload.method !== "chat.file_attached") return;
+      const assistantId = streamingId.current;
+      if (!assistantId) return;
+      const att: FileAttachment = e.payload.params;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === assistantId ? { ...m, attachments: [...(m.attachments ?? []), att] } : m)),
+      );
+    });
+
     // Tool approval requests
     const unlistenApproval = listen<{
       method: string;
@@ -236,6 +260,7 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
       unlistenDelta.then((f) => f()).catch(() => {});
       unlistenToolCall.then((f) => f()).catch(() => {});
       unlistenToolResult.then((f) => f()).catch(() => {});
+      unlistenFileAttach.then((f) => f()).catch(() => {});
       unlistenApproval.then((f) => f()).catch(() => {});
       unlistenSkills.then((f) => f()).catch(() => {});
       unlistenRouted.then((f) => f()).catch(() => {});

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useChat, type ImageAttachment } from "../../hooks/useChat";
+import { useChat, type ImageAttachment, type FileAttachment } from "../../hooks/useChat";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { RightPanel } from "../panel/RightPanel";
 import { ErrorToast } from "../common/ErrorToast";
@@ -280,6 +280,27 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Morning" : hour < 18 ? "Afternoon" : "Evening";
 
+  function formatSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  async function downloadAttachment(att: FileAttachment) {
+    try {
+      const binary = atob(att.data);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = att.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  }
+
   return (
     <div className="flex h-full">
       {/* Main chat + bottom terminal */}
@@ -394,6 +415,32 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                       <div className="text-sm text-nexus-fg/90">
                         <MarkdownRenderer content={msg.content} />
                       </div>
+                      {/* File attachments from send_file tool */}
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {msg.attachments.map((att, i) => (
+                            <div key={i} className="flex items-center gap-2 rounded-lg border border-gold-faint/40 bg-nexus-surface/50 px-3 py-2 transition hover:border-nexus-gold/60">
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="flex-shrink-0 text-nexus-gold">
+                                <path d="M3 2h6l4 4v8a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
+                                <path d="M9 2v4h4" stroke="currentColor" strokeWidth="1.1"/>
+                              </svg>
+                              <div className="min-w-0">
+                                <p className="truncate text-[11px] font-medium text-nexus-fg">{att.label}</p>
+                                <p className="text-[9px] text-nexus-muted/50">{formatSize(att.size)}</p>
+                              </div>
+                              <button
+                                onClick={() => downloadAttachment(att)}
+                                title="Download file"
+                                className="ml-1 flex-shrink-0 rounded p-1 text-nexus-muted/40 transition hover:bg-nexus-surface hover:text-nexus-gold"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                                  <path d="M8 2v8M5 7l3 3 3-3M3 12v1h10v-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {/* Feedback (Task 49): thumbs up/down */}
                       {msg.meta?.experienceId && !loading && (
                         <div className="mt-1.5 flex items-center gap-1">

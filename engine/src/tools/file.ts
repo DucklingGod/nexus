@@ -5,7 +5,7 @@
 // not a path sandbox. Ceiling: no symlink following. Upgrade if needed.
 
 import { readFile, writeFile, readdir, stat, mkdir } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join, resolve, basename } from "node:path";
 import { registerTool } from "./registry.ts";
 
 // Relative paths resolve here; absolute paths are used as-is.
@@ -82,6 +82,33 @@ export function registerFileTools(): void {
         })
       );
       return { output: lines.join("\n") || "(empty directory)" };
+    }
+  );
+
+  // send_file: deliver a file to the user in the chat as a downloadable attachment.
+  // The agent loop detects the `attachment` field in the result and emits a
+  // chat.file_attached event to the frontend.
+  registerTool(
+    {
+      name: "send_file",
+      category: "file" as const,
+      description: "Send a file to the user as a downloadable attachment in the chat. Use this after creating a file so the user can download it directly without searching for it on their filesystem. Always use this after file_write to deliver the result.",
+      parameters: [
+        { name: "path", type: "string", description: "Path to the file to send", required: true },
+        { name: "label", type: "string", description: "Friendly name to show the user (e.g. 'Budget spreadsheet')" },
+      ],
+    },
+    async (args) => {
+      const p = safePath(String(args.path));
+      const s = await stat(p);
+      if (s.size > 10 * 1024 * 1024) return { output: `Error: file too large (${s.size} bytes, max 10MB)` };
+      const buf = await readFile(p);
+      const name = basename(p);
+      const label = String(args.label || name);
+      return {
+        output: `Sent "${label}" to the user (${s.size} bytes)`,
+        attachment: { name, label, size: s.size, data: buf.toString("base64"), path: p },
+      };
     }
   );
 }
