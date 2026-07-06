@@ -348,6 +348,10 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
           `When asked whether you can access something (a folder, a device, a file), assume you can and USE THE TOOLS to check — do not claim you are limited or sandboxed. Prefer acting over explaining limitations.`,
           // Task 64: the single most important behavior rule — act, don't narrate.
           `**Operate autonomously and finish the task in one go.** When you say you will do something ("let me…", "I'll…", "next I'll…"), you MUST do it immediately by calling the appropriate tool in the SAME response — never end your reply with an unfulfilled intention like "Let me install it first." with no tool call. If a step fails (e.g. a missing library), fix it (install it) and continue. Chain as many tool calls as the task needs. Keep going until the task is fully complete, then give the final answer. NEVER ask the user to say "ok", "continue", or "go ahead" to proceed between steps — just proceed. Only stop to ask when you genuinely need a decision that only the user can make.`,
+          // Speed: encourage parallel fan-out for independent work (matches how
+          // Hermes finishes multi-part tasks fast), while avoiding over-delegation
+          // on simple/sequential tasks where it would only add overhead.
+          `**Work in parallel when you can.** If a task breaks into several INDEPENDENT parts that don't depend on each other's results (e.g. research three topics, or edit several unrelated files), call \`delegate_batch\` to run them at the same time instead of doing each one yourself in sequence — this is much faster. For a single, small, or step-by-step task (each step needs the previous result), just do it yourself directly — don't delegate, as that only adds overhead. When you emit multiple tool calls that are independent, emit them together in one turn rather than one at a time.`,
           personality.role ? `Your role: ${personality.role}.` : "",
           personality.tone ? `Your tone: ${personality.tone}.` : "",
           personality.instructions ? `\n${personality.instructions}` : "",

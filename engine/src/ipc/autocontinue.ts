@@ -12,7 +12,7 @@
 const OFFER = /(\?\s*$)|\b(let me know|would you like|do you want|if you'?d? (?:like|want)|shall i\b|should i\b|feel free|up to you)\b|(?:ครับ|ค่ะ)\s*[?？]\s*$/i;
 
 // Phrases that announce the agent's own next action (English + Thai).
-const INTENT = /\b(let me|let'?s|i'?ll|i will|i'?m going to|i am going to|next[,: ]|now i(?:'|')?ll|now i will|first,? i|then i(?:'|')?ll|i need to|i'?m about to|going to)\b|(?:ต่อไป|เดี๋ยว|จะ|ต้อง|ขอ|接下来|首先|接下来我要)/i;
+const INTENT = /\b(let me|let'?s|i'?ll|i will|i'?m going to|i am going to|next[,: ]|now i(?:'|')?ll|now i will|first,? i|then i(?:'|')?ll|i need to|i'?m about to|going to)\b|(?:ต่อไป|เดี๋ยว|接下来|首先|我要)/i;
 
 // Verbs that imply a tool would be used to carry the action out (English + Thai).
 const ACTION = /\b(install|run|execute|check|read|write|search|fetch|create|extract|download|upload|open|list|inspect|analy[sz]e|compile|build|query|scan|generate|save|delete|move|copy|edit|modify|update|clone|pull|push|navigate|browse)\b|(?:สร้าง|เขียน|อ่าน|ค้นหา|ดาวน์โหลด|เปิด|บันทึก|แก้ไข|ติดตั้ง|รัน|เรียก|ตรวจสอบ|ดึง|สร้างไฟล์|เขียนไฟล์|บันทึกไฟล์)/i;
@@ -37,7 +37,7 @@ export function looksUnfinished(text: string): boolean {
 /** How many times a single turn may be nudged to continue after a no-tool-call
  *  round, before we give up and return the text (prevents narration-only loops).
  *  Reset whenever the model makes real progress by calling a tool. */
-export const MAX_AUTO_CONTINUE = 5;
+export const MAX_AUTO_CONTINUE = 3;
 
 /** The synthetic user turn injected to push the model to actually act. */
 export const CONTINUE_NUDGE =

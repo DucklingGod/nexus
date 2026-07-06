@@ -36,4 +36,14 @@ describe("looksUnfinished (Task 64)", () => {
     const longAnswer = "I ran the analysis and installed nothing new. " + "x".repeat(600) + " The results are attached above.";
     expect(looksUnfinished(longAnswer)).toBe(false);
   });
+
+  it("Thai: detects a genuine action announcement but not ordinary replies", () => {
+    // เดี๋ยว (in a moment) + สร้างไฟล์ (create a file) — a real stall → continue
+    expect(looksUnfinished("เดี๋ยวผมสร้างไฟล์ให้นะครับ")).toBe(true);
+    // Ordinary replies using the very common จะ/ต้อง/ขอ (removed from INTENT to
+    // stop false positives) — must NOT trigger an auto-continue loop.
+    expect(looksUnfinished("ผมจะไปทานข้าวก่อนนะครับ")).toBe(false); // "I'll go eat first"
+    expect(looksUnfinished("ต้องขอบคุณมากเลยครับ")).toBe(false);       // "must thank you a lot"
+    expect(looksUnfinished("ขอโทษด้วยนะครับ")).toBe(false);           // "sorry about that"
+  });
 });

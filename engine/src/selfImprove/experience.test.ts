@@ -1,9 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { logExperience, listExperiences, setFeedback, getExperience } from "./experience.ts";
+import { join } from "node:path";
+import { mkdirSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 
-// These exercise the SQLite-backed CRUD against the shared dev nexus.db.
-// (Vector search needs a provider key and is therefore not unit-tested here —
-// it's exercised end-to-end via stream.ts when experience.enabled is on.)
+// Isolate this suite's SQLite DB from the shared dev nexus.db. experience.ts opens
+// its DB at import time, so NEXUS_DATA_DIR must be set BEFORE the module loads →
+// dynamic import. Without this, once the dev DB accumulates 100+ rows the
+// count-based assertions saturate against listExperiences' LIMIT 100 and flake.
+// (Vector search needs a provider key and isn't unit-tested here.)
+const TEST_PARENT = join(process.env.TEMP ?? "/tmp", `nexus-test-${randomUUID().slice(0, 8)}`);
+mkdirSync(join(TEST_PARENT, "nexus"), { recursive: true });
+process.env.NEXUS_DATA_DIR = TEST_PARENT;
+
+const { logExperience, listExperiences, setFeedback, getExperience } = await import("./experience.ts");
 
 describe("experience collector (Task 47)", () => {
   it("logs an experience and lists it back", () => {
