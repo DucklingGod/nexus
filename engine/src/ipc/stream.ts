@@ -5,6 +5,7 @@ import { listToolsForLLM, listToolsText, executeTool, getTool } from "../tools/r
 import { requestApproval, requestUserChoice } from "../tools/approval.ts";
 import { getSetting } from "../db/settings.ts";
 import { augmentWithContext } from "../knowledge/documents.ts";
+import { formatEnvContext } from "../system/context.ts";
 import { recordTokenUsage, calculateCost } from "../tokens/usage.ts";
 import { estimateTokens } from "../tokens/budget.ts";
 import { maybeRouteModel } from "../tokens/router.ts";
@@ -109,10 +110,12 @@ export async function streamChat(
   // don't fully support native function-calling, and for making the agent
   // proactively reach for tools instead of asking the user to use them.
   const toolText = listToolsText();
-  if (toolText) {
+  const envText = formatEnvContext();
+  const injected = [envText, toolText].filter(Boolean).join("\n\n");
+  if (injected) {
     const sysIdx = ragMessages.findIndex((m) => m.role === "system");
-    if (sysIdx >= 0) ragMessages[sysIdx] = { ...ragMessages[sysIdx], content: ragMessages[sysIdx].content + "\n\n" + toolText };
-    else ragMessages.unshift({ role: "system", content: toolText });
+    if (sysIdx >= 0) ragMessages[sysIdx] = { ...ragMessages[sysIdx], content: ragMessages[sysIdx].content + "\n\n" + injected };
+    else ragMessages.unshift({ role: "system", content: injected });
   }
 
   // First-run onboarding: if user.md is empty (no real content), prepend an
