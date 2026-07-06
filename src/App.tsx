@@ -138,25 +138,21 @@ function App() {
           onOpenSettings={() => setShowSettings(true)}
           onPickHost={(name) => setHostPrefill(`Run a command on my ${name} over SSH: `)}
         />
-        <div className="flex-1 overflow-hidden">
-          {activeView === "ab" ? (
-            <ABTestView />
-          ) : activeView === "workflows" ? (
-            <WorkflowsView />
-          ) : activeView === "skills" ? (
-            <SkillsView />
-          ) : activeView === "kanban" ? (
-            <KanbanView />
-          ) : activeView === "marketplace" ? (
-            <MarketplaceView />
-          ) : (
+        <div className="relative flex-1 overflow-hidden">
+          {activeView === "ab" && <div className="absolute inset-0"><ABTestView /></div>}
+          {activeView === "workflows" && <div className="absolute inset-0"><WorkflowsView /></div>}
+          {activeView === "skills" && <div className="absolute inset-0"><SkillsView /></div>}
+          {activeView === "kanban" && <div className="absolute inset-0"><KanbanView /></div>}
+          {activeView === "marketplace" && <div className="absolute inset-0"><MarketplaceView /></div>}
+          {/* ChatConsole stays mounted (hidden via CSS display:none) so the agent keeps working when user navigates away */}
+          <div className={activeView === "chat" ? "h-full" : "hidden"}>
             <ChatConsole
               conversationId={conversationId}
               onConversationCreated={(id) => setConversationId(id)}
               inputPrefill={hostPrefill}
               onConsumedPrefill={() => setHostPrefill(null)}
             />
-          )}
+          </div>
         </div>
       </div>
 
