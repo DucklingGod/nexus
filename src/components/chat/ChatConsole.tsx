@@ -355,7 +355,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                           ))}
                         </div>
                       )}
-                      <p className="text-sm text-nexus-fg">{msg.content}</p>
+                      <p className="text-sm text-nexus-fg whitespace-pre-wrap">{msg.content}</p>
                       <p className="mt-1 text-[9px] text-nexus-muted/40">{new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
                     </div>
                   </div>

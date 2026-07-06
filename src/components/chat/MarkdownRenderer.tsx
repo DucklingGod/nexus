@@ -6,6 +6,24 @@ interface Props {
   content: string;
 }
 
+/** Normalize LLM content so line breaks always render as paragraphs.
+ *  mimo (and other models) often send \n where \n\n is needed for
+ *  markdown to create a new paragraph. */
+function normalizeLineBreaks(text: string): string {
+  // Normalize Windows line endings
+  let s = text.replace(/\r\n/g, "\n");
+  // Protect existing double-newlines (paragraph breaks)
+  s = s.replace(/\n\n/g, "\x00PARA\x00");
+  // Protect markdown structures that start with newline
+  s = s.replace(/\n([>#\-\*\d+`|~\[]) ?/g, "\x00BR\x00$1");
+  // Convert remaining single newlines to paragraph breaks
+  s = s.replace(/\n/g, "\n\n");
+  // Restore protected patterns
+  s = s.replace(/\x00PARA\x00/g, "\n\n");
+  s = s.replace(/\x00BR\x00/g, "\n");
+  return s;
+}
+
 export function MarkdownRenderer({ content }: Props) {
   return (
     <ReactMarkdown
@@ -107,7 +125,7 @@ export function MarkdownRenderer({ content }: Props) {
         ),
       }}
     >
-      {content}
+      {normalizeLineBreaks(content)}
     </ReactMarkdown>
   );
 }
