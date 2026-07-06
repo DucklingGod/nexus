@@ -256,6 +256,93 @@ export function registerBrowserTools(): void {
       }
     },
   );
+
+  registerTool(
+    {
+      name: "browser_back",
+      category: "web" as const,
+      description: "Navigate back to the previous page in browser history.",
+      parameters: [],
+    },
+    async () => {
+      const page = await getPage();
+      try {
+        await page.goBack({ waitUntil: "domcontentloaded", timeout: 15000 });
+        const title = await page.title();
+        const url = page.url();
+        return { output: `Navigated back to: ${url}\nTitle: ${title}` };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { output: `Go back failed: ${msg}` };
+      }
+    },
+  );
+
+  registerTool(
+    {
+      name: "browser_snapshot",
+      category: "web" as const,
+      description: "Get a text-based snapshot of the current page's accessibility tree. Returns interactive elements with descriptions. Use this to understand page structure before clicking/typing.",
+      parameters: [],
+    },
+    async () => {
+      const page = await getPage();
+      try {
+        const snapshot = await page.evaluate(() => {
+          const elements = document.querySelectorAll("a, button, input, textarea, select, [role='button'], [onclick]");
+          const lines: string[] = [];
+          for (const el of Array.from(elements).slice(0, 50)) {
+            const tag = el.tagName.toLowerCase();
+            const text = (el.textContent || "").trim().slice(0, 80);
+            const type = el.getAttribute("type") || "";
+            const placeholder = el.getAttribute("placeholder") || "";
+            const href = el.getAttribute("href") || "";
+            const role = el.getAttribute("role") || "";
+            let desc = `<${tag}`;
+            if (type) desc += ` type="${type}"`;
+            if (role) desc += ` role="${role}"`;
+            desc += ">";
+            if (text) desc += ` ${text}`;
+            if (placeholder) desc += ` [placeholder: ${placeholder}]`;
+            if (href && tag === "a") desc += ` → ${href}`;
+            lines.push(desc);
+          }
+          return lines.join("\n") || "(no interactive elements found)";
+        });
+        return { output: snapshot };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { output: `Snapshot failed: ${msg}` };
+      }
+    },
+  );
+
+  registerTool(
+    {
+      name: "browser_console",
+      category: "web" as const,
+      description: "Get browser console output (logs, warnings, errors). Useful for debugging JavaScript-heavy pages.",
+      parameters: [
+        { name: "clear", type: "boolean", description: "Clear console after reading (default: false)" },
+      ],
+    },
+    async (args) => {
+      const page = await getPage();
+      try {
+        const logs = await page.evaluate(() => {
+          const entries = (window as any).__nexus_console || [];
+          return entries.join("\n") || "(no console output captured)";
+        });
+        if (args.clear) {
+          await page.evaluate(() => { (window as any).__nexus_console = []; });
+        }
+        return { output: logs };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { output: `Console read failed: ${msg}` };
+      }
+    },
+  );
 }
 
 // Cleanup on process exit.

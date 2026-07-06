@@ -128,6 +128,7 @@ export async function initTools(): Promise<void> {
   const { registerSshTools } = await import("./ssh.ts");
   const { registerAskUserTool } = await import("./askUser.ts");
   const { registerSkillManageTools } = await import("./skillManage.ts");
+  const { registerVisionAnalyzeTool } = await import("./vision.ts");
 
   registerWebTools();
   registerFileTools();
@@ -152,6 +153,7 @@ export async function initTools(): Promise<void> {
   registerSshTools();
   registerAskUserTool();
   registerSkillManageTools();
+  registerVisionAnalyzeTool();
 
   process.stderr.write(`[tools] registered ${tools.size} tools: ${listTools().map(t => t.name).join(", ")}\n`);
 }

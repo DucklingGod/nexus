@@ -133,7 +133,37 @@ Type text into an input field identified by its ref ID.
 Take a screenshot of the current page for visual inspection.
 - **Use for:** CAPTCHAs, visual verification, complex layouts, or when the text snapshot misses important visual information.
 - **Must call browser_navigate first.**
-- **Returns:** screenshot path that can be shared with the user.`,
+- **Returns:** screenshot path that can be shared with the user.
+- **Full page:** set full_page=true to capture the entire page, not just the viewport.`,
+
+  browser_back: `## browser_back
+Navigate back to the previous page in browser history.
+- **Must call browser_navigate first.**
+- **Use when:** you followed a link and need to go back to the previous page.
+- **Common mistake:** calling browser_back without navigating first — there's no history to go back to.`,
+
+  browser_snapshot: `## browser_snapshot
+Get a text-based snapshot of the current page's accessibility tree. Returns interactive elements.
+- **Use before clicking/typing:** shows you what elements are available (buttons, inputs, links).
+- **Must call browser_navigate first.**
+- **Returns:** list of interactive elements with tags, text, types, placeholders, and hrefs.
+- **When to use vs browser_screenshot:** snapshot is faster and returns structured text. Screenshot is for visual inspection.`,
+
+  browser_console: `## browser_console
+Get browser console output (logs, warnings, errors).
+- **Use for:** debugging JavaScript-heavy pages, checking for errors.
+- **Must call browser_navigate first.**
+- **Clear:** set clear=true to clear the console after reading.
+- **When to use:** when a page isn't working correctly and you suspect JavaScript errors.`,
+
+  vision_analyze: `## vision_analyze
+Analyze an image using a vision-capable model. Accepts URL, local file path, or data URL.
+- **When to use:** user references an image, shares a screenshot, asks about visual content, or you need to read text from an image.
+- **Question:** be specific about what you want to know (e.g., "What text is shown in this image?", "Describe the chart").
+- **Supported formats:** PNG, JPEG, WebP, GIF.
+- **Size limit:** very large images may fail — resize if needed.
+- **Common mistake:** asking vague questions — be specific for better results.
+- **Returns:** the image as a context attachment that the agent can describe in its response.`,
 
   // ═══════════════════════════════════════════════════════════════
   // FILE DELIVERY
