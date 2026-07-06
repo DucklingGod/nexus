@@ -317,8 +317,12 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
         ) : (
           /* Conversation */
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-4">
-            {messages.map((msg) => (
-              <div key={msg.id} className="mb-4">
+            {messages.map((msg, idx) => {
+              // Add extra spacing between consecutive assistant messages
+              const prevMsg = idx > 0 ? messages[idx - 1] : null;
+              const isConsecutiveAssistant = msg.role === "assistant" && prevMsg?.role === "assistant";
+              return (
+              <div key={msg.id} className={isConsecutiveAssistant ? "mb-8 mt-4 border-t border-nexus-border/20 pt-4" : "mb-6"}>
                 {msg.role === "user" ? (
                   <div className="flex justify-end">
                     <div className="max-w-[80%] rounded-2xl bg-nexus-surface px-4 py-2.5">
@@ -413,7 +417,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                   </div>
                 )}
               </div>
-            ))}
+            )})}
             <div ref={bottomRef} />
             {loading && (
               <div className="flex items-center gap-2 text-xs text-nexus-muted">
