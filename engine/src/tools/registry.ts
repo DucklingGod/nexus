@@ -22,16 +22,23 @@ export function listTools(): ToolDef[] {
   return Array.from(tools.values()).map(t => t.def);
 }
 
-/** Human-readable tool inventory for the system prompt. Groups tools by
- *  category so the agent sees at a glance what it can do — especially useful
- *  for models that don't fully support native function-calling, or when the
- *  tools array alone doesn't make the agent proactively reach for them. */
+/** Human-readable tool inventory for the system prompt. Uses a compact format
+ *  to minimize token cost while keeping the agent aware of all capabilities.
+ *  Cached internally — returns the same string until the tool set changes. */
+let _toolsCache: { hash: string; text: string } = { hash: "", text: "" };
+
 export function listToolsText(): string {
   const disabledRaw = getSetting("tools.disabled");
   const disabled: string[] = disabledRaw ? JSON.parse(disabledRaw) : [];
   const active = listTools().filter(t => !disabled.includes(t.category));
   if (active.length === 0) return "";
 
+  // Cache key: sorted tool names + disabled list
+  const hash = active.map(t => t.name).sort().join(",") + "|" + disabled.sort().join(",");
+  if (hash === _toolsCache.hash) return _toolsCache.text;
+
+  // Compact format: group by category, list names with one-line descriptions
+  // Skip parameter details — the tools array (function-calling) carries those.
   const grouped = new Map<string, typeof active>();
   for (const t of active) {
     const arr = grouped.get(t.category) ?? [];
@@ -39,18 +46,15 @@ export function listToolsText(): string {
     grouped.set(t.category, arr);
   }
 
-  const lines: string[] = ["# Available tools", "You have access to the following tools — use them proactively when they help accomplish the user's task:", ""];
+  const lines: string[] = ["# Available tools (use proactively — do not ask permission)", ""];
   for (const [cat, tools] of grouped) {
-    lines.push(`**${cat}:**`);
-    for (const t of tools) {
-      const params = t.parameters.length > 0
-        ? ` (${t.parameters.map(p => `${p.name}${p.required ? "" : "?"}: ${p.type}`).join(", ")})`
-        : "";
-      lines.push(`- \`${t.name}\`${params} — ${t.description}`);
-    }
-    lines.push("");
+    lines.push(`${cat}: ${tools.map(t => t.name).join(", ")}`);
   }
-  return lines.join("\n");
+  lines.push("", "Each tool is also available via function-calling. Use them directly — never tell the user you lack access.");
+
+  const text = lines.join("\n");
+  _toolsCache = { hash, text };
+  return text;
 }
 
 export function listToolsForLLM(): object[] {
