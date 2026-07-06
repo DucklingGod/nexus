@@ -62,7 +62,7 @@ export async function runWorkflow(graph: Graph, config: ConnectorConfig): Promis
         const prompt = label.includes("{input}")
           ? label.replace(/\{input\}/g, input)
           : input ? `${label}\n\n${input}` : label;
-        out = await runConnectorAgent(config, [{ role: "user", content: prompt || input || "Proceed." }], "a workflow");
+        out = (await runConnectorAgent(config, [{ role: "user", content: prompt || input || "Proceed." }], "a workflow")).text;
       } else if (type === "tool") {
         const toolName = node.data.tool || label.split(/\s+/)[0] || "web_search";
         const arg = (label.includes("{input}") ? label.replace(/\{input\}/g, input) : (label || input)).trim();

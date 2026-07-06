@@ -87,15 +87,16 @@ export function startMatrix(token: string, config: ConnectorConfig, log: (msg: s
             const sender = String(event.sender ?? "");
             log(`message from ${sender}`);
             await sendTyping(roomId, true);
-            let reply: string;
+            let replyText: string;
             try {
-              reply = await handleConnectorMessage("matrix", roomId, sender, text, config);
+              const result = await handleConnectorMessage("matrix", roomId, sender, text, config);
+              replyText = result.text;
             } catch {
-              reply = "Sorry, I hit an error handling that.";
+              replyText = "Sorry, I hit an error handling that.";
             } finally {
               await sendTyping(roomId, false);
             }
-            await sendMessage(roomId, reply);
+            await sendMessage(roomId, replyText);
           }
         }
       } catch {

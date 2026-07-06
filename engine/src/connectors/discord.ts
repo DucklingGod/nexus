@@ -66,18 +66,19 @@ export function startDiscord(token: string, config: ConnectorConfig, log: (msg: 
         }).catch(() => {});
         sendTyping();
         const typingTimer = setInterval(sendTyping, 8000);
-        let reply: string;
+        let replyText: string;
         try {
-          reply = await handleConnectorMessage("discord", channelId, author.username ?? "user", text, config);
+          const result = await handleConnectorMessage("discord", channelId, author.username ?? "user", text, config);
+          replyText = result.text;
         } catch {
-          reply = "Sorry, I hit an error handling that.";
+          replyText = "Sorry, I hit an error handling that.";
         } finally {
           clearInterval(typingTimer);
         }
         await fetch(`${API}/channels/${channelId}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ content: reply.slice(0, 1900) }),
+          body: JSON.stringify({ content: replyText.slice(0, 1900) }),
         }).catch(() => {});
       }
     };

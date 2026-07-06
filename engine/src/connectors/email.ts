@@ -77,14 +77,15 @@ export function startEmail(token: string, config: ConnectorConfig, log: (msg: st
           // Mark seen first so a crash mid-reply doesn't reprocess it forever.
           await client.messageFlagsAdd([uid], ["\\Seen"], { uid: true }).catch(() => {});
 
-          let reply: string;
+          let replyText: string;
           try {
-            reply = await handleConnectorMessage("email", senderAddress, senderName, text, config);
+            const result = await handleConnectorMessage("email", senderAddress, senderName, text, config);
+            replyText = result.text;
           } catch {
-            reply = "Sorry, I hit an error handling that.";
+            replyText = "Sorry, I hit an error handling that.";
           }
           const replySubject = /^re:/i.test(subject) ? subject : `Re: ${subject || "your message"}`;
-          await transporter.sendMail({ from: creds.user, to: senderAddress, subject: replySubject, text: reply }).catch(() => {});
+          await transporter.sendMail({ from: creds.user, to: senderAddress, subject: replySubject, text: replyText }).catch(() => {});
         }
       } finally {
         lock.release();

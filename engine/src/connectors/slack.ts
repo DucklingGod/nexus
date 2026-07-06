@@ -87,15 +87,16 @@ export function startSlack(token: string, config: ConnectorConfig, log: (msg: st
 
         // "working" indicator: react with an hourglass while the agent runs.
         if (ts) slackApi(creds.botToken, "reactions.add", { channel, timestamp: ts, name: "hourglass_flowing_sand" }).catch(() => {});
-        let reply: string;
+        let replyText: string;
         try {
-          reply = await handleConnectorMessage("slack", channel, userId, text, config);
+          const result = await handleConnectorMessage("slack", channel, userId, text, config);
+          replyText = result.text;
         } catch {
-          reply = "Sorry, I hit an error handling that.";
+          replyText = "Sorry, I hit an error handling that.";
         } finally {
           if (ts) slackApi(creds.botToken, "reactions.remove", { channel, timestamp: ts, name: "hourglass_flowing_sand" }).catch(() => {});
         }
-        await slackApi(creds.botToken, "chat.postMessage", { channel, text: reply.slice(0, 3900) });
+        await slackApi(creds.botToken, "chat.postMessage", { channel, text: replyText.slice(0, 3900) });
       };
       ws.onclose = () => { if (running) setTimeout(connect, 3000); };
       ws.onerror = () => log("websocket error");
