@@ -2,7 +2,7 @@
 
 > Depends on: SPEC.md
 > Created: 2026-06-28
-> Last updated: 2026-07-06 (v1.2 UI/UX rework complete — sidebar, settings, chat input, guidance, view polish)
+> Last updated: 2026-07-06 (v1.2 UI/UX rework + agent reliability fixes + file delivery)
 > Repo: github.com/DucklingGod/nexus (canonical standalone repo "Nexus-App"; flattened layout — engine/ src/ src-tauri/ at root)
 > Status: In build — v0.1–v0.5, v0.7, v0.8, v0.9 complete; v0.6 deferred; v1.0 mostly done (Notion connector deferred)
 
@@ -26,7 +26,7 @@ breakdown is unchanged below). Current status against it:
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
 | v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 Nearly done — **56-61, 63 all done**; **62 (clean installer) researched, not implemented** — bun single-binary compile ruled out with verified evidence (native `better-sqlite3` binding can't resolve inside a compiled binary); recommended path documented (bundle portable Node + real engine files as Tauri resources), needs a clean machine to safely implement + verify. Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`); each task written up as a **detailed implementer handoff** in the "Beyond Hermes" section below. |
-| v1.2 — Agent Reliability & Autonomy | 64-67 | 🟡 In progress — Task 64 (autonomous loop): **Layers 1-3 done** (`b9d70d4`); L4-5 remain. Tasks 65-67 (self-evolution supremacy): ✅ **ALL DONE** (`959abfb` `09a92ff`). |
+| v1.2 — Agent Reliability & Autonomy | 64-67 | 🟡 In progress — Task 64 (autonomous loop): **Layers 1-3 done** (`b9d70d4`); L4-5 remain. Tasks 65-67 (self-evolution supremacy): ✅ **ALL DONE** (`959abfb` `09a92ff`). **+ UI/UX rework (5 phases, commits `7ecb20e`→`902db92`) + agent reliability: file delivery (send_file tool), option selector (ask_user), auto-continue Thai detection, remark-breaks + normalizeLineBreaks, strikethrough fix, file card openPath, message spacing, context panel, timeline+DAG, settings full-width fix** |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -257,6 +257,58 @@ skips a dangerous-action confirmation.
 
 **Done when:** the PDF-extraction scenario (and similar install→run→answer tasks) complete in one turn with no
 manual nudging, on both a strong model and a mid-tier free model, without any runaway loop.
+
+### v1.2 UI/UX Rework — 5 Phases (commits `7ecb20e`→`902db92` + `fccafb5` + `7623f61`)
+
+**Goal:** reorganize the UI for non-technical users. Keep all features, reorganize for progressive disclosure. Based on Claude's detailed plan, modified during implementation.
+
+**Phase 1 — Sidebar + shell (`7ecb20e`):**
+- `App.tsx`: 5 view booleans → `MainView` union type
+- `LeftSidebar.tsx`: chats-first + collapsible TOOLS section (Task board, Add-ons, Compare models)
+- `TopBar.tsx`: ← Back to chat pill for all tool views
+
+**Phase 2 — Settings: 14 tabs → 6 groups (`6c0cb55`):**
+- `Settings.tsx`: AI Model, My Agent, Connections, Appearance, Advanced, About
+- Pill sub-nav per group, plain-language labels + descriptions
+- All 14 tab components reused (composition, not rewrite)
+
+**Phase 3 — Chat input simplification (`2bc7aeb`):**
+- `ChatConsole.tsx`: + attach menu (file + image merged), "Ask Nexus anything…" placeholder
+- Reasoning dropdown: Quick / Balanced / Thorough / Max
+
+**Phase 4 — Guidance (`42ec1e9`):**
+- Suggested-prompt chips (4 gold pills) in empty state
+- Meta chip tooltips (cached, tokens, routed, skills)
+
+**Phase 5 — Feature-view polish (`902db92`):**
+- `ViewHeader.tsx` extracted (gold-foil h1 + muted description)
+- Kanban → "Task board", Marketplace → "Add-ons" + MCP explanation, A/B → "Compare models"
+- Dead browser tab removed from RightPanel
+
+**Agent reliability fixes (`fccafb5` + `7623f61`):**
+- `MarkdownRenderer.tsx`: `del` handler (render `~~text~~` as normal text — mimo uses ~~ for emphasis)
+- `normalizeLineBreaks()` preprocess: single `\n` → paragraph break (preserving markdown structures)
+- File card: `<button>` with Tauri `openPath(att.path)` — opens file directly with system default app
+- User messages: `whitespace-pre-wrap` for line break display
+
+**Other UI improvements:**
+- Agent Timeline + DAG graph (inline per-message, friendly labels)
+- Context panel (replaces useless activity list: topics, tokens, models, files)
+- Message spacing + `border-t` separator between agent messages
+- Settings content panel `w-full` + `min-w-0` fix
+- `DEFAULT_MAX_ROUNDS` 12 → 20 (`runtime.rs`)
+- `MAX_AUTO_CONTINUE` 3 → 5 + Thai auto-continue regex (INTENT, ACTION, OFFER categories)
+
+**File delivery system (`send_file` tool — engine side):**
+- `engine/src/tools/file.ts`: reads file, base64 encodes, emits `chat.file_attached` event
+- `engine/src/ipc/stream.ts`: forwards attachment data to frontend
+- `src/hooks/useChat.ts`: `FileAttachment` interface + listener
+- `src/components/chat/ChatConsole.tsx`: attachment cards with Tauri openPath
+
+**Option selector (`ask_user` tool — backend ready, frontend pending):**
+- `engine/src/tools/file.ts`: presents choices to user, blocks until selection
+- `engine/src/ipc/stream.ts`: emits `chat.options_presented` event
+- Frontend rendering: **TODO** — needs option card UI + click handler
 
 ---
 
