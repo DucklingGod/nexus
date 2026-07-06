@@ -25,6 +25,7 @@ import { addCorrection, listCorrections, deleteCorrection, extractCorrection } f
 import { getLatestEvaluation, listEvaluations } from "../selfImprove/evaluate.ts";
 import { getLatestTrend, listTrends } from "../selfImprove/trends.ts";
 import { runOptimization, listPromptVersions, applyPromptVersion, maybeAutoOptimize } from "../selfImprove/optimize.ts";
+import { getStrategyProfile, setPinnedStrategy, clearPinnedStrategy, analyzeStrategy } from "../selfImprove/strategy.ts";
 import { resetAgentData } from "../system/reset.ts";
 import { getServers, addServer, removeServer, toggleServer, connectServer, disconnectServer, getServerStates, type McpServerConfig } from "../mcp/client.ts";
 import { fetchCatalog } from "../mcp/registry.ts";
@@ -630,6 +631,22 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
         return { ...base, result: { ok: true } };
       }
 
+
+      // Self-improvement — strategy engine (Task 67)
+      case "strategy.get": {
+        const { analyze } = (req.params ?? {}) as { analyze?: boolean };
+        if (analyze) analyzeStrategy();
+        return { ...base, result: { profiles: getStrategyProfile() } };
+      }
+      case "strategy.set": {
+        const { category, value } = req.params as { category: string; value: string };
+        setPinnedStrategy(category, value);
+        return { ...base, result: { ok: true } };
+      }
+      case "strategy.clear": {
+        const { category } = req.params as { category: string };
+        return { ...base, result: { ok: clearPinnedStrategy(category) } };
+      }
       default:
         return { ...base, error: { code: -32601, message: `Method not found: ${req.method}` } };
     }

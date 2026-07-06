@@ -18,6 +18,7 @@ import { injectContext, isUserOnboarded } from "../context/files.ts";
 import { isAutoExtractEnabled, autoExtract } from "../context/autoExtract.ts";
 import { logExperience, type ToolStep } from "../selfImprove/experience.ts";
 import { injectCorrections } from "../selfImprove/correction.ts";
+import { injectStrategy } from "../selfImprove/strategy.ts";
 import { evaluateSession } from "../selfImprove/evaluate.ts";
 import { maybeAutoOptimize } from "../selfImprove/optimize.ts";
 import { abortRequested } from "../main.ts";
@@ -100,7 +101,8 @@ export async function streamChat(
     await augmentWithContext(messages, config).catch(() => messages),
     matchedSkills,
   ));
-  const ragMessages = await injectCorrections(base, config).catch(() => base);
+  let ragMessages = await injectCorrections(base, config).catch(() => base);
+  ragMessages = injectStrategy(ragMessages);
 
   // Tool inventory: inject a text list of available tools into the system prompt
   // so the agent knows what it can do — especially important for models that
