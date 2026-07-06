@@ -77,6 +77,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
   const { messages, sendMessage, loading, error, stopChat, pendingApproval, respondApproval, toolEvents, setFeedback } = useChat(conversationId, onConversationCreated);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -281,13 +282,34 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
       {/* Main chat + bottom terminal */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {isEmpty ? (
-          /* Empty state — ZCode-style greeting + faint watermark */
+          /* Empty state — ZCode-style greeting + faint watermark + suggested prompts */
           <EmptyState
             icon={
               <span className="text-gold-foil font-display text-6xl font-bold leading-none select-none">N</span>
             }
             title={`${greeting}, ready when you are`}
             description="Type a message below to start a conversation with Nexus."
+            action={
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {[
+                  "Summarize a document for me",
+                  "Help me write an email",
+                  "What can you do?",
+                  "Search my notes",
+                ].map((text) => (
+                  <button
+                    key={text}
+                    onClick={() => {
+                      setInput(text);
+                      setTimeout(() => textareaRef.current?.focus(), 50);
+                    }}
+                    className="rounded-full border border-gold-faint/40 bg-nexus-surface/40 px-3 py-1.5 text-[11px] text-nexus-muted transition hover:border-nexus-gold/50 hover:text-nexus-fg"
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+            }
           />
         ) : (
           /* Conversation */
@@ -330,16 +352,16 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                     {msg.meta && (msg.meta.skills?.length || msg.meta.routedModel || msg.meta.cached || msg.meta.model || msg.meta.usage) ? (
                       <div className="flex flex-wrap gap-1.5">
                         {msg.meta.cached && (
-                          <span className="flex items-center gap-1 rounded-full border border-gold-faint bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-gold">↺ cached</span>
+                          <span title="Answer reused from an earlier identical question — instant and free" className="flex items-center gap-1 rounded-full border border-gold-faint bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-gold">↺ cached</span>
                         )}
                         {msg.meta.routedModel && (
-                          <span title="Smart model routing chose this model" className="flex items-center gap-1 rounded-full border border-nexus-border/30 bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-muted">↘ {msg.meta.routedModel}</span>
+                          <span title="Smart routing picked this model for your request" className="flex items-center gap-1 rounded-full border border-nexus-border/30 bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-muted">↘ {msg.meta.routedModel}</span>
                         )}
                         {msg.meta.skills?.map((s) => (
-                          <span key={s} title="Skill auto-applied" className="flex items-center gap-1 rounded-full border border-gold-faint bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-gold/90">✦ {s}</span>
+                          <span key={s} title="A skill was automatically applied to answer this" className="flex items-center gap-1 rounded-full border border-gold-faint bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-gold/90">✦ {s}</span>
                         ))}
                         {(msg.meta.model || msg.meta.usage) && !msg.meta.cached && (
-                          <span title="Model and tokens for this reply" className="flex items-center gap-1 rounded-full border border-nexus-border/30 bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-muted/70">
+                          <span title="Which AI model answered and how much text it processed" className="flex items-center gap-1 rounded-full border border-nexus-border/30 bg-nexus-surface/50 px-2.5 py-1 text-[10px] text-nexus-muted/70">
                             {msg.meta.model ?? ""}{msg.meta.usage ? ` · ${msg.meta.usage.input}→${msg.meta.usage.output} tok` : ""}
                           </span>
                         )}
@@ -436,6 +458,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
             {/* Input field */}
             <textarea
               ref={(el) => {
+                textareaRef.current = el;
                 if (el) {
                   el.style.height = "auto";
                   el.style.height = Math.min(el.scrollHeight, 200) + "px";
