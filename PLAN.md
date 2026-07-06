@@ -26,7 +26,7 @@ breakdown is unchanged below). Current status against it:
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
 | v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 Nearly done — **56-61, 63 all done**; **62 (clean installer) researched, not implemented** — bun single-binary compile ruled out with verified evidence (native `better-sqlite3` binding can't resolve inside a compiled binary); recommended path documented (bundle portable Node + real engine files as Tauri resources), needs a clean machine to safely implement + verify. Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`); each task written up as a **detailed implementer handoff** in the "Beyond Hermes" section below. |
-| v1.2 — Agent Reliability & Autonomy | 64+ | 🟡 In progress — Task 64 (autonomous loop): **Layers 1-3 done** (`b9d70d4`) — prompt hardening + auto-continue + configurable `agent.maxRounds`; L4 (parse text `<tool_call>`) + L5 (Continue button) remain. Fixes the agent narrating "let me do X" then stopping. |
+| v1.2 — Agent Reliability & Autonomy | 64-67 | 🟡 In progress — Task 64 (autonomous loop): **Layers 1-3 done** (`b9d70d4`); L4-5 remain. Tasks 65-67 (self-evolution supremacy) — **65-66 done** (`959abfb`); 67 in progress. |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -259,6 +259,80 @@ skips a dangerous-action confirmation.
 manual nudging, on both a strong model and a mid-tier free model, without any runaway loop.
 
 ---
+
+## v1.3 — Self-Evolution Supremacy (surpass Hermes DSPy/GEPA)
+
+> Goal: make Nexus's self-evolution **strictly better** than Hermes's DSPy/GEPA. Hermes has a strong
+> academic-grade optimizer but it's largely manual/semi-continuous. Nexus will have a **fully autonomous
+> continuous loop** — auto-triggering on quality dips, trend-aware, adaptive-strategy, and cross-session
+> learning — that Hermes doesn't have.
+
+### Task 65 — Auto-Optimization Trigger
+**Goal:** make the prompt optimizer (`selfImprove/optimize.ts`) run automatically after sessions with
+negative signal, instead of requiring manual button clicks.
+
+**Acceptance:**
+- After every chat turn where `evaluateSession` returns scores below threshold (completion < 60 OR
+  satisfaction < 50), auto-queue an optimization pass
+- Optimization runs async (background, doesn't block chat) — `runOptimization()` from `optimize.ts`
+- Only runs once per 24h window (debounce) to avoid wasting tokens on redundant passes
+- When a new proposal is generated → notify frontend via `chat.optimize_proposal` RPC notification
+- Setting: `optimize.autoTrigger` (default "true") to enable/disable
+- Log each auto-trigger in `prompt_versions` table (existing schema)
+
+**Verify:** Simulate low evaluation score → confirm optimization triggers automatically → proposal appears
+in Settings → Learning.
+
+**Files:** `engine/src/selfImprove/optimize.ts` (add `maybeAutoOptimize()`), `engine/src/ipc/stream.ts`
+(call after evaluation), `engine/src/ipc/rpc.ts` (add `optimize.trigger` RPC for manual trigger)
+
+**Scope:** S
+**Dependencies:** Task 61 (existing optimizer), Task 49 (existing evaluator)
+
+### Task 66 — Trend Detector + Alert System
+**Goal:** detect declining quality trends across sessions and alert the user before things get bad.
+
+**Acceptance:**
+- After each evaluation, compute rolling averages (last 5, last 20 evaluations)
+- Detect trends: `trend_direction` = improving / stable / declining
+- Alert when: rolling-5 avg drops 15+ points below rolling-20 avg (quality degradation)
+- Alert when: 3+ consecutive evaluations with satisfaction < 40 (critical degradation)
+- Alerts sent as `chat.trend_alert` RPC notification → frontend shows a warning chip in chat
+- Store trend data in a new `evaluation_trends` table (SQLite)
+- Setting: `evaluation.trendAlerts` (default "true")
+- Expose trend data via `evaluation.trends` RPC for the frontend
+
+**Verify:** Seed 20 evaluations with declining scores → confirm trend detection fires → alert appears.
+
+**Files:** `engine/src/selfImprove/trends.ts` (new), `engine/src/selfImprove/evaluate.ts` (call trend
+check after each evaluation), `engine/src/ipc/rpc.ts` (add `evaluation.trends` RPC)
+
+**Scope:** M
+**Dependencies:** Task 49 (existing evaluator)
+
+### Task 67 — Adaptive Strategy Engine
+**Goal:** the agent automatically adjusts its behavior based on accumulated feedback patterns.
+
+**Acceptance:**
+- Analyze correction rules (from `corrections` table) and experience feedback to extract behavioral
+  preferences (e.g., "user prefers shorter responses", "user prefers code over explanations")
+- Build a `strategy_profile` from accumulated data — stored in `strategy_profiles` table
+- Inject top strategy hints into system prompt (similar to how `injectCorrections` works)
+- Strategy categories: verbosity (concise/detailed), format (code/prose/mixed), proactivity
+  (act-first/ask-first), tool preference (terminal-heavy/file-heavy/balanced)
+- Auto-update strategy profile after every 10 evaluations (batch analysis)
+- Manual override: user can set strategy preferences in Settings → Learning (pinned preferences
+  override auto-detected ones)
+- Setting: `strategy.enabled` (default "true")
+
+**Verify:** Log 20 experiences showing preference for short code answers → strategy profile detects
+"concise + code" → system prompt includes strategy hints → agent adapts behavior.
+
+**Files:** `engine/src/selfImprove/strategy.ts` (new), `engine/src/ipc/stream.ts` (inject strategy),
+`engine/src/ipc/rpc.ts` (add `strategy.get/set` RPCs), `src/components/settings/StrategySettings.tsx`
+
+**Scope:** L
+**Dependencies:** Task 47 (experience), Task 49 (corrections), Task 66 (trends)
 
 ## Overview
 
