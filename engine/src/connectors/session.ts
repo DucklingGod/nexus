@@ -5,7 +5,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { ChatMessage } from "../providers/types.ts";
-import { getConversation, createConversation, addMessage, getMessages } from "../memory/episodic.ts";
+import { getConversation, createConversation, addMessage, getMessages, deleteConversation } from "../memory/episodic.ts";
 import { notify } from "../ipc/notify.ts";
 import { runConnectorAgent, type ConnectorConfig } from "./agent.ts";
 
@@ -21,9 +21,15 @@ const PREFIX: Record<string, string> = {
   matrix: "mx",
 };
 
+/** Result from handleConnectorMessage — includes text reply + any file attachments. */
+export interface ConnectorResult {
+  text: string;
+  attachments: string[];
+}
+
 /**
  * Handle one incoming message: persist it, run the agent over recent history,
- * persist the reply, and notify the UI to refresh. Returns the reply text.
+ * persist the reply, and notify the UI to refresh. Returns the reply text + attachments.
  */
 export async function handleConnectorMessage(
   platform: string,
@@ -31,10 +37,17 @@ export async function handleConnectorMessage(
   title: string,
   userText: string,
   config: ConnectorConfig,
-): Promise<string> {
+  images?: { data: string; mediaType: string }[],
+): Promise<ConnectorResult> {
   const convId = `${PREFIX[platform] ?? platform}-${chatKey}`;
   if (!getConversation(convId)) {
     createConversation(convId, (title || `${platform} chat`).slice(0, 60), config.id, config.model, platform);
+  }
+
+  // Build user message with optional images
+  const userMsg: ChatMessage = { role: "user", content: userText };
+  if (images && images.length > 0) {
+    userMsg.images = images;
   }
 
   addMessage(randomUUID(), convId, "user", userText);
@@ -44,9 +57,36 @@ export async function handleConnectorMessage(
     .slice(-HISTORY_LIMIT)
     .map((r) => ({ role: r.role, content: r.content }));
 
-  const reply = await runConnectorAgent(config, history, platform);
+  // Replace the last message with image data if available
+  if (images && images.length > 0 && history.length > 0) {
+    history[history.length - 1] = userMsg;
+  }
 
-  addMessage(randomUUID(), convId, "assistant", reply);
+  const result = await runConnectorAgent(config, history, platform);
+
+  addMessage(randomUUID(), convId, "assistant", result.text);
   notify("conversation.updated", { id: convId, source: platform });
-  return reply;
+
+  // Auto-extract memory after substantial conversations
+  try {
+    const { autoExtract, isAutoExtractEnabled } = await import("../context/autoExtract.ts");
+    if (isAutoExtractEnabled()) {
+      const fullHistory = getMessages(convId).map(r => ({ role: r.role, content: r.content }));
+      if (fullHistory.length >= 4) {
+        void autoExtract(config, fullHistory, config.model).catch(() => {});
+      }
+    }
+  } catch { /* ignore — autoExtract is optional */ }
+
+  return result;
+}
+
+/**
+ * Clear a conversation's history (for /clear command).
+ * Deletes the conversation so a fresh one starts on next message.
+ */
+export function clearConversation(chatKey: string): void {
+  try {
+    deleteConversation(chatKey);
+  } catch { /* ignore */ }
 }
