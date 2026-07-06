@@ -43,7 +43,7 @@ function ReasoningBlock({ text }: { text: string }) {
 const SAFETY_MODES = [
   { id: "ask", label: "Ask before changes", icon: "hand", desc: "Confirm before file changes" },
   { id: "auto", label: "Edit automatically", icon: "check", desc: "Edit files without asking" },
-  { id: "plan", label: "Plan mode", icon: "clipboard", desc: "Plan before editing" },
+  { id: "plan", label: "Plan first", icon: "clipboard", desc: "Plan before editing" },
   { id: "full", label: "Full access", icon: "shield", desc: "Fewer confirmations" },
 ];
 
@@ -60,10 +60,10 @@ function SafetyIcon({ name, size = 11 }: { name: string; size?: number }) {
 }
 
 const REASONING_LEVELS = [
-  { id: "low", label: "Low" },
-  { id: "medium", label: "Medium" },
-  { id: "high", label: "High" },
-  { id: "max", label: "Max" },
+  { id: "low", label: "Quick", desc: "Fast, short answers" },
+  { id: "medium", label: "Balanced", desc: "Good balance of speed and depth" },
+  { id: "high", label: "Thorough", desc: "Longer, more detailed thinking" },
+  { id: "max", label: "Max", desc: "Deep reasoning, takes longer" },
 ];
 
 interface Props {
@@ -120,6 +120,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
   const [showSafetyDropdown, setShowSafetyDropdown] = useState(false);
   const [reasoningLevel, setReasoningLevel] = useState("medium");
   const [showReasoningDropdown, setShowReasoningDropdown] = useState(false);
+  const [showAttachPopover, setShowAttachPopover] = useState(false);
   const [modelName, setModelName] = useState<string>("");
   const [providerId, setProviderId] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
@@ -448,7 +449,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                 el.style.height = Math.min(el.scrollHeight, 200) + "px";
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Ask Nexus anything, @ to add files, / for commands, $ for skills"
+              placeholder="Ask Nexus anything…"
               rows={1}
               className="w-full resize-none bg-transparent px-4 py-3 text-sm text-nexus-fg placeholder-nexus-muted/40 outline-none"
             />
@@ -456,15 +457,38 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
             {/* Bottom controls */}
             <div className="flex items-center justify-between border-t border-nexus-border/20 px-3 py-1.5">
               <div className="flex items-center gap-1.5">
-                {/* + attach file */}
-                <button onClick={attachFile} title="Attach a file" className="rounded-md p-1 text-nexus-muted/40 transition hover:bg-nexus-surface hover:text-nexus-muted">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2"/><path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                </button>
-
-                {/* Attach an image for vision models */}
-                <button onClick={attachImage} disabled={attachingImage} title="Attach an image" className="rounded-md p-1 text-nexus-muted/40 transition hover:bg-nexus-surface hover:text-nexus-muted disabled:opacity-40">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.2"/><circle cx="5.5" cy="6.5" r="1" fill="currentColor"/><path d="M3 11.5l3.5-3.5 2 2 2.5-3 3 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </button>
+                {/* + attach menu — merged file + image */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAttachPopover(!showAttachPopover)}
+                    title="Attach"
+                    className="rounded-md p-1 text-nexus-muted/40 transition hover:bg-nexus-surface hover:text-nexus-muted"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2"/><path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                  </button>
+                  {showAttachPopover && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowAttachPopover(false)} />
+                      <div className="absolute bottom-full left-0 z-50 mb-1 w-48 origin-bottom animate-dropdown rounded-xl border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
+                        <button
+                          onClick={() => { attachFile(); setShowAttachPopover(false); }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] transition hover:bg-nexus-surface text-nexus-fg"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h6l4 4v8a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/></svg>
+                          Attach a file
+                        </button>
+                        <button
+                          onClick={() => { attachImage(); setShowAttachPopover(false); }}
+                          disabled={attachingImage}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] transition hover:bg-nexus-surface text-nexus-fg disabled:opacity-40"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.2" stroke="currentColor" strokeWidth="1.2"/><circle cx="5.5" cy="6.5" r="1" fill="currentColor"/><path d="M3 11.5l3.5-3.5 2 2 2.5-3 3 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          Attach a photo
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
 
                 {/* ✨ Improve prompt */}
                 <button onClick={improvePrompt} disabled={!input.trim() || improving} title="Improve this prompt"
@@ -512,7 +536,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
 
               <div className="flex items-center gap-1.5">
                 {/* Context count circle */}
-                <div className="flex h-5 w-5 items-center justify-center rounded-full border border-nexus-border/40 text-[8px] text-nexus-muted/60" title="Messages in conversation">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full border border-nexus-border/40 text-[8px] text-nexus-muted/60" title={`${messages.length} messages in this chat — Nexus remembers all of them`}>
                   {messages.length}
                 </div>
 
@@ -524,7 +548,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                       showModelDropdown ? "bg-nexus-surface text-nexus-fg" : "text-nexus-muted/70"
                     }`}
                   >
-                    {modelName || "No model"}
+                    {modelName || "Choose model"}
                     <svg width="7" height="7" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                   </button>
                   {showModelDropdown && (
@@ -602,6 +626,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                 <div className="relative">
                   <button
                     onClick={() => setShowReasoningDropdown(!showReasoningDropdown)}
+                    title="How long the AI thinks before answering"
                     className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] transition ${
                       reasoningLevel !== "medium" ? "text-nexus-accent" : "text-nexus-muted/60"
                     } hover:bg-nexus-surface hover:text-nexus-fg`}
@@ -613,17 +638,21 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                   {showReasoningDropdown && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowReasoningDropdown(false)} />
-                      <div className="absolute bottom-full right-0 z-50 mb-1 w-28 origin-bottom animate-dropdown rounded-xl border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
+                      <div className="absolute bottom-full right-0 z-50 mb-1 w-52 origin-bottom animate-dropdown rounded-xl border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
                         {REASONING_LEVELS.map(r => (
                           <button
                             key={r.id}
                             onClick={() => { setReasoningLevel(r.id); setShowReasoningDropdown(false); }}
-                            className={`flex w-full items-center justify-between px-3 py-1.5 text-[11px] transition hover:bg-nexus-surface ${
+                            className={`flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-nexus-surface ${
                               r.id === reasoningLevel ? "text-nexus-accent" : "text-nexus-fg"
                             }`}
                           >
-                            {r.label}
-                            {r.id === reasoningLevel && <span className="text-[9px]">✓</span>}
+                            <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 2C5 2 3 4.5 3 7c0 3 5 7 5 7s5-4 5-7c0-2.5-2-5-5-5z" stroke="currentColor" strokeWidth="1.2"/></svg>
+                            <div>
+                              <p className="text-[11px] font-medium">{r.label}</p>
+                              <p className="text-[9px] text-nexus-muted/60">{r.desc}</p>
+                            </div>
+                            {r.id === reasoningLevel && <span className="ml-auto text-[9px]">✓</span>}
                           </button>
                         ))}
                       </div>
