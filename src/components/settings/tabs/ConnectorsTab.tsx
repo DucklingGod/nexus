@@ -11,7 +11,7 @@ export default function ConnectorsTab() {
     emailImapHost, setEmailImapHost, emailSmtpHost, setEmailSmtpHost,
     emailUser, setEmailUser, emailPass, setEmailPass, hasEmail,
     saveConnectorToken, deleteConnectorToken, connectPlatform, disconnectPlatform,
-    gatewayRunning, gatewayPid, gatewayLoading, startGateway, stopGateway,
+    gatewayRunning, gatewayPid, gatewayLoading, startGateway, stopGateway, restartGateway,
     showMsg,
   } = useSettings();
   const [gatewayPlatform, setGatewayPlatform] = useState("telegram");
@@ -218,13 +218,22 @@ export default function ConnectorsTab() {
             <option value="slack">Slack</option>
           </select>
           {gatewayRunning ? (
-            <button
-              onClick={stopGateway}
-              disabled={gatewayLoading}
-              className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface disabled:opacity-50"
-            >
-              {gatewayLoading ? "Stopping…" : "Stop Gateway"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => restartGateway(gatewayPlatform)}
+                disabled={gatewayLoading}
+                className="rounded-xl border border-nexus-accent px-3 py-2 text-sm text-nexus-accent hover:bg-nexus-accent/10 disabled:opacity-50"
+              >
+                {gatewayLoading ? "Restarting…" : "🔄 Restart"}
+              </button>
+              <button
+                onClick={stopGateway}
+                disabled={gatewayLoading}
+                className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface disabled:opacity-50"
+              >
+                {gatewayLoading ? "Stopping…" : "Stop Gateway"}
+              </button>
+            </div>
           ) : (
             <button
               onClick={() => startGateway(gatewayPlatform)}

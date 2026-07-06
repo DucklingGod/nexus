@@ -143,6 +143,7 @@ interface SettingsCtx {
   gatewayLoading: boolean;
   startGateway: (platform: string) => Promise<void>;
   stopGateway: () => Promise<void>;
+  restartGateway: (platform: string) => Promise<void>;
   checkGatewayStatus: () => Promise<void>;
 
   // SSH
@@ -717,6 +718,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     } catch (e) { showMsg(`Error: ${e}`); } finally { setGatewayLoading(false); }
   }
 
+  async function restartGateway(platform: string) {
+    if (!config) { showMsg("Set up a provider first"); return; }
+    setGatewayLoading(true);
+    try {
+      await invoke("gateway_restart", { platform, provider: config.provider, model: config.model, baseUrl: config.baseUrl });
+      showMsg("Gateway restarting…");
+      setTimeout(checkGatewayStatus, 2000);
+    } catch (e) { showMsg(`Error: ${e}`); } finally { setGatewayLoading(false); }
+  }
+
   // ---------------------------------------------------------------------------
   // SSH handlers
   // ---------------------------------------------------------------------------
@@ -862,7 +873,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     emailImapHost, setEmailImapHost, emailSmtpHost, setEmailSmtpHost,
     emailUser, setEmailUser, emailPass, setEmailPass, hasEmail,
     saveConnectorToken, deleteConnectorToken, connectPlatform, disconnectPlatform,
-    gatewayRunning, gatewayPid, gatewayLoading, startGateway, stopGateway, checkGatewayStatus,
+    gatewayRunning, gatewayPid, gatewayLoading, startGateway, stopGateway, restartGateway, checkGatewayStatus,
     sshHosts, sshForm, setSshForm, sshEditingId, setSshEditingId, sshTesting,
     saveSshHost, editSshHost, deleteSshHost, testSshHost,
     expEnabled, setExpEnabled, correctionEnabled, setCorrectionEnabled, evalEnabled, setEvalEnabled,

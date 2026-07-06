@@ -307,6 +307,24 @@ pub fn gateway_stop(app_handle: tauri::AppHandle) -> Result<Value, String> {
     Ok(serde_json::json!({ "ok": true }))
 }
 
+/// Restart the gateway (stop + start with new config).
+#[tauri::command]
+pub fn gateway_restart(
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+    platform: String,
+    provider: String,
+    model: String,
+    base_url: String,
+) -> Result<Value, String> {
+    // Stop if running (ignore errors if not running)
+    let _ = gateway_stop(app_handle.clone());
+    // Small delay to ensure process is fully stopped
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    // Start with new config
+    gateway_start(state, app_handle, platform, provider, model, base_url)
+}
+
 /// Check if the gateway is running.
 #[tauri::command]
 pub fn gateway_status(app_handle: tauri::AppHandle) -> Result<Value, String> {

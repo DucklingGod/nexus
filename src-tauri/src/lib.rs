@@ -66,6 +66,7 @@ pub fn run() {
             commands::connector_status,
             commands::gateway_start,
             commands::gateway_stop,
+            commands::gateway_restart,
             commands::gateway_status,
             commands::workflow_run,
             commands::complete_once,
