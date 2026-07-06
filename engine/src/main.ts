@@ -2,7 +2,7 @@ import { createInterface } from "node:readline";
 import { handle, type RpcRequest } from "./ipc/rpc.ts";
 import { streamChat } from "./ipc/stream.ts";
 import { initTools } from "./tools/registry.ts";
-import { resolveApproval } from "./tools/approval.ts";
+import { resolveApproval, resolveUserChoice, cancelAllPending } from "./tools/approval.ts";
 import { installLogCapture } from "./ipc/logbuffer.ts";
 
 // Engine ↔ Rust core transport: newline-delimited JSON-RPC 2.0 over stdio.
@@ -43,6 +43,7 @@ rl.on("line", async (line) => {
   }
   if (req.method === "chat.abort") {
     abortRequested = true;
+    cancelAllPending(); // release any pending approval / option prompt so the loop unblocks
     return; // no response needed — it's a notification
   }
   // chat.send streams (multiple notifications + a final response); everything
@@ -53,6 +54,10 @@ rl.on("line", async (line) => {
   } else if (req.method === "tool.approvalResult") {
     const { id, approved } = (req.params ?? {}) as { id?: string; approved?: boolean };
     const matched = id ? resolveApproval(id, !!approved) : false;
+    send({ jsonrpc: "2.0", id: req.id, result: { ok: matched } });
+  } else if (req.method === "tool.optionsResult") {
+    const { id, answer } = (req.params ?? {}) as { id?: string; answer?: string };
+    const matched = id ? resolveUserChoice(id, String(answer ?? "")) : false;
     send({ jsonrpc: "2.0", id: req.id, result: { ok: matched } });
   } else {
     send(await handle(req));

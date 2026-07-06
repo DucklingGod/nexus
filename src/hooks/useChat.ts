@@ -52,6 +52,14 @@ export interface ToolApproval {
   arguments: Record<string, unknown>;
 }
 
+/** ask_user: options the agent presented; picking one resumes the paused loop. */
+export interface PendingOptions {
+  id: string;
+  question: string;
+  options: { label: string; description?: string; value: string }[];
+  other: boolean;
+}
+
 interface UseChatReturn {
   messages: Message[];
   sendMessage: (content: string, reasoningEffort?: string, safetyMode?: string, images?: ImageAttachment[]) => Promise<void>;
@@ -62,6 +70,8 @@ interface UseChatReturn {
   toolEvents: ToolEvent[];
   pendingApproval: ToolApproval | null;
   respondApproval: (approved: boolean) => void;
+  pendingOptions: PendingOptions | null;
+  respondOptions: (id: string, answer: string) => void;
   setFeedback: (messageId: string, experienceId: string, feedback: "up" | "down") => void;
 }
 
@@ -70,6 +80,7 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingApproval, setPendingApproval] = useState<ToolApproval | null>(null);
+  const [pendingOptions, setPendingOptions] = useState<PendingOptions | null>(null);
   const [allToolEvents, setAllToolEvents] = useState<ToolEvent[]>([]);
   const nextId = useRef(Date.now());
   const streamingId = useRef<string | null>(null);
@@ -101,6 +112,7 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
       setMessages([]);
       setAllToolEvents([]);
       setError(null);
+      setPendingOptions(null);
     }
   }, [conversationId]);
 
@@ -212,6 +224,12 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
       setPendingApproval(e.payload.params);
     });
 
+    // ask_user option selector — the agent loop is now paused until we respond.
+    const unlistenOptions = listen<{ method: string; params: PendingOptions }>("engine-event", (e) => {
+      if (e.payload.method !== "chat.options_presented") return;
+      setPendingOptions(e.payload.params);
+    });
+
     // Cost/skills transparency: attach metadata to the streaming assistant message.
     const patchStreamMeta = (patch: MessageMeta) => {
       const id = streamingId.current;
@@ -262,6 +280,7 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
       unlistenToolResult.then((f) => f()).catch(() => {});
       unlistenFileAttach.then((f) => f()).catch(() => {});
       unlistenApproval.then((f) => f()).catch(() => {});
+      unlistenOptions.then((f) => f()).catch(() => {});
       unlistenSkills.then((f) => f()).catch(() => {});
       unlistenRouted.then((f) => f()).catch(() => {});
       unlistenCached.then((f) => f()).catch(() => {});
@@ -413,6 +432,7 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
     setMessages([]);
     setError(null);
     setAllToolEvents([]);
+    setPendingOptions(null);
     convIdRef.current = null;
     onConversationCreated?.("");
   }, []);
@@ -435,6 +455,15 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
     });
   }, []);
 
+  // Send the user's chosen answer back to the paused agent loop (ask_user).
+  const respondOptions = useCallback((id: string, answer: string) => {
+    setPendingOptions(null);
+    invoke("engine_rpc", {
+      method: "tool.optionsResult",
+      params: { id, answer },
+    }).catch(() => {});
+  }, []);
+
   const setFeedback = useCallback((messageId: string, experienceId: string, feedback: "up" | "down") => {
     setMessages((prev) => prev.map((m) =>
       m.id === messageId ? { ...m, meta: { ...m.meta, feedback } } : m,
@@ -455,6 +484,8 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
     toolEvents: allToolEvents,
     pendingApproval,
     respondApproval,
+    pendingOptions,
+    respondOptions,
     setFeedback,
   };
 }

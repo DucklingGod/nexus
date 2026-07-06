@@ -77,7 +77,8 @@ interface Props {
 }
 
 export function ChatConsole({ conversationId, onConversationCreated, inputPrefill, onConsumedPrefill }: Props) {
-  const { messages, sendMessage, loading, error, stopChat, pendingApproval, respondApproval, toolEvents, setFeedback } = useChat(conversationId, onConversationCreated);
+  const { messages, sendMessage, loading, error, stopChat, pendingApproval, respondApproval, pendingOptions, respondOptions, toolEvents, setFeedback } = useChat(conversationId, onConversationCreated);
+  const [otherText, setOtherText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -466,7 +467,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
               </div>
             )})}
             <div ref={bottomRef} />
-            {loading && (
+            {loading && !pendingOptions && (
               <div className="flex items-center gap-2 text-xs text-nexus-muted">
                 <div className="h-3 w-3 animate-spin rounded-full border-2 border-nexus-accent border-t-transparent" />
                 Thinking...
@@ -503,6 +504,46 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
             onRetry={errorInfo.action === 'Retry' ? handleRetry : undefined}
             onDismiss={() => setErrorDismissed(true)}
           />
+        )}
+
+        {/* ask_user option selector (Claude-style) — the agent loop is paused
+            here; picking an option resumes it autonomously with the choice. */}
+        {pendingOptions && (
+          <div className="px-4 pt-2">
+            <div className="mx-auto max-w-3xl rounded-xl border border-gold-faint bg-nexus-surface/70 p-4 shadow-lg shadow-black/20 animate-dropdown">
+              <p className="mb-3 text-sm font-medium text-nexus-fg">{pendingOptions.question}</p>
+              <div className="flex flex-col gap-2">
+                {pendingOptions.options.map((o) => (
+                  <button
+                    key={o.value}
+                    onClick={() => { setOtherText(""); respondOptions(pendingOptions.id, o.label); }}
+                    className="flex flex-col items-start rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-left transition hover:border-nexus-accent hover:bg-nexus-elevated"
+                  >
+                    <span className="text-sm text-nexus-fg">{o.label}</span>
+                    {o.description && <span className="mt-0.5 text-[11px] text-nexus-muted">{o.description}</span>}
+                  </button>
+                ))}
+              </div>
+              {pendingOptions.other && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={otherText}
+                    onChange={(e) => setOtherText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && otherText.trim()) { respondOptions(pendingOptions.id, otherText.trim()); setOtherText(""); } }}
+                    placeholder="Or type your own answer…"
+                    className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent"
+                  />
+                  <button
+                    onClick={() => { if (otherText.trim()) { respondOptions(pendingOptions.id, otherText.trim()); setOtherText(""); } }}
+                    disabled={!otherText.trim()}
+                    className="rounded-lg bg-gold-sheen px-4 py-2 text-sm font-medium text-black transition hover:brightness-110 disabled:opacity-50"
+                  >
+                    Send
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Bottom input — ZCode style */}

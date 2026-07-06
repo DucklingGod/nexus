@@ -2,7 +2,7 @@ import { chatStream } from "../providers/client.ts";
 import type { ChatMessage, ProviderConfig, StreamToolCallDelta } from "../providers/types.ts";
 import type { RpcRequest } from "./rpc.ts";
 import { listToolsForLLM, listToolsText, executeTool, getTool } from "../tools/registry.ts";
-import { requestApproval } from "../tools/approval.ts";
+import { requestApproval, requestUserChoice } from "../tools/approval.ts";
 import { getSetting } from "../db/settings.ts";
 import { augmentWithContext } from "../knowledge/documents.ts";
 import { recordTokenUsage, calculateCost } from "../tokens/usage.ts";
@@ -360,20 +360,20 @@ async function agentLoop(
       // Notify frontend about tool result
       send({ jsonrpc: "2.0", method: "chat.tool_result", params: { id, name, output: result.output.slice(0, 2000), error: result.error, elapsed_ms: result.elapsed_ms } });
 
-      // If the tool returned a file attachment, send it to the frontend
-      if ((result as any).attachment) {
-        send({ jsonrpc: "2.0", method: "chat.file_attached", params: (result as any).attachment });
+      // send_file: surface a downloadable attachment in the chat.
+      if (result.attachment) {
+        send({ jsonrpc: "2.0", method: "chat.file_attached", params: result.attachment });
       }
 
-      // If the tool returned options (ask_user), send to frontend and pause for user input
-      if ((result as any).options) {
-        send({ jsonrpc: "2.0", method: "chat.options_presented", params: (result as any).options });
-        // Add tool result to history
-        history.push({
-          role: "user",
-          content: `[Tool Result: ${name}]\n${result.output.slice(0, 4000)}${result.error ? `\nError: ${result.error}` : ""}`,
-        });
-        // Continue to next round — the user's choice will come as a new message
+      // ask_user: present clickable options and PAUSE the loop until the user
+      // picks, then RESUME autonomously with their choice (Claude-style). The
+      // turn does NOT end — after the answer lands in history, the agent keeps
+      // working. requestUserChoice blocks on a pending promise (like approval);
+      // an abort releases it via cancelAllPending so the loop can't hang.
+      if (result.options) {
+        const answer = await requestUserChoice(id, result.options.question, result.options.options, result.options.other, send);
+        collectedSteps.push({ name, args, ok: true });
+        history.push({ role: "user", content: `[Tool Result: ${name}]\nThe user chose: ${answer}` });
         continue;
       }
 
