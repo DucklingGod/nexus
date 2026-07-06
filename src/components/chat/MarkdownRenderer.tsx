@@ -69,6 +69,10 @@ export function MarkdownRenderer({ content }: Props) {
         },
         // Horizontal rule
         hr: () => <hr className="my-3 border-nexus-border/30" />,
+        // Strikethrough — render as normal text (mimo uses ~~ for emphasis, not actual strikethrough)
+        del: ({ children }) => (
+          <span className="text-nexus-fg/90">{children}</span>
+        ),
         // Links
         a: ({ href, children }) => (
           <a

@@ -11,6 +11,7 @@ import { IconHand, IconCheckCircle, IconClipboard, IconShield } from "../icons";
 import { AgentTimeline } from "./AgentTimeline";
 import { AgentDAG } from "./AgentDAG";
 import { open } from "@tauri-apps/plugin-dialog";
+import { openPath } from "@tauri-apps/plugin-opener";
 
 /** Collapsible reasoning/thinking block — shows model's internal reasoning */
 function ReasoningBlock({ text }: { text: string }) {
@@ -419,25 +420,24 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {msg.attachments.map((att, i) => (
-                            <div key={i} className="flex items-center gap-2 rounded-lg border border-gold-faint/40 bg-nexus-surface/50 px-3 py-2 transition hover:border-nexus-gold/60">
+                            <button
+                              key={i}
+                              onClick={() => openPath(att.path).catch(() => downloadAttachment(att))}
+                              title={`Open ${att.path}`}
+                              className="flex items-center gap-2.5 rounded-lg border border-gold-faint/40 bg-nexus-surface/50 px-3 py-2 transition hover:border-nexus-gold/60 hover:bg-nexus-surface cursor-pointer"
+                            >
                               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="flex-shrink-0 text-nexus-gold">
                                 <path d="M3 2h6l4 4v8a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
                                 <path d="M9 2v4h4" stroke="currentColor" strokeWidth="1.1"/>
                               </svg>
-                              <div className="min-w-0">
+                              <div className="min-w-0 text-left">
                                 <p className="truncate text-[11px] font-medium text-nexus-fg">{att.label}</p>
                                 <p className="text-[9px] text-nexus-muted/50">{formatSize(att.size)}</p>
                               </div>
-                              <button
-                                onClick={() => downloadAttachment(att)}
-                                title="Download file"
-                                className="ml-1 flex-shrink-0 rounded p-1 text-nexus-muted/40 transition hover:bg-nexus-surface hover:text-nexus-gold"
-                              >
-                                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                                  <path d="M8 2v8M5 7l3 3 3-3M3 12v1h10v-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                              </button>
-                            </div>
+                              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="ml-1 flex-shrink-0 text-nexus-muted/40">
+                                <path d="M6 3h7v7M13 3L6 10M3 13V3h10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </button>
                           ))}
                         </div>
                       )}
