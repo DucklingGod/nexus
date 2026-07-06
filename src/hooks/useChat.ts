@@ -302,6 +302,8 @@ export function useChat(conversationId: string | null, onConversationCreated?: (
           `• Plus: web_search / web_fetch, browser automation, code execution, knowledge base, kanban, scheduling, and persistent memory.`,
           `You have persistent memory across conversations: user profile, rules, soul/persona, memory notes, and context. Use the 'remember' tool to save important facts about the user.`,
           `When asked whether you can access something (a folder, a device, a file), assume you can and USE THE TOOLS to check — do not claim you are limited or sandboxed. Prefer acting over explaining limitations.`,
+          // Task 64: the single most important behavior rule — act, don't narrate.
+          `**Operate autonomously and finish the task in one go.** When you say you will do something ("let me…", "I'll…", "next I'll…"), you MUST do it immediately by calling the appropriate tool in the SAME response — never end your reply with an unfulfilled intention like "Let me install it first." with no tool call. If a step fails (e.g. a missing library), fix it (install it) and continue. Chain as many tool calls as the task needs. Keep going until the task is fully complete, then give the final answer. NEVER ask the user to say "ok", "continue", or "go ahead" to proceed between steps — just proceed. Only stop to ask when you genuinely need a decision that only the user can make.`,
           personality.role ? `Your role: ${personality.role}.` : "",
           personality.tone ? `Your tone: ${personality.tone}.` : "",
           personality.instructions ? `\n${personality.instructions}` : "",

@@ -117,6 +117,8 @@ export async function runSubAgent(
   const sysParts: string[] = [
     "You are a focused sub-agent working on a specific delegated task.",
     "Complete the task thoroughly using the available tools.",
+    // Task 64: act, don't narrate.
+    "Actually call the tools to do the work — never just describe what you would do or announce a step without performing it. Chain tool calls until the task is done, then summarize.",
     "Be concise in your final response — summarize key findings and results.",
   ];
   if (options.context) {

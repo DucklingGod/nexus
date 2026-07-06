@@ -18,6 +18,8 @@ function systemPrompt(platform: string): string {
   if (p.language) parts.push(`Always respond in ${p.language}.`);
   if (p.instructions) parts.push(p.instructions);
   parts.push(`You are replying to a user on ${platform}. Keep replies concise and chat-friendly.`);
+  // Task 64: act, don't narrate — carry the request out before replying.
+  parts.push(`Complete the user's request by actually calling the tools you need BEFORE you reply — do not describe what you would do or say "let me…" and stop; perform the steps, then send one final answer.`);
   return parts.join(" ");
 }
 

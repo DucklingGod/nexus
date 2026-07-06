@@ -20,8 +20,11 @@ import { logExperience, type ToolStep } from "../selfImprove/experience.ts";
 import { injectCorrections } from "../selfImprove/correction.ts";
 import { evaluateSession } from "../selfImprove/evaluate.ts";
 import { abortRequested } from "../main.ts";
+import { looksUnfinished, MAX_AUTO_CONTINUE, CONTINUE_NUDGE } from "./autocontinue.ts";
 
-const MAX_TOOL_ROUNDS = 5;
+// Hard ceiling on rounds, regardless of the user's agent.maxRounds setting.
+const MAX_TOOL_ROUNDS_CAP = 30;
+const DEFAULT_MAX_ROUNDS = 12;
 
 interface AccumulatedToolCall {
   id?: string;
@@ -220,8 +223,12 @@ async function agentLoop(
 ): Promise<{ text: string; inputTokens: number; outputTokens: number; usedTools: boolean; toolSteps: ToolStep[] } | null> {
   const history = [...messages];
   const collectedSteps: ToolStep[] = [];
+  // Task 64: round cap is user-configurable (agent.maxRounds), hard-capped.
+  const maxRounds = Math.max(1, Math.min(MAX_TOOL_ROUNDS_CAP, Number(getSetting("agent.maxRounds")) || DEFAULT_MAX_ROUNDS));
+  let autoContinues = 0;   // consecutive narrate-then-stop nudges (reset on real tool use)
+  let usedAnyTool = false;
 
-  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+  for (let round = 0; round < maxRounds; round++) {
     if (abortRequested) break;
     let fullText = "";
     let inputTokens = 0;
@@ -263,12 +270,25 @@ async function agentLoop(
       recordTokenUsage({ model, provider: config.id, input_tokens: inputTokens, output_tokens: outputTokens, saved_usd: saved, saved_reason: saved > 0 ? "routing" : undefined });
     }
 
-    // No tool calls — we're done, text was already streamed
+    // No structured tool call this round. If the model just NARRATED a next
+    // action ("Let me install it first.") instead of doing it (Task 64), nudge
+    // it to actually act rather than ending the turn — bounded by
+    // MAX_AUTO_CONTINUE, and never in plan mode (which is intentionally
+    // act-free). Otherwise this is a genuine final answer.
     if (toolCallMap.size === 0) {
-      return { text: fullText, inputTokens, outputTokens, usedTools: round > 0, toolSteps: collectedSteps };
+      if (autoContinues < MAX_AUTO_CONTINUE && safetyMode !== "plan" && looksUnfinished(fullText)) {
+        autoContinues++;
+        send({ jsonrpc: "2.0", method: "chat.autocontinue", params: { attempt: autoContinues } });
+        history.push({ role: "assistant", content: fullText });
+        history.push({ role: "user", content: CONTINUE_NUDGE });
+        continue;
+      }
+      return { text: fullText, inputTokens, outputTokens, usedTools: usedAnyTool, toolSteps: collectedSteps };
     }
 
-    // Has tool calls — execute each one
+    // Has tool calls — real progress, so reset the narration-nudge budget.
+    usedAnyTool = true;
+    autoContinues = 0;
     history.push({ role: "assistant", content: fullText });
 
     const toolCalls = Array.from(toolCallMap.values());
@@ -323,5 +343,5 @@ async function agentLoop(
       send({ jsonrpc: "2.0", method: "chat.delta", params: { token: chunk.delta } });
     }
   }
-  return { text: full, inputTokens: 0, outputTokens: 0, usedTools: true, toolSteps: collectedSteps };
+  return { text: full, inputTokens: 0, outputTokens: 0, usedTools: usedAnyTool, toolSteps: collectedSteps };
 }

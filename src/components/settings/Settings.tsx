@@ -71,6 +71,7 @@ export function Settings({ onClose }: Props) {
   // Advanced model params
   const [maxTokens, setMaxTokens] = useState("");
   const [maxHistory, setMaxHistory] = useState("");
+  const [maxRounds, setMaxRounds] = useState("");
   const [searxngUrl, setSearxngUrl] = useState("");
   const [searchProvider, setSearchProvider] = useState("auto");
   const [tavilyKey, setTavilyKey] = useState("");
@@ -166,6 +167,7 @@ export function Settings({ onClose }: Props) {
       const all = await invoke<Record<string, string>>("engine_rpc", { method: "settings.getAll", params: {} });
       setMaxTokens(all["model.maxTokens"] ?? "");
       setMaxHistory(all["chat.maxHistory"] ?? "");
+      setMaxRounds(all["agent.maxRounds"] ?? "");
       setSearxngUrl(all["web.searxngUrl"] ?? "");
       setSearchProvider(all["web.searchProvider"] ?? "auto");
       setHasTavily(await secureHas("api_key_tavily"));
@@ -273,6 +275,7 @@ export function Settings({ onClose }: Props) {
     try {
       await invoke("engine_rpc", { method: "settings.set", params: { key: "model.maxTokens", value: maxTokens.trim() } });
       await invoke("engine_rpc", { method: "settings.set", params: { key: "chat.maxHistory", value: maxHistory.trim() } });
+      await invoke("engine_rpc", { method: "settings.set", params: { key: "agent.maxRounds", value: maxRounds.trim() } });
       await invoke("engine_rpc", { method: "settings.set", params: { key: "web.searxngUrl", value: searxngUrl.trim() } });
       await invoke("engine_rpc", { method: "settings.set", params: { key: "web.searchProvider", value: searchProvider } });
       await invoke("engine_rpc", { method: "settings.set", params: { key: "router.enabled", value: routerEnabled ? "true" : "false" } });
@@ -905,6 +908,13 @@ export function Settings({ onClose }: Props) {
                   placeholder="0 = unlimited"
                   className="w-full rounded-lg border border-nexus-border bg-nexus-surface px-4 py-2.5 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
                 <p className="mt-1 text-xs text-nexus-muted">How many recent turns to send each message. Lower = cheaper.</p>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm text-nexus-muted">Max tool rounds per task</label>
+                <input type="number" value={maxRounds} onChange={e => setMaxRounds(e.target.value)}
+                  placeholder="blank = 12 (max 30)"
+                  className="w-full rounded-lg border border-nexus-border bg-nexus-surface px-4 py-2.5 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                <p className="mt-1 text-xs text-nexus-muted">How many tool-call rounds the agent may chain to finish one task (install → run → parse → answer). Higher = more autonomous on complex tasks, but more tokens.</p>
               </div>
               <div>
                 <label className="mb-2 block text-sm text-nexus-muted">Web search provider</label>
