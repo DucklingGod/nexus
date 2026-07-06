@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function RightPanel({ toolEvents, filesChanged, collapsed, onToggle, onToggleTerminal }: Props) {
-  const [activeTab, setActiveTab] = useState<"review" | "terminal" | "browser">("review");
+  const [activeTab, setActiveTab] = useState<"review" | "terminal">("review");
 
   const uniqueFiles = filesChanged.length > 0 ? filesChanged : [...new Set(
     toolEvents
@@ -40,7 +40,7 @@ export function RightPanel({ toolEvents, filesChanged, collapsed, onToggle, onTo
     <div className="flex h-full w-64 animate-panel flex-col border-l border-nexus-border/30 bg-nexus-surface/20">
       {/* Tab buttons */}
       <div className="flex items-center gap-0.5 border-b border-nexus-border/30 px-2 py-1.5">
-        {(["review", "terminal", "browser"] as const).map(tab => (
+        {(["review", "terminal"] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -132,12 +132,6 @@ export function RightPanel({ toolEvents, filesChanged, collapsed, onToggle, onTo
           </div>
         )}
 
-        {activeTab === "browser" && (
-          <div className="flex flex-col items-center justify-center py-8">
-            <svg width="24" height="24" viewBox="0 0 16 16" fill="none" className="mb-2 text-nexus-muted/30"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2"/><path d="M2 8h12M8 2c-2 2-2 4-2 6s0 4 2 6M8 2c2 2 2 4 2 6s0 4-2 6" stroke="currentColor" strokeWidth="1.2"/></svg>
-            <p className="text-[10px] text-nexus-muted/40">Browser preview — coming soon</p>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -62,12 +62,12 @@ export function MarketplaceView() {
       {/* Header */}
       <div className="border-b border-nexus-border/40 px-6 py-4">
         <div className="flex items-center gap-3">
-          <h1 className="font-display text-xl font-semibold text-nexus-fg">Marketplace</h1>
-          <p className="text-xs text-nexus-muted">Extend Nexus with MCP servers, skills, and plugins</p>
+          <h1 className="font-display text-xl font-semibold text-gold-foil">Add-ons</h1>
+          <p className="text-xs text-nexus-muted">Extend Nexus with new tools and abilities</p>
         </div>
         <div className="mt-3 flex gap-1">
           {([
-            { id: "catalog", label: "MCP Servers" },
+            { id: "catalog", label: "Tool packs (MCP)" },
             { id: "skills", label: "Skills & Plugins" },
             { id: "installed", label: "Installed" },
           ] as const).map(t => (
@@ -84,7 +84,12 @@ export function MarketplaceView() {
       )}
 
       <div className="flex-1 overflow-y-auto p-6">
-        {tab === "catalog" && <CatalogTab flash={flash} />}
+        {tab === "catalog" && (
+          <>
+            <p className="mb-3 text-[11px] text-nexus-muted/60">MCP (Model Context Protocol) is a plug-in standard that lets Nexus connect to other apps and tools. Each tool pack adds new abilities.</p>
+            <CatalogTab flash={flash} />
+          </>
+        )}
         {tab === "skills" && <SkillsTab flash={flash} />}
         {tab === "installed" && <InstalledTab flash={flash} />}
       </div>

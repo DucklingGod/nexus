@@ -74,7 +74,7 @@ export function ABTestView() {
   return (
     <div className="h-full overflow-y-auto px-8 py-6">
       <div className="mx-auto max-w-4xl">
-        <h1 className="font-display text-2xl font-semibold text-gold-foil">A/B Test</h1>
+        <h1 className="font-display text-2xl font-semibold text-gold-foil">Compare models</h1>
         <p className="mt-1 mb-4 text-xs text-nexus-muted">Run one prompt through two models and compare side by side. Uses your current provider; pick a winner.</p>
 
         <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} placeholder="The prompt to test…"

@@ -188,7 +188,7 @@ export function KanbanView() {
         <div className="mx-auto max-w-3xl">
           <div className="mb-5 flex items-start justify-between gap-6">
             <div>
-              <h1 className="font-display text-2xl font-semibold text-gold-foil">Kanban</h1>
+              <h1 className="font-display text-2xl font-semibold text-gold-foil">Task board</h1>
               <p className="mt-1 text-xs text-nexus-muted">
                 Visual task boards. Drag cards between columns. The agent can also manage boards through chat.
               </p>
