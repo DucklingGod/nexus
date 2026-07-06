@@ -135,7 +135,7 @@ function SettingsInner({ onClose }: Props) {
   const showNav = !changingProvider && !changingModel;
 
   return (
-    <div className="flex h-screen flex-col bg-nexus-bg">
+    <div className="flex h-screen w-full flex-col bg-nexus-bg">
       <SettingsTopBar title={title} onClose={showNav ? onClose : undefined} onBack={!showNav ? () => {} : undefined} isMaximized={isMaximized} onMaximize={handleMaximize} />
 
       <div className="flex flex-1 overflow-hidden">
@@ -160,7 +160,7 @@ function SettingsInner({ onClose }: Props) {
         )}
 
         {/* Right content panel */}
-        <div className="flex-1 overflow-y-auto p-6 transition-smooth">
+        <div className="flex-1 overflow-y-auto p-6 transition-smooth min-w-0">
           {/* Group header — plain-language context */}
           {showNav && (
             <div className="mb-4">
