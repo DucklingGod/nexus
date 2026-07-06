@@ -1,7 +1,7 @@
 import { chatStream } from "../providers/client.ts";
 import type { ChatMessage, ProviderConfig, StreamToolCallDelta } from "../providers/types.ts";
 import type { RpcRequest } from "./rpc.ts";
-import { listToolsForLLM, executeTool, getTool } from "../tools/registry.ts";
+import { listToolsForLLM, listToolsText, executeTool, getTool } from "../tools/registry.ts";
 import { requestApproval } from "../tools/approval.ts";
 import { getSetting } from "../db/settings.ts";
 import { augmentWithContext } from "../knowledge/documents.ts";
@@ -100,6 +100,17 @@ export async function streamChat(
     matchedSkills,
   ));
   const ragMessages = await injectCorrections(base, config).catch(() => base);
+
+  // Tool inventory: inject a text list of available tools into the system prompt
+  // so the agent knows what it can do — especially important for models that
+  // don't fully support native function-calling, and for making the agent
+  // proactively reach for tools instead of asking the user to use them.
+  const toolText = listToolsText();
+  if (toolText) {
+    const sysIdx = ragMessages.findIndex((m) => m.role === "system");
+    if (sysIdx >= 0) ragMessages[sysIdx] = { ...ragMessages[sysIdx], content: ragMessages[sysIdx].content + "\n\n" + toolText };
+    else ragMessages.unshift({ role: "system", content: toolText });
+  }
 
   // First-run onboarding: if user.md is empty (no real content), prepend an
   // onboarding instruction so the agent introduces itself and gets to know the user.

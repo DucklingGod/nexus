@@ -22,6 +22,37 @@ export function listTools(): ToolDef[] {
   return Array.from(tools.values()).map(t => t.def);
 }
 
+/** Human-readable tool inventory for the system prompt. Groups tools by
+ *  category so the agent sees at a glance what it can do — especially useful
+ *  for models that don't fully support native function-calling, or when the
+ *  tools array alone doesn't make the agent proactively reach for them. */
+export function listToolsText(): string {
+  const disabledRaw = getSetting("tools.disabled");
+  const disabled: string[] = disabledRaw ? JSON.parse(disabledRaw) : [];
+  const active = listTools().filter(t => !disabled.includes(t.category));
+  if (active.length === 0) return "";
+
+  const grouped = new Map<string, typeof active>();
+  for (const t of active) {
+    const arr = grouped.get(t.category) ?? [];
+    arr.push(t);
+    grouped.set(t.category, arr);
+  }
+
+  const lines: string[] = ["# Available tools", "You have access to the following tools — use them proactively when they help accomplish the user's task:", ""];
+  for (const [cat, tools] of grouped) {
+    lines.push(`**${cat}:**`);
+    for (const t of tools) {
+      const params = t.parameters.length > 0
+        ? ` (${t.parameters.map(p => `${p.name}${p.required ? "" : "?"}: ${p.type}`).join(", ")})`
+        : "";
+      lines.push(`- \`${t.name}\`${params} — ${t.description}`);
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
 export function listToolsForLLM(): object[] {
   // Filter out disabled categories
   const disabledRaw = getSetting("tools.disabled");
