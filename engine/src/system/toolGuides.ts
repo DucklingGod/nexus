@@ -291,6 +291,38 @@ Run a command on a configured remote host over SSH.
 - **Output:** returns stdout + stderr + exit code, same as terminal.
 - **Common mistake:** trying to SSH without checking ssh_hosts first — you need to know the exact hostname.
 - **File transfer:** use ssh_upload/ssh_download for transferring files to/from remote hosts.`,
+
+  // ═══════════════════════════════════════════════════════════════
+  // SKILL MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════
+
+  skill_manage: `## skill_manage
+Manage custom skills (procedural memory). Create, edit, delete, or list skills.
+- **CREATE:** after completing a complex task (5+ tool calls), create a skill to remember the procedure. Include: trigger conditions, numbered steps, pitfalls section, verification steps.
+- **EDIT:** update existing skill instructions when you discover better approaches or when instructions become stale.
+- **DELETE:** remove skills that are no longer relevant or were created by mistake.
+- **LIST:** show all available skills (built-in + custom).
+- **When to create:** complex multi-step tasks that you'll likely repeat, workflows with tricky edge cases, procedures that took multiple attempts to get right.
+- **When NOT to create:** simple one-off tasks, things that are obvious, tasks that are too specific to reuse.
+- **Skill format:** name (lowercase, hyphens), description (one line), instructions (markdown with numbered steps), category, triggers (keywords for auto-loading).
+- **Common mistake:** creating too many skills for trivial tasks — only create when the procedure is genuinely complex and reusable.
+- **Auto-loading:** skills with triggers are automatically loaded when the user's request matches the trigger keywords.`,
+
+  // ═══════════════════════════════════════════════════════════════
+  // TODO
+  // ═══════════════════════════════════════════════════════════════
+
+  todo: `## todo
+Manage your task list for the current session. Use for complex tasks with 3+ steps.
+- **WRITE:** provide todos array to create/update items. Each has id, content, status (pending/in_progress/completed/cancelled).
+- **READ:** call with no params to see current list.
+- **MERGE:** set merge=true to update existing items by id and add new ones (default: replace entire list).
+- **When to use:** complex multi-step tasks where you need to track progress, tasks the user gives as a numbered list.
+- **When NOT to use:** simple tasks with 1-2 steps, tasks you can complete immediately.
+- **One in_progress at a time:** only ONE item should be in_progress at any time.
+- **Mark completed immediately** when done. If something fails, cancel it and add a revised item.
+- **Common mistake:** creating a todo list for a simple task — just do it directly.`,
+
 };
 
 /** Get tool guides for the active tools, formatted as a system prompt section. */
