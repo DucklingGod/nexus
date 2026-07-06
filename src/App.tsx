@@ -14,14 +14,22 @@ import { KanbanView } from "./components/kanban/KanbanView";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { SpaceCanvas } from "./components/SpaceCanvas";
 
+// Phase 1: single union type replaces 5 mutually-exclusive booleans
+export type MainView = "chat" | "skills" | "workflows" | "kanban" | "marketplace" | "ab";
+
+const VIEW_TITLES: Record<MainView, string> = {
+  chat: "", // falls back to taskTitle
+  skills: "Skills",
+  workflows: "Workflows",
+  kanban: "Task board",
+  marketplace: "Add-ons",
+  ab: "Compare models",
+};
+
 function App() {
   const [ready, setReady] = useState<boolean | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [showSkills, setShowSkills] = useState(false);
-  const [showWorkflows, setShowWorkflows] = useState(false);
-  const [showAB, setShowAB] = useState(false);
-  const [showKanban, setShowKanban] = useState(false);
-  const [showMarketplace, setShowMarketplace] = useState(false);
+  const [activeView, setActiveView] = useState<MainView>("chat");
   const [learnedToast, setLearnedToast] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [taskTitle, setTaskTitle] = useState<string | null>(null);
@@ -99,6 +107,11 @@ function App() {
     return <WelcomeScreen onComplete={() => setReady(true)} />;
   }
 
+  // Navigate handler: switches view
+  function navigate(view: MainView) {
+    setActiveView(view);
+  }
+
   // ZCode layout: full-height sidebar + main column (its own header + content)
   return (
     <div className="flex h-screen bg-nexus-bg">
@@ -110,37 +123,31 @@ function App() {
       <SpaceCanvas />
       <LeftSidebar
         currentId={conversationId}
-        onSelect={(id) => { setConversationId(id); setShowSkills(false); setShowWorkflows(false); setShowAB(false); setShowKanban(false); setShowMarketplace(false); }}
-        onNewChat={() => { setConversationId(null); setShowSkills(false); setShowWorkflows(false); setShowAB(false); setShowKanban(false); setShowMarketplace(false); }}
-        onOpenSkills={() => { setShowSkills(true); setShowWorkflows(false); setShowAB(false); setShowKanban(false); setShowMarketplace(false); }}
-        onOpenWorkflows={() => { setShowWorkflows(true); setShowSkills(false); setShowAB(false); setShowKanban(false); setShowMarketplace(false); }}
-        onOpenKanban={() => { setShowKanban(true); setShowSkills(false); setShowWorkflows(false); setShowAB(false); setShowMarketplace(false); }}
-        onOpenMarketplace={() => { setShowMarketplace(true); setShowSkills(false); setShowWorkflows(false); setShowAB(false); setShowKanban(false); }}
-        onOpenAB={() => { setShowAB(true); setShowSkills(false); setShowWorkflows(false); setShowKanban(false); setShowMarketplace(false); }}
+        activeView={activeView}
+        onSelect={(id) => { setConversationId(id); setActiveView("chat"); }}
+        onNewChat={() => { setConversationId(null); setActiveView("chat"); }}
+        onNavigate={navigate}
         onOpenSettings={() => setShowSettings(true)}
-        skillsActive={showSkills}
-        workflowsActive={showWorkflows}
-        abActive={showAB}
-        kanbanActive={showKanban}
-        marketplaceActive={showMarketplace}
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar
-          taskTitle={showAB ? "A/B Test" : showWorkflows ? "Workflows" : showSkills ? "Skills" : showKanban ? "Kanban" : showMarketplace ? "Marketplace" : taskTitle}
+          taskTitle={VIEW_TITLES[activeView] || taskTitle}
+          viewOpen={activeView !== "chat" ? activeView : undefined}
+          onBackToChat={() => setActiveView("chat")}
           onOpenSettings={() => setShowSettings(true)}
           onPickHost={(name) => setHostPrefill(`Run a command on my ${name} over SSH: `)}
         />
         <div className="flex-1 overflow-hidden">
-          {showAB ? (
+          {activeView === "ab" ? (
             <ABTestView />
-          ) : showWorkflows ? (
+          ) : activeView === "workflows" ? (
             <WorkflowsView />
-          ) : showSkills ? (
+          ) : activeView === "skills" ? (
             <SkillsView />
-          ) : showKanban ? (
+          ) : activeView === "kanban" ? (
             <KanbanView />
-          ) : showMarketplace ? (
+          ) : activeView === "marketplace" ? (
             <MarketplaceView />
           ) : (
             <ChatConsole

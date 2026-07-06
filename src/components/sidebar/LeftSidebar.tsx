@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { IconSettings } from "../icons";
+import type { MainView } from "../../App";
 
 interface Conversation {
   id: string;
@@ -23,22 +24,14 @@ interface SearchResult {
 
 interface Props {
   currentId: string | null;
+  activeView: MainView;
   onSelect: (id: string) => void;
   onNewChat: () => void;
-  onOpenSkills: () => void;
-  onOpenWorkflows: () => void;
-  onOpenKanban: () => void;
-  onOpenMarketplace: () => void;
-  onOpenAB: () => void;
+  onNavigate: (view: MainView) => void;
   onOpenSettings: () => void;
-  skillsActive?: boolean;
-  workflowsActive?: boolean;
-  abActive?: boolean;
-  kanbanActive?: boolean;
-  marketplaceActive?: boolean;
 }
 
-export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOpenWorkflows, onOpenKanban, onOpenMarketplace, onOpenAB, onOpenSettings, skillsActive, workflowsActive, abActive, kanbanActive, marketplaceActive }: Props) {
+export function LeftSidebar({ currentId, activeView, onSelect, onNewChat, onNavigate, onOpenSettings }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [convLoading, setConvLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -47,6 +40,34 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
   const [searching, setSearching] = useState(false);
   const searchSeq = useRef(0); // race-guard: ignore stale fan-out results
   const providerRef = useRef<{ provider: string; model: string; baseUrl: string } | null>(null);
+
+  // Phase 1: Collapsible TOOLS section — persisted via engine settings (consistent with rest of settings system)
+  const isToolView = activeView !== "chat";
+  const [toolsExpanded, setToolsExpanded] = useState(isToolView);
+  const toolsLoaded = useRef(false);
+
+  // Load collapse state from engine settings on mount
+  useEffect(() => {
+    if (toolsLoaded.current) return;
+    toolsLoaded.current = true;
+    invoke<{ value: string | null }>("engine_rpc", { method: "settings.get", params: { key: "ui.sidebar.toolsExpanded" } })
+      .then(r => {
+        if (r.value !== null) setToolsExpanded(r.value === "true");
+      })
+      .catch(() => {});
+  }, []);
+
+  // Auto-expand when a tool view is active
+  useEffect(() => {
+    if (isToolView && !toolsExpanded) setToolsExpanded(true);
+  }, [isToolView]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist collapse state to engine settings
+  function toggleTools() {
+    const next = !toolsExpanded;
+    setToolsExpanded(next);
+    invoke("engine_rpc", { method: "settings.set", params: { key: "ui.sidebar.toolsExpanded", value: String(next) } }).catch(() => {});
+  }
 
   const load = useCallback(async () => {
     setConvLoading(true);
@@ -158,7 +179,7 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
     >
       <div className="flex items-center gap-1.5 overflow-hidden">
         {conv.id === currentId && <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-nexus-accent" />}
-        <span className="truncate text-[11px] text-nexus-fg">{conv.title || "New Task"}</span>
+        <span className="truncate text-[11px] text-nexus-fg">{conv.title || "New Chat"}</span>
       </div>
       <div className="flex items-center gap-1">
         <span className="text-[9px] text-nexus-muted/50">{formatTime(conv.updated_at)}</span>
@@ -220,6 +241,15 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
   );
   };
 
+  // Phase 1: Tool items with plain-language names and tooltips
+  const TOOL_ITEMS: { view: MainView; label: string; tooltip: string; icon: React.ReactNode }[] = [
+    { view: "skills", label: "Skills", tooltip: "Teach Nexus new abilities", icon: <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 1l2 4 4.5 1-3.2 3 .8 4.5L8 11.5 3.9 13.5l.8-4.5-3.2-3L6 5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg> },
+    { view: "workflows", label: "Workflows", tooltip: "Multi-step automated tasks", icon: <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="9.5" y="9.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M6.5 4.2h2.8a1 1 0 011 1v4.3" stroke="currentColor" strokeWidth="1.2"/></svg> },
+    { view: "kanban", label: "Task board", tooltip: "Organize tasks in columns", icon: <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="3.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="6.5" y="2.5" width="3" height="7" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="10.5" y="2.5" width="3.5" height="9" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg> },
+    { view: "marketplace", label: "Add-ons", tooltip: "Extend Nexus with new tools", icon: <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 4l1.5 8a1 1 0 001 1h7a1 1 0 001-1L14 4M2 4l1-1.5h10L14 4M6 7v2M10 7v2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+    { view: "ab", label: "Compare models", tooltip: "Test models side by side", icon: <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 12V4M2 4l3 8M5 4l-3 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M9 12V4h2.5a2 2 0 010 4H9m0 0h2.8a2 2 0 010 4H9" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg> },
+  ];
+
   return (
     <div className="flex h-full w-60 flex-col border-r border-nexus-border/50 bg-nexus-surface/30">
       {/* Logo */}
@@ -235,7 +265,7 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
         >
           <div className="flex items-center gap-2">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2"/><path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-            New task
+            New chat
           </div>
           <span className="text-[10px] text-nexus-muted/40">⌘N</span>
         </button>
@@ -255,27 +285,14 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
             className="mx-1 mt-1 rounded-md border border-nexus-border bg-nexus-surface px-2.5 py-1.5 text-[11px] text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent"
           />
         )}
-        <button onClick={onOpenSkills} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${skillsActive ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"}`}>
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 1l2 4 4.5 1-3.2 3 .8 4.5L8 11.5 3.9 13.5l.8-4.5-3.2-3L6 5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
-          Skills
-        </button>
-        <button onClick={onOpenWorkflows} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${workflowsActive ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"}`}>
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="9.5" y="9.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M6.5 4.2h2.8a1 1 0 011 1v4.3" stroke="currentColor" strokeWidth="1.2"/></svg>
-          Workflows
-        </button>
-        <button onClick={onOpenKanban} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${kanbanActive ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"}`}>
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="3.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="6.5" y="2.5" width="3" height="7" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="10.5" y="2.5" width="3.5" height="9" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
-          Kanban
-        </button>
-        <button onClick={onOpenMarketplace} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${marketplaceActive ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"}`}>
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 4l1.5 8a1 1 0 001 1h7a1 1 0 001-1L14 4M2 4l1-1.5h10L14 4M6 7v2M10 7v2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          Marketplace
-        </button>
-        <button onClick={onOpenAB} className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${abActive ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"}`}>
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 12V4M2 4l3 8M5 4l-3 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M9 12V4h2.5a2 2 0 010 4H9m0 0h2.8a2 2 0 010 4H9" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
-          A/B Test
-        </button>
       </div>
+
+      {/* CHATS header */}
+      {!searchQuery.trim() && (
+        <div className="px-4 pb-1">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-nexus-muted/50">Chats</span>
+        </div>
+      )}
 
       {/* Conversation list — search results or grouped by source */}
       <div className="flex-1 overflow-y-auto px-2 py-1">
@@ -318,7 +335,7 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
         ) : (
           <>
         {conversations.length === 0 && !convLoading && (
-          <p className="px-2 py-2 text-[10px] text-nexus-muted/50">No tasks yet</p>
+          <p className="px-2 py-2 text-[10px] text-nexus-muted/50">No chats yet</p>
         )}
 
         {convLoading && conversations.length === 0 && (
@@ -329,7 +346,8 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
           </div>
         )}
 
-        {groupHeader("local", <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4h5l2 2h5v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" stroke="currentColor" strokeWidth="1.2"/></svg>, local.length)}
+        {/* Phase 1: "local" → "Recent" */}
+        {groupHeader("Recent", <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4h5l2 2h5v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" stroke="currentColor" strokeWidth="1.2"/></svg>, local.length)}
         {local.map(convButton)}
 
         {telegram.length > 0 && (
@@ -346,6 +364,39 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
           </div>
         )}
           </>
+        )}
+      </div>
+
+      {/* Phase 1: Collapsible TOOLS section — fixed above footer */}
+      <div className="border-t border-nexus-border/30 px-2 py-1.5">
+        <button
+          onClick={toggleTools}
+          className="flex w-full items-center justify-between rounded-md px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-nexus-muted/50 transition hover:text-nexus-muted"
+        >
+          <span>Tools</span>
+          <svg
+            width="8" height="8" viewBox="0 0 16 16" fill="none"
+            className={`transition-transform duration-200 ${toolsExpanded ? "rotate-180" : ""}`}
+          >
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+        {toolsExpanded && (
+          <div className="mt-0.5 flex flex-col">
+            {TOOL_ITEMS.map(item => (
+              <button
+                key={item.view}
+                onClick={() => onNavigate(item.view)}
+                title={item.tooltip}
+                className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition hover:bg-nexus-surface ${
+                  activeView === item.view ? "bg-nexus-surface text-nexus-gold" : "text-nexus-fg"
+                }`}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 

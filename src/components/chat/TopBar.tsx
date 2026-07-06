@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { IconTerminal, IconGlobe, IconSettings } from "../icons";
+import type { MainView } from "../../App";
 
 /** Detect platform once and return a user-friendly local-machine label. */
 function useLocalLabel(): string {
@@ -26,13 +27,15 @@ function WorkspaceIcon({ name }: { name: string }) {
 
 interface Props {
   taskTitle?: string | null;
+  viewOpen?: MainView;           // Phase 1: set when a tool view is active
+  onBackToChat?: () => void;     // Phase 1: callback to return to chat
   onOpenSettings?: () => void;
   onPickHost?: (name: string) => void;
 }
 
 interface SshHost { id: string; name: string; host: string; user: string; port: number }
 
-export function TopBar({ taskTitle, onOpenSettings, onPickHost }: Props) {
+export function TopBar({ taskTitle, viewOpen, onBackToChat, onOpenSettings, onPickHost }: Props) {
   const [isMaximized, setIsMaximized] = useState(false);
   const [workspace, setWorkspace] = useState("local");
   const [showWsDropdown, setShowWsDropdown] = useState(false);
@@ -59,10 +62,23 @@ export function TopBar({ taskTitle, onOpenSettings, onPickHost }: Props) {
       data-tauri-drag-region
       className="flex h-10 items-center gap-2 border-b border-nexus-border/40 px-3"
     >
-      {/* Left: task title + workspace dropdown */}
+      {/* Left: back-to-chat pill (when tool view active) + task title + workspace dropdown */}
       <div className="flex min-w-0 items-center gap-2">
+        {/* Phase 1: Back to chat pill — covers all tool views */}
+        {viewOpen && onBackToChat && (
+          <button
+            onClick={onBackToChat}
+            className="flex items-center gap-1 rounded-full border border-nexus-border bg-nexus-surface px-2.5 py-0.5 text-[11px] text-nexus-muted transition hover:border-gold-faint hover:text-nexus-fg"
+          >
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+              <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back to chat
+          </button>
+        )}
+
         <span className="truncate text-[13px] font-medium text-nexus-fg">
-          {taskTitle || "New task"}
+          {taskTitle || "New chat"}
         </span>
 
         {/* Workspace dropdown */}
