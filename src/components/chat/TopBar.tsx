@@ -1,7 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { IconTerminal, IconGlobe, IconSettings } from "../icons";
+
+/** Detect platform once and return a user-friendly local-machine label. */
+function useLocalLabel(): string {
+  return useMemo(() => {
+    const ua = navigator.userAgent;
+    if (ua.includes("Mac")) return "Local (this Mac)";
+    if (ua.includes("Win")) return "Local (this PC)";
+    if (ua.includes("Linux")) return "Local (this Linux machine)";
+    return "Local (this machine)";
+  }, []);
+}
 
 const ICON_MAP: Record<string, React.FC<{ size?: number }>> = {
   terminal: IconTerminal,
@@ -26,6 +37,7 @@ export function TopBar({ taskTitle, onOpenSettings, onPickHost }: Props) {
   const [workspace, setWorkspace] = useState("local");
   const [showWsDropdown, setShowWsDropdown] = useState(false);
   const [sshHosts, setSshHosts] = useState<SshHost[]>([]);
+  const localLabel = useLocalLabel();
 
   // Load configured SSH hosts so the "Remote" entry reflects reality.
   useEffect(() => {
@@ -75,7 +87,7 @@ export function TopBar({ taskTitle, onOpenSettings, onPickHost }: Props) {
                   className={`flex w-full items-center gap-2 px-3 py-1.5 text-[11px] transition hover:bg-nexus-surface ${workspace === "local" ? "text-nexus-accent" : "text-nexus-fg"}`}
                 >
                   <WorkspaceIcon name="terminal" />
-                  Local (this Mac)
+                  {localLabel}
                   {workspace === "local" && <span className="ml-auto text-[9px]">✓</span>}
                 </button>
                 <div className="mx-2 my-1 border-t border-nexus-border/30" />

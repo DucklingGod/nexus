@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ErrorType } from '../../lib/errorHandler';
+import { IconZap, IconKey, IconWrench, IconShield } from '../icons';
 
 interface ErrorToastProps {
   type: ErrorType;
@@ -8,29 +9,29 @@ interface ErrorToastProps {
   onDismiss: () => void;
 }
 
-const TYPE_STYLES: Record<ErrorType, { border: string; bg: string; icon: string; accent: string }> = {
+const TYPE_STYLES: Record<ErrorType, { border: string; bg: string; Icon: typeof IconZap; accent: string }> = {
   network: {
     border: 'border-yellow-900/40',
     bg: 'bg-yellow-950/30',
-    icon: '⚡',
+    Icon: IconZap,
     accent: 'text-yellow-400',
   },
   'api-key': {
     border: 'border-red-900/40',
     bg: 'bg-red-950/30',
-    icon: '🔑',
+    Icon: IconKey,
     accent: 'text-red-400',
   },
   tool: {
     border: 'border-orange-900/40',
     bg: 'bg-orange-950/30',
-    icon: '🔧',
+    Icon: IconWrench,
     accent: 'text-orange-400',
   },
   generic: {
     border: 'border-red-900/40',
     bg: 'bg-red-950/30',
-    icon: '⚠',
+    Icon: IconShield,
     accent: 'text-red-400',
   },
 };
@@ -57,7 +58,7 @@ export function ErrorToast({ type, message, onRetry, onDismiss }: ErrorToastProp
         visible ? 'opacity-100' : 'opacity-0'
       }`}
     >
-      <span className="mt-0.5 flex-shrink-0">{style.icon}</span>
+      <span className={`mt-0.5 flex-shrink-0 ${style.accent}`}><style.Icon size={14} /></span>
       <div className="flex-1 min-w-0">
         <p className={`font-medium ${style.accent}`}>{message}</p>
       </div>

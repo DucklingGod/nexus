@@ -422,8 +422,19 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
             )}
             {/* Input field */}
             <textarea
+              ref={(el) => {
+                if (el) {
+                  el.style.height = "auto";
+                  el.style.height = Math.min(el.scrollHeight, 200) + "px";
+                }
+              }}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => { setInput(e.target.value); }}
+              onInput={(e) => {
+                const el = e.currentTarget;
+                el.style.height = "auto";
+                el.style.height = Math.min(el.scrollHeight, 200) + "px";
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Ask Nexus anything, @ to add files, / for commands, $ for skills"
               rows={1}

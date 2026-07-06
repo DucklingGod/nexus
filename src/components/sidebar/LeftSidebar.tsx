@@ -56,6 +56,20 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
 
   useEffect(() => { load(); }, [load]);
 
+  // Keyboard shortcuts: ⌘N = new chat, ⌘K = toggle search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === "n") { e.preventDefault(); onNewChat(); }
+      if (mod && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen(o => !o);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onNewChat]);
+
   // Cache the active provider config for Unified Search (search_documents brokers
   // the key from it). Fetched once on mount.
   useEffect(() => {
@@ -193,17 +207,9 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
 
   return (
     <div className="flex h-full w-60 flex-col border-r border-nexus-border/50 bg-nexus-surface/30">
-      {/* Logo + nav arrows */}
-      <div className="flex items-center gap-2 px-4 py-3">
+      {/* Logo */}
+      <div className="flex items-center px-4 py-3">
         <span className="font-display text-base font-semibold tracking-tight text-gold-foil">Nexus</span>
-        <div className="flex items-center gap-0.5">
-          <button className="rounded p-0.5 text-nexus-muted/50 hover:text-nexus-muted">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </button>
-          <button className="rounded p-0.5 text-nexus-muted/50 hover:text-nexus-muted">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </button>
-        </div>
       </div>
 
       {/* Core actions */}
