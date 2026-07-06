@@ -2,7 +2,7 @@
 
 > Depends on: SPEC.md
 > Created: 2026-06-28
-> Last updated: 2026-07-02 (v1.0 mostly done — Obsidian + Unified Search + MCP Marketplace done; Notion deferred)
+> Last updated: 2026-07-06 (v1.2 UI/UX rework complete — sidebar, settings, chat input, guidance, view polish)
 > Repo: github.com/DucklingGod/nexus (canonical standalone repo "Nexus-App"; flattened layout — engine/ src/ src-tauri/ at root)
 > Status: In build — v0.1–v0.5, v0.7, v0.8, v0.9 complete; v0.6 deferred; v1.0 mostly done (Notion connector deferred)
 
