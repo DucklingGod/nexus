@@ -26,7 +26,7 @@ import { looksUnfinished, MAX_AUTO_CONTINUE, CONTINUE_NUDGE } from "./autocontin
 
 // Hard ceiling on rounds, regardless of the user's agent.maxRounds setting.
 const MAX_TOOL_ROUNDS_CAP = 30;
-const DEFAULT_MAX_ROUNDS = 12;
+const DEFAULT_MAX_ROUNDS = 20;
 
 interface AccumulatedToolCall {
   id?: string;
