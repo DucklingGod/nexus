@@ -38,7 +38,7 @@ export default function ConnectorsTab() {
         const status = connectors.find(s => s.platform === c.id);
         const running = status?.running;
         return (
-          <div key={c.id} className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-4">
+          <div key={c.id} className="rounded-xl border border-nexus-border bg-nexus-surface/40 p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-medium text-nexus-fg">{c.label}</span>
               <span className={`flex items-center gap-1.5 text-[11px] ${running ? "text-green-400" : "text-nexus-muted"}`}>
@@ -49,16 +49,16 @@ export default function ConnectorsTab() {
             <div className="flex gap-2">
               <input type="password" value={c.token} onChange={e => c.setToken(e.target.value)}
                 placeholder={c.has ? "✓ token saved — enter to replace" : c.ph}
-                className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                className="flex-1 rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
               <button onClick={() => saveConnectorToken(c.id, c.token)} disabled={!c.token.trim()}
-                className="rounded-lg border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Save</button>
+                className="rounded-xl border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Save</button>
             </div>
             <div className="mt-2 flex items-center gap-3">
               {running ? (
-                <button onClick={() => disconnectPlatform(c.id)} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface">Disconnect</button>
+                <button onClick={() => disconnectPlatform(c.id)} className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface">Disconnect</button>
               ) : (
                 <button onClick={() => connectPlatform(c.id)} disabled={!c.has}
-                  className="rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Connect</button>
+                  className="rounded-xl bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Connect</button>
               )}
               {c.has && <button onClick={() => deleteConnectorToken(c.id)} className="text-xs text-nexus-muted/60 hover:text-red-400">Remove token</button>}
             </div>
@@ -72,7 +72,7 @@ export default function ConnectorsTab() {
         const status = connectors.find(s => s.platform === "slack");
         const running = status?.running;
         return (
-          <div className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-4">
+          <div className="rounded-xl border border-nexus-border bg-nexus-surface/40 p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-medium text-nexus-fg">Slack</span>
               <span className={`flex items-center gap-1.5 text-[11px] ${running ? "text-green-400" : "text-nexus-muted"}`}>
@@ -83,21 +83,21 @@ export default function ConnectorsTab() {
             <div className="flex flex-col gap-2">
               <input type="password" value={slackAppToken} onChange={e => setSlackAppToken(e.target.value)}
                 placeholder={hasSlack ? "✓ saved — enter to replace app-level token" : "App-level token (xapp-…)"}
-                className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
               <div className="flex gap-2">
                 <input type="password" value={slackBotToken} onChange={e => setSlackBotToken(e.target.value)}
                   placeholder={hasSlack ? "✓ saved — enter to replace bot token" : "Bot token (xoxb-…)"}
-                  className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                  className="flex-1 rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
                 <button onClick={saveSlack} disabled={!slackAppToken.trim() || !slackBotToken.trim()}
-                  className="rounded-lg border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Save</button>
+                  className="rounded-xl border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Save</button>
               </div>
             </div>
             <div className="mt-2 flex items-center gap-3">
               {running ? (
-                <button onClick={() => disconnectPlatform("slack")} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface">Disconnect</button>
+                <button onClick={() => disconnectPlatform("slack")} className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface">Disconnect</button>
               ) : (
                 <button onClick={() => connectPlatform("slack")} disabled={!hasSlack}
-                  className="rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Connect</button>
+                  className="rounded-xl bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Connect</button>
               )}
               {hasSlack && <button onClick={() => deleteConnectorToken("slack")} className="text-xs text-nexus-muted/60 hover:text-red-400">Remove</button>}
             </div>
@@ -111,7 +111,7 @@ export default function ConnectorsTab() {
         const status = connectors.find(s => s.platform === "matrix");
         const running = status?.running;
         return (
-          <div className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-4">
+          <div className="rounded-xl border border-nexus-border bg-nexus-surface/40 p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-medium text-nexus-fg">Matrix</span>
               <span className={`flex items-center gap-1.5 text-[11px] ${running ? "text-green-400" : "text-nexus-muted"}`}>
@@ -122,21 +122,21 @@ export default function ConnectorsTab() {
             <div className="flex flex-col gap-2">
               <input value={matrixHomeserver} onChange={e => setMatrixHomeserver(e.target.value)}
                 placeholder={hasMatrix ? "✓ saved — enter to replace homeserver URL" : "Homeserver URL (https://matrix.org)"}
-                className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
               <div className="flex gap-2">
                 <input type="password" value={matrixToken} onChange={e => setMatrixToken(e.target.value)}
                   placeholder={hasMatrix ? "✓ saved — enter to replace access token" : "Access token"}
-                  className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                  className="flex-1 rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
                 <button onClick={saveMatrix} disabled={!matrixHomeserver.trim() || !matrixToken.trim()}
-                  className="rounded-lg border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Save</button>
+                  className="rounded-xl border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Save</button>
               </div>
             </div>
             <div className="mt-2 flex items-center gap-3">
               {running ? (
-                <button onClick={() => disconnectPlatform("matrix")} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface">Disconnect</button>
+                <button onClick={() => disconnectPlatform("matrix")} className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface">Disconnect</button>
               ) : (
                 <button onClick={() => connectPlatform("matrix")} disabled={!hasMatrix}
-                  className="rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Connect</button>
+                  className="rounded-xl bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Connect</button>
               )}
               {hasMatrix && <button onClick={() => deleteConnectorToken("matrix")} className="text-xs text-nexus-muted/60 hover:text-red-400">Remove</button>}
             </div>
@@ -150,7 +150,7 @@ export default function ConnectorsTab() {
         const status = connectors.find(s => s.platform === "email");
         const running = status?.running;
         return (
-          <div className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-4">
+          <div className="rounded-xl border border-nexus-border bg-nexus-surface/40 p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-medium text-nexus-fg">Email</span>
               <span className={`flex items-center gap-1.5 text-[11px] ${running ? "text-green-400" : "text-nexus-muted"}`}>
@@ -161,25 +161,25 @@ export default function ConnectorsTab() {
             <div className="grid grid-cols-2 gap-2">
               <input value={emailImapHost} onChange={e => setEmailImapHost(e.target.value)}
                 placeholder={hasEmail ? "✓ saved — IMAP host" : "IMAP host (imap.gmail.com)"}
-                className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
               <input value={emailSmtpHost} onChange={e => setEmailSmtpHost(e.target.value)}
                 placeholder={hasEmail ? "✓ saved — SMTP host" : "SMTP host (smtp.gmail.com)"}
-                className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
               <input value={emailUser} onChange={e => setEmailUser(e.target.value)}
                 placeholder={hasEmail ? "✓ saved — address" : "Email address"}
-                className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
               <input type="password" value={emailPass} onChange={e => setEmailPass(e.target.value)}
                 placeholder={hasEmail ? "✓ saved — app password" : "App password"}
-                className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
             </div>
             <div className="mt-2 flex items-center gap-3">
               <button onClick={saveEmail} disabled={!emailImapHost.trim() || !emailSmtpHost.trim() || !emailUser.trim() || !emailPass.trim()}
-                className="rounded-lg border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Save</button>
+                className="rounded-xl border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface disabled:opacity-50">Save</button>
               {running ? (
-                <button onClick={() => disconnectPlatform("email")} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface">Disconnect</button>
+                <button onClick={() => disconnectPlatform("email")} className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface">Disconnect</button>
               ) : (
                 <button onClick={() => connectPlatform("email")} disabled={!hasEmail}
-                  className="rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Connect</button>
+                  className="rounded-xl bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Connect</button>
               )}
               {hasEmail && <button onClick={() => deleteConnectorToken("email")} className="text-xs text-nexus-muted/60 hover:text-red-400">Remove</button>}
             </div>

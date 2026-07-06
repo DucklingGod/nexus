@@ -54,7 +54,7 @@ export function ErrorToast({ type, message, onRetry, onDismiss }: ErrorToastProp
 
   return (
     <div
-      className={`mx-6 mb-2 flex items-start gap-3 rounded-lg border ${style.border} ${style.bg} px-3 py-2.5 text-[11px] transition-opacity ${
+      className={`mx-6 mb-2 flex items-start gap-3 rounded-xl border ${style.border} ${style.bg} px-3 py-2.5 text-[11px] transition-opacity ${
         visible ? 'opacity-100' : 'opacity-0'
       }`}
     >

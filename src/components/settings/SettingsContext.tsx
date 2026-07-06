@@ -827,7 +827,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     <SettingsContext.Provider value={ctx}>
       {children}
       {msg && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg border border-nexus-border bg-nexus-surface px-4 py-2 text-xs text-nexus-accent animate-dropdown z-50">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 rounded-xl border border-nexus-border bg-nexus-surface px-4 py-2 text-xs text-nexus-accent animate-toast z-50">
           {msg}
         </div>
       )}

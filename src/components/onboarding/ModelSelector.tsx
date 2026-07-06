@@ -92,14 +92,14 @@ export function ModelSelector({ provider, onComplete, onBack }: Props) {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-900/50 bg-red-950/30 p-3">
+        <div className="rounded-xl border border-red-900/50 bg-red-950/30 p-3">
           <p className="text-xs text-red-400">{error}</p>
           <p className="mt-1 text-xs text-neutral-600">You can enter a model name manually below.</p>
         </div>
       )}
 
       {!loading && models.length > 0 && !useCustom && (
-        <div className="max-h-64 overflow-y-auto rounded-lg border border-nexus-border">
+        <div className="max-h-64 overflow-y-auto rounded-xl border border-nexus-border">
           {hasGroups ? (
             <>
               {/* Free models section */}
@@ -124,7 +124,7 @@ export function ModelSelector({ provider, onComplete, onBack }: Props) {
             value={customModel}
             onChange={e => setCustomModel(e.target.value)}
             placeholder="e.g. gpt-4o, claude-sonnet-4-20250514, ornith-1.0-9b"
-            className="w-full rounded-lg border border-nexus-border bg-nexus-surface px-4 py-2.5 text-sm text-neutral-200 placeholder-neutral-600 outline-none focus:border-nexus-accent"
+            className="w-full rounded-xl border border-nexus-border bg-nexus-surface px-4 py-2.5 text-sm text-neutral-200 placeholder-neutral-600 outline-none focus:border-nexus-accent"
           />
         </div>
       )}
@@ -148,13 +148,13 @@ export function ModelSelector({ provider, onComplete, onBack }: Props) {
       )}
 
       <div className="flex gap-3 pt-2">
-        <button onClick={onBack} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-neutral-400 hover:bg-nexus-surface">
+        <button onClick={onBack} className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-neutral-400 hover:bg-nexus-surface">
           Back
         </button>
         <button
           onClick={handleComplete}
           disabled={useCustom ? !customModel.trim() : !selected}
-          className="rounded-lg bg-nexus-accent px-6 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
+          className="rounded-xl bg-nexus-accent px-6 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
         >
           Continue
         </button>

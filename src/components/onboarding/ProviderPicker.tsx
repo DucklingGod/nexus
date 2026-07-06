@@ -9,7 +9,7 @@ function ProviderCard({ provider, selected, onClick }: { provider: ProviderInfo;
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col gap-1 rounded-lg border p-3 text-left transition-all hover:border-nexus-accent hover:bg-nexus-surface ${
+      className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition-all hover:border-nexus-accent hover:bg-nexus-surface ${
         selected ? "border-nexus-accent bg-nexus-surface" : "border-nexus-border bg-transparent"
       }`}
     >
@@ -24,7 +24,7 @@ function HubCard({ provider, selected, onClick }: { provider: ProviderInfo; sele
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col gap-1.5 rounded-lg border p-3 text-left transition-all hover:border-emerald-500/50 hover:bg-nexus-surface ${
+      className={`flex flex-col gap-1.5 rounded-xl border p-3 text-left transition-all hover:border-emerald-500/50 hover:bg-nexus-surface ${
         selected ? "border-emerald-500/50 bg-nexus-surface" : "border-emerald-500/20 bg-emerald-500/5"
       }`}
     >

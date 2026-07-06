@@ -22,7 +22,7 @@ export default function ProviderTab() {
           </div>
         )}
         {!modelsLoading && models.length > 0 && (
-          <div className="max-h-64 overflow-y-auto rounded-lg border border-nexus-border">
+          <div className="max-h-64 overflow-y-auto rounded-xl border border-nexus-border">
             {models.map(m => (
               <button key={m.id} onClick={() => handleSelectModel(m.id)}
                 className="flex w-full items-center gap-2 border-b border-nexus-border px-4 py-2.5 text-left text-sm text-nexus-fg last:border-b-0 hover:bg-nexus-surface hover:text-nexus-accent"
@@ -31,7 +31,7 @@ export default function ProviderTab() {
           </div>
         )}
         {!modelsLoading && modelsError && (
-          <div className="rounded-lg border border-red-900/50 bg-red-950/30 p-3">
+          <div className="rounded-xl border border-red-900/50 bg-red-950/30 p-3">
             <p className="text-xs text-red-400">{modelsError}</p>
             <p className="mt-1 text-xs text-nexus-muted">You can still enter a model name manually below.</p>
           </div>
@@ -42,9 +42,9 @@ export default function ProviderTab() {
             <div className="flex gap-2">
               <input type="text" value={customModel} onChange={e => setCustomModel(e.target.value)}
                 placeholder="e.g. gpt-4o, mimo-v2.5-pro"
-                className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+                className="flex-1 rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
               <button onClick={() => handleSelectModel(customModel.trim())} disabled={!customModel.trim() || saving}
-                className="rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">
+                className="rounded-xl bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">
                 {saving ? "Saving..." : "Use"}
               </button>
             </div>
@@ -61,12 +61,12 @@ export default function ProviderTab() {
         <p className="text-sm text-nexus-muted">Enter your {selectedProvider.name} API key</p>
         <input type="password" value={newApiKey} onChange={e => setNewApiKey(e.target.value)}
           placeholder={`Enter your ${selectedProvider.name} API key`}
-          className="w-full rounded-lg border border-nexus-border bg-nexus-surface px-4 py-3 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+          className="w-full rounded-xl border border-nexus-border bg-nexus-surface px-4 py-3 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
         <div className="flex gap-3">
           <button onClick={() => { setChangingProvider(false); setSelectedProvider(null); }}
-            className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-nexus-muted hover:bg-nexus-surface">Cancel</button>
+            className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-nexus-muted hover:bg-nexus-surface">Cancel</button>
           <button onClick={handleProviderApiKeySubmit} disabled={!newApiKey.trim()}
-            className="rounded-lg bg-nexus-accent px-6 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">
+            className="rounded-xl bg-nexus-accent px-6 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">
             Continue → Select Model
           </button>
         </div>
@@ -81,7 +81,7 @@ export default function ProviderTab() {
         <div className="grid grid-cols-3 gap-3">
           {PROVIDERS.map(p => (
             <button key={p.id} onClick={() => handleSelectNewProvider(p)}
-              className={`flex flex-col gap-1 rounded-lg border p-4 text-left transition-all hover:border-nexus-accent hover:bg-nexus-surface ${
+              className={`flex flex-col gap-1 rounded-xl border p-4 text-left transition-all hover:border-nexus-accent hover:bg-nexus-surface ${
                 config?.provider === p.id ? "border-nexus-accent bg-nexus-surface" : "border-nexus-border"
               }`}>
               <span className="font-medium text-nexus-fg">{p.name}</span>
@@ -107,7 +107,7 @@ export default function ProviderTab() {
             Change Provider
           </button>
         </div>
-        <div className="rounded-lg border border-nexus-border bg-nexus-surface p-4">
+        <div className="rounded-xl border border-nexus-border bg-nexus-surface p-4">
           <p className="text-sm text-nexus-fg">{providerInfo?.name ?? config.provider}</p>
           <p className="mt-1 text-xs text-nexus-muted">Base URL: {config.baseUrl}</p>
           <div className="mt-1 flex items-center gap-2">
@@ -148,9 +148,9 @@ export default function ProviderTab() {
         <div className="mt-3 flex gap-2">
           <input type="password" value={newApiKey} onChange={e => setNewApiKey(e.target.value)}
             placeholder="Enter new API key"
-            className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+            className="flex-1 rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
           <button onClick={handleSaveApiKey} disabled={saving || !newApiKey.trim()}
-            className="rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">
+            className="rounded-xl bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">
             {saving ? "Saving..." : "Save"}
           </button>
         </div>

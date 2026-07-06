@@ -50,7 +50,7 @@ export function ABTestView() {
   const sel = "w-full rounded-md border border-nexus-border bg-nexus-surface px-2 py-1.5 text-xs text-nexus-fg outline-none focus:border-nexus-accent";
 
   const column = (label: string, model: string, setModel: (m: string) => void, res: Result | null, key: "a" | "b") => (
-    <div className={`flex min-w-0 flex-1 flex-col rounded-lg border-2 bg-nexus-surface/30 p-3 transition ${winner === key ? "border-nexus-accent" : "border-nexus-border/50"}`}>
+    <div className={`flex min-w-0 flex-1 flex-col rounded-xl border-2 bg-nexus-surface/30 p-3 transition ${winner === key ? "border-nexus-accent" : "border-nexus-border/50"}`}>
       <div className="mb-2 flex items-center gap-2">
         <span className="text-xs font-medium text-nexus-muted">{label}</span>
         <select value={model} onChange={(e) => setModel(e.target.value)} className={sel}>
@@ -78,12 +78,12 @@ export function ABTestView() {
         <p className="mt-1 mb-4 text-xs text-nexus-muted">Run one prompt through two models and compare side by side. Uses your current provider; pick a winner.</p>
 
         <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} placeholder="The prompt to test…"
-          className="mb-2 w-full resize-none rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+          className="mb-2 w-full resize-none rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
         <textarea value={system} onChange={(e) => setSystem(e.target.value)} rows={2} placeholder="Optional system prompt (applied to both)…"
-          className="mb-3 w-full resize-none rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-xs text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+          className="mb-3 w-full resize-none rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-xs text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
 
         <button onClick={run} disabled={running || !prompt.trim() || !prov}
-          className="mb-4 rounded-lg bg-nexus-accent px-5 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">{running ? "Running both…" : "▶ Run A/B"}</button>
+          className="mb-4 rounded-xl bg-nexus-accent px-5 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">{running ? "Running both…" : "▶ Run A/B"}</button>
 
         <div className="flex gap-3">
           {column("Variant A", modelA, setModelA, a, "a")}

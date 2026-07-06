@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { IconSettings } from "../icons";
 
 interface Conversation {
   id: string;
@@ -39,7 +40,7 @@ interface Props {
 
 export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOpenWorkflows, onOpenKanban, onOpenMarketplace, onOpenAB, onOpenSettings, skillsActive, workflowsActive, abActive, kanbanActive, marketplaceActive }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeTab, setActiveTab] = useState<"group" | "project">("project");
+  const [convLoading, setConvLoading] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -48,10 +49,12 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
   const providerRef = useRef<{ provider: string; model: string; baseUrl: string } | null>(null);
 
   const load = useCallback(async () => {
+    setConvLoading(true);
     try {
       const result = await invoke<{ conversations: Conversation[] }>("engine_rpc", { method: "conversation.list", params: { limit: 50 } });
       setConversations(result.conversations ?? []);
     } catch { setConversations([]); }
+    finally { setConvLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -185,10 +188,18 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
     return { label: "File", color: "text-emerald-400" };
   };
 
-  const resultRow = (r: SearchResult) => (
+  const [expandedResult, setExpandedResult] = useState<string | null>(null);
+
+  const resultRow = (r: SearchResult) => {
+    const key = `${r.kind}-${r.id}`;
+    const expanded = expandedResult === key;
+    return (
     <button
-      key={`${r.kind}-${r.id}`}
-      onClick={() => { if (r.kind === "conversation") onSelect(r.id); }}
+      key={key}
+      onClick={() => {
+        if (r.kind === "conversation") onSelect(r.id);
+        else setExpandedResult(expanded ? null : key);
+      }}
       title={r.kind === "conversation" ? r.title : (r.text ?? r.title)}
       className="group flex w-full flex-col gap-0.5 rounded-md px-2 py-1.5 pl-6 text-left transition hover:bg-nexus-surface"
     >
@@ -196,14 +207,18 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
         <span className={`flex-shrink-0 text-[9px] font-medium ${sourceMeta(r).color}`}>{sourceMeta(r).label}</span>
         <span className="truncate text-[11px] text-nexus-fg">{r.title}</span>
       </div>
-      {r.text && (
+      {r.text && r.kind === "conversation" && (
         <span className="truncate pl-[42px] text-[10px] text-nexus-muted/60">{r.text}</span>
       )}
       {r.subtitle && r.kind !== "conversation" && (
         <span className="truncate pl-[42px] text-[9px] text-nexus-muted/40">{r.subtitle}</span>
       )}
+      {expanded && r.text && r.kind !== "conversation" && (
+        <span className="mt-0.5 pl-[42px] text-[10px] leading-relaxed text-nexus-muted/70 line-clamp-3">{r.text}</span>
+      )}
     </button>
   );
+  };
 
   return (
     <div className="flex h-full w-60 flex-col border-r border-nexus-border/50 bg-nexus-surface/30">
@@ -262,26 +277,6 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-nexus-border/30 px-3 pb-1">
-        <button
-          onClick={() => setActiveTab("group")}
-          className={`rounded px-2 py-1 text-[10px] ${activeTab === "group" ? "bg-nexus-surface text-nexus-fg" : "text-nexus-muted"}`}
-        >
-          # Group
-        </button>
-        <button
-          onClick={() => setActiveTab("project")}
-          className={`rounded px-2 py-1 text-[10px] ${activeTab === "project" ? "bg-nexus-surface text-nexus-fg" : "text-nexus-muted"}`}
-        >
-          Project
-        </button>
-        <div className="flex-1" />
-        <button className="rounded p-0.5 text-nexus-muted/40 hover:text-nexus-muted">
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-        </button>
-      </div>
-
       {/* Conversation list — search results or grouped by source */}
       <div className="flex-1 overflow-y-auto px-2 py-1">
         {searchQuery.trim() ? (
@@ -322,8 +317,16 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
           )
         ) : (
           <>
-        {conversations.length === 0 && (
+        {conversations.length === 0 && !convLoading && (
           <p className="px-2 py-2 text-[10px] text-nexus-muted/50">No tasks yet</p>
+        )}
+
+        {convLoading && conversations.length === 0 && (
+          <div className="flex flex-col gap-1 px-2 py-1">
+            {[1,2,3,4].map(i => (
+              <div key={i} className="h-7 rounded-md bg-nexus-surface/50 animate-pulse" />
+            ))}
+          </div>
         )}
 
         {groupHeader("local", <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4h5l2 2h5v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" stroke="currentColor" strokeWidth="1.2"/></svg>, local.length)}
@@ -346,14 +349,11 @@ export function LeftSidebar({ currentId, onSelect, onNewChat, onOpenSkills, onOp
         )}
       </div>
 
-      {/* User profile at bottom */}
-      <div className="flex items-center justify-between border-t border-nexus-border/30 px-3 py-2.5">
-        <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-nexus-accent/20 text-[9px] font-medium text-nexus-accent">U</div>
-          <span className="text-[11px] text-nexus-fg">User</span>
-        </div>
-        <button onClick={onOpenSettings} title="Settings" className="rounded p-1 text-nexus-muted/40 hover:text-nexus-gold">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.2"/><path d="M8 1.5v1.6M8 12.9v1.6M14.5 8h-1.6M3.1 8H1.5M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1M12.6 12.6l-1.1-1.1M4.5 4.5L3.4 3.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+      {/* Settings button at bottom */}
+      <div className="border-t border-nexus-border/30 px-3 py-2.5">
+        <button onClick={onOpenSettings} title="Settings" className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-nexus-fg transition hover:bg-nexus-surface">
+          <IconSettings size={13} />
+          <span>Settings</span>
         </button>
       </div>
     </div>

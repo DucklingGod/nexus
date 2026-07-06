@@ -35,7 +35,7 @@ function BlockNode({ id, data }: NodeProps) {
   const cls = "nodrag nowheel w-full rounded bg-nexus-bg/60 px-2 py-1 text-[11px] text-nexus-fg placeholder-nexus-muted/40 outline-none";
 
   return (
-    <div className={`w-48 rounded-lg border-2 bg-nexus-surface shadow-lg ${d.status === "running" ? "animate-pulse" : ""}`} style={{ borderColor: ring }}>
+    <div className={`w-48 rounded-xl border-2 bg-nexus-surface shadow-lg ${d.status === "running" ? "animate-pulse" : ""}`} style={{ borderColor: ring }}>
       {d.type !== "trigger" && <Handle type="target" position={Position.Top} style={{ background: meta.color }} />}
       <div className="border-b border-nexus-border/40 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide" style={{ color: meta.color }}>{meta.label}</div>
       <div className="flex flex-col gap-1 p-2">

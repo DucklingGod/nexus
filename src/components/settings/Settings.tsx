@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { SettingsProvider, useSettings } from "./SettingsContext";
-import { IconKey, IconBot, IconZap, IconGear, IconBook, IconChart, IconGlobe, IconTerminal, IconClipboard, IconBrain, IconStar, IconShield, IconWifi, IconArrowLeft } from "../icons";
+import { IconKey, IconBot, IconZap, IconGear, IconBook, IconChart, IconGlobe, IconTerminal, IconClipboard, IconBrain, IconStar, IconPalette, IconShield, IconWifi, IconArrowLeft } from "../icons";
 
 // Lazy-load heavy tabs
 const ProviderTab = lazy(() => import("./tabs/ProviderTab"));
@@ -33,7 +33,7 @@ const TABS: { id: TabId; label: string; icon: React.FC<{ size?: number }> }[] = 
   { id: "ssh", label: "SSH Hosts", icon: IconWifi },
   { id: "learning", label: "Learning", icon: IconBrain },
   { id: "context", label: "Context", icon: IconClipboard },
-  { id: "theme", label: "Theme", icon: IconStar },
+  { id: "theme", label: "Theme", icon: IconPalette },
   { id: "usage", label: "Usage", icon: IconChart },
   { id: "audit", label: "Audit", icon: IconShield },
   { id: "logs", label: "Logs", icon: IconTerminal },

@@ -80,7 +80,7 @@ export function TopBar({ taskTitle, onOpenSettings, onPickHost }: Props) {
           {showWsDropdown && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowWsDropdown(false)} />
-              <div className="absolute left-0 top-full z-50 mt-1 w-52 origin-top animate-dropdown rounded-lg border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
+              <div className="absolute left-0 top-full z-50 mt-1 w-52 origin-top animate-dropdown rounded-xl border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
                 <p className="px-3 py-1 text-[9px] font-medium uppercase tracking-wider text-nexus-muted/50">This machine</p>
                 <button
                   onClick={() => { setWorkspace("local"); setShowWsDropdown(false); }}
@@ -91,21 +91,21 @@ export function TopBar({ taskTitle, onOpenSettings, onPickHost }: Props) {
                   {workspace === "local" && <span className="ml-auto text-[9px]">✓</span>}
                 </button>
                 <div className="mx-2 my-1 border-t border-nexus-border/30" />
-                <p className="px-3 py-1 text-[9px] font-medium uppercase tracking-wider text-nexus-muted/50">Remote (SSH)</p>
-                {sshHosts.length === 0 ? (
-                  <p className="px-3 py-1.5 text-[10px] leading-relaxed text-nexus-muted/50">No hosts yet. Add one in Settings → SSH Hosts to control another machine.</p>
-                ) : (
-                  sshHosts.map(h => (
-                    <button
-                      key={h.id}
-                      onClick={() => { setWorkspace(h.id); setShowWsDropdown(false); onPickHost?.(h.name); }}
+                {sshHosts.length > 0 && (
+                  <>
+                    <p className="px-3 py-1 text-[9px] font-medium uppercase tracking-wider text-nexus-muted/50">Remote (SSH)</p>
+                    {sshHosts.map(h => (
+                      <button
+                        key={h.id}
+                        onClick={() => { setWorkspace(h.id); setShowWsDropdown(false); onPickHost?.(h.name); }}
                       className={`flex w-full items-center gap-2 px-3 py-1.5 text-[11px] transition hover:bg-nexus-surface ${workspace === h.id ? "text-nexus-accent" : "text-nexus-fg"}`}
                     >
                       <WorkspaceIcon name="globe" />
                       <span className="truncate">{h.name}</span>
                       <span className="ml-auto truncate text-[9px] text-nexus-muted/50">{h.user}@{h.host}</span>
                     </button>
-                  ))
+                  ))}
+                  </>
                 )}
               </div>
             </>

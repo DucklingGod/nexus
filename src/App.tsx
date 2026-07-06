@@ -99,13 +99,14 @@ function App() {
     return <WelcomeScreen onComplete={() => setReady(true)} />;
   }
 
-  if (showSettings) {
-    return <Settings onClose={() => setShowSettings(false)} />;
-  }
-
   // ZCode layout: full-height sidebar + main column (its own header + content)
   return (
     <div className="flex h-screen bg-nexus-bg">
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex bg-nexus-bg">
+          <Settings onClose={() => setShowSettings(false)} />
+        </div>
+      )}
       <SpaceCanvas />
       <LeftSidebar
         currentId={conversationId}
@@ -153,7 +154,7 @@ function App() {
       </div>
 
       {learnedToast && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-lg border border-gold-faint bg-nexus-elevated px-4 py-2.5 text-sm text-nexus-fg shadow-xl animate-dropdown">
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-lg border border-gold-faint bg-nexus-elevated px-4 py-2.5 text-sm text-nexus-fg shadow-xl animate-toast">
           <span className="text-nexus-gold">✦</span>{learnedToast}
         </div>
       )}

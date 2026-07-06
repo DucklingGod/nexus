@@ -43,7 +43,7 @@ export function AgentSetup({ onComplete, onBack }: Props) {
           type="text"
           value={name}
           onChange={e => setName(e.target.value)}
-          className="w-full rounded-lg border border-nexus-border bg-nexus-surface px-4 py-3 text-sm text-neutral-200 placeholder-neutral-600 outline-none focus:border-nexus-accent"
+          className="w-full rounded-xl border border-nexus-border bg-nexus-surface px-4 py-3 text-sm text-neutral-200 placeholder-neutral-600 outline-none focus:border-nexus-accent"
         />
       </div>
 
@@ -54,7 +54,7 @@ export function AgentSetup({ onComplete, onBack }: Props) {
             <button
               key={t}
               onClick={() => setTone(t)}
-              className={`rounded-lg border px-3 py-1.5 text-xs capitalize transition-all ${
+              className={`rounded-xl border px-3 py-1.5 text-xs capitalize transition-all ${
                 tone === t
                   ? "border-nexus-accent bg-nexus-surface text-nexus-accent"
                   : "border-nexus-border text-neutral-500 hover:border-neutral-600"
@@ -73,7 +73,7 @@ export function AgentSetup({ onComplete, onBack }: Props) {
             <button
               key={l.id}
               onClick={() => setLanguage(l.id)}
-              className={`rounded-lg border px-3 py-1.5 text-xs transition-all ${
+              className={`rounded-xl border px-3 py-1.5 text-xs transition-all ${
                 language === l.id
                   ? "border-nexus-accent bg-nexus-surface text-nexus-accent"
                   : "border-nexus-border text-neutral-500 hover:border-neutral-600"
@@ -86,13 +86,13 @@ export function AgentSetup({ onComplete, onBack }: Props) {
       </div>
 
       <div className="flex gap-3">
-        <button onClick={onBack} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-neutral-400 hover:bg-nexus-surface">
+        <button onClick={onBack} className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-neutral-400 hover:bg-nexus-surface">
           Back
         </button>
         <button
           onClick={handleComplete}
           disabled={saving || !name.trim()}
-          className="rounded-lg bg-nexus-accent px-6 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
+          className="rounded-xl bg-nexus-accent px-6 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
         >
           {saving ? "Saving..." : "Start Using Nexus"}
         </button>

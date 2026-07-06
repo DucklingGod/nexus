@@ -195,26 +195,26 @@ export function KanbanView() {
             </div>
             <button
               onClick={() => setShowBoardForm(v => !v)}
-              className="rounded-lg border border-nexus-border bg-nexus-surface px-4 py-2 text-sm text-nexus-fg hover:bg-nexus-elevated"
+              className="rounded-xl border border-nexus-border bg-nexus-surface px-4 py-2 text-sm text-nexus-fg hover:bg-nexus-elevated"
             >
               {showBoardForm ? "Cancel" : "+ New board"}
             </button>
           </div>
 
           {showBoardForm && (
-            <div className="mb-5 flex gap-2 rounded-lg border border-gold-faint bg-nexus-surface/40 p-4">
+            <div className="mb-5 flex gap-2 rounded-xl border border-gold-faint bg-nexus-surface/40 p-4">
               <input
                 autoFocus
                 value={newBoardName}
                 onChange={e => setNewBoardName(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") createBoard(); }}
                 placeholder="Board name (e.g. Sprint Q3, Bug Triage)"
-                className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent"
+                className="flex-1 rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent"
               />
               <button
                 onClick={createBoard}
                 disabled={!newBoardName.trim()}
-                className="rounded-lg bg-nexus-accent px-5 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
+                className="rounded-xl bg-nexus-accent px-5 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
               >
                 Create
               </button>
@@ -231,7 +231,7 @@ export function KanbanView() {
                 <button
                   key={b.id}
                   onClick={() => loadBoard(b.id)}
-                  className="group flex flex-col gap-1 rounded-lg border border-nexus-border bg-nexus-surface px-4 py-3 text-left transition hover:border-gold-faint hover:bg-nexus-elevated"
+                  className="group flex flex-col gap-1 rounded-xl border border-nexus-border bg-nexus-surface px-4 py-3 text-left transition hover:border-gold-faint hover:bg-nexus-elevated"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-nexus-fg">{b.name}</span>
@@ -291,7 +291,7 @@ export function KanbanView() {
             onDragOver={e => handleDragOver(e, col.id)}
             onDrop={e => handleDrop(e, col.id)}
             onDragLeave={() => { if (dragOverColumn === col.id) setDragOverColumn(null); }}
-            className={`flex w-72 flex-shrink-0 flex-col rounded-lg border transition ${
+            className={`flex w-72 flex-shrink-0 flex-col rounded-xl border transition ${
               dragOverColumn === col.id
                 ? "border-nexus-accent bg-nexus-elevated/60"
                 : "border-nexus-border bg-nexus-surface/30"

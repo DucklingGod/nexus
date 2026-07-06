@@ -66,7 +66,7 @@ export function RightPanel({ toolEvents, filesChanged, collapsed, onToggle, onTo
           <div className="flex flex-col gap-3">
             {/* Summary card */}
             {(uniqueFiles.length > 0 || completedTools > 0) && (
-              <div className="rounded-lg border border-nexus-border/30 bg-nexus-bg/50 p-3">
+              <div className="rounded-xl border border-nexus-border/30 bg-nexus-bg/50 p-3">
                 <div className="flex items-center gap-2 text-[11px]">
                   <span className="text-nexus-fg">{uniqueFiles.length} files changed</span>
                   <span className="text-green-400">+{completedTools}</span>
@@ -124,7 +124,7 @@ export function RightPanel({ toolEvents, filesChanged, collapsed, onToggle, onTo
           <div className="flex flex-col items-center justify-center py-8">
             <button
               onClick={onToggleTerminal}
-              className="flex flex-col items-center gap-2 rounded-lg border border-nexus-border/30 px-6 py-4 transition hover:bg-nexus-surface"
+              className="flex flex-col items-center gap-2 rounded-xl border border-nexus-border/30 px-6 py-4 transition hover:bg-nexus-surface"
             >
               <svg width="24" height="24" viewBox="0 0 16 16" fill="none" className="text-nexus-muted/50"><path d="M2 3h12v10H2zM4 6l3 2.5L4 11M8 11h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               <p className="text-[10px] text-nexus-muted/60">Toggle Terminal</p>

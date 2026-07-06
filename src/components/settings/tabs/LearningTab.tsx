@@ -23,7 +23,7 @@ export default function LearningTab() {
           { key: "correction", label: "Correction memory", desc: "Learn rules from your 👎 feedback and apply them in similar future situations.", val: correctionEnabled, set: setCorrectionEnabled },
           { key: "evaluation", label: "Self-evaluation", desc: "After each turn, a background call scores completion / satisfaction / efficiency.", val: evalEnabled, set: setEvalEnabled },
         ] as const).map(t => (
-          <div key={t.key} className="flex items-center justify-between rounded-lg border border-nexus-border bg-nexus-surface p-3">
+          <div key={t.key} className="flex items-center justify-between rounded-xl border border-nexus-border bg-nexus-surface p-3">
             <div>
               <p className="text-sm text-nexus-fg">{t.label}</p>
               <p className="text-xs text-nexus-muted">{t.desc}</p>
@@ -38,7 +38,7 @@ export default function LearningTab() {
 
       {/* Last self-evaluation */}
       {lastEval && (
-        <div className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-3">
+        <div className="rounded-xl border border-nexus-border bg-nexus-surface/40 p-3">
           <p className="mb-2 text-sm font-medium text-nexus-fg">Last self-evaluation</p>
           <div className="flex gap-4 text-xs">
             {(["completion", "satisfaction", "efficiency"] as const).map(k => (
@@ -55,13 +55,13 @@ export default function LearningTab() {
       {/* Correction rules */}
       <div>
         <p className="mb-2 text-sm font-medium text-nexus-fg">Correction rules ({corrections.length})</p>
-        <div className="mb-2 rounded-lg border border-nexus-border bg-nexus-surface/40 p-3">
+        <div className="mb-2 rounded-xl border border-nexus-border bg-nexus-surface/40 p-3">
           <p className="mb-2 text-[11px] text-nexus-muted">Add a rule — the agent injects matching rules into future replies so it doesn't repeat a mistake.</p>
           <div className="flex flex-col gap-2">
             <input value={corrForm.trigger_context} onChange={e => setCorrForm({ ...corrForm, trigger_context: e.target.value })} placeholder="When… (the situation, e.g. 'writing git commits')"
-              className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+              className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
             <input value={corrForm.rule} onChange={e => setCorrForm({ ...corrForm, rule: e.target.value })} placeholder="Do this instead… (e.g. 'use conventional commit format')"
-              className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+              className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
             <button onClick={async () => {
               if (!corrForm.trigger_context.trim() || !corrForm.rule.trim()) { showMsg("Both fields are required"); return; }
               await invoke("engine_rpc", { method: "correction.add", params: { ...corrForm } });
@@ -69,7 +69,7 @@ export default function LearningTab() {
               setCorrections(c.corrections ?? []);
               setCorrForm({ trigger_context: "", rule: "" });
               showMsg("Correction rule added");
-            }} className="self-start rounded-lg bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90">Add rule</button>
+            }} className="self-start rounded-xl bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90">Add rule</button>
           </div>
         </div>
         {corrections.length === 0 ? (
@@ -77,7 +77,7 @@ export default function LearningTab() {
         ) : (
           <div className="flex flex-col gap-2">
             {corrections.map(c => (
-              <div key={c.id} className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-3">
+              <div key={c.id} className="rounded-xl border border-nexus-border bg-nexus-surface/40 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-[11px] text-nexus-muted">When {c.trigger_context}</p>
@@ -97,7 +97,7 @@ export default function LearningTab() {
         <div className="mb-2 flex items-center justify-between">
           <p className="text-sm font-medium text-nexus-fg">Prompt optimizer</p>
           <button onClick={runOptimize} disabled={optimizing || !config}
-            className="rounded-lg bg-nexus-accent px-3 py-1.5 text-xs font-medium text-black hover:opacity-90 disabled:opacity-50">
+            className="rounded-xl bg-nexus-accent px-3 py-1.5 text-xs font-medium text-black hover:opacity-90 disabled:opacity-50">
             {optimizing ? "Analyzing…" : "✨ Optimize instructions"}
           </button>
         </div>
@@ -105,14 +105,14 @@ export default function LearningTab() {
           Reflects on recent 👎 feedback and failed tasks, proposes an improved version of your Custom Instructions, and judges it against the current one — never applied automatically.
         </p>
         {optimizeSkipReason && (
-          <p className="mb-2 rounded-lg border border-nexus-border/60 bg-nexus-surface/30 p-3 text-[11px] text-nexus-muted">{optimizeSkipReason}</p>
+          <p className="mb-2 rounded-xl border border-nexus-border/60 bg-nexus-surface/30 p-3 text-[11px] text-nexus-muted">{optimizeSkipReason}</p>
         )}
         {promptVersions.filter(v => !v.applied).length === 0 ? (
           <p className="text-xs text-nexus-muted/60">No pending proposals.</p>
         ) : (
           <div className="flex flex-col gap-2">
             {promptVersions.filter(v => !v.applied).map(v => (
-              <div key={v.id} className="rounded-lg border border-nexus-accent/40 bg-nexus-surface/40 p-3">
+              <div key={v.id} className="rounded-xl border border-nexus-accent/40 bg-nexus-surface/40 p-3">
                 <div className="mb-2 flex items-center gap-2 text-[11px] text-nexus-muted">
                   <span>Score: <span className="text-nexus-gold">{v.score}</span> vs current <span className="text-nexus-muted">{v.baseline_score}</span></span>
                   {v.reason && <span className="italic">— {v.reason}</span>}
@@ -128,8 +128,8 @@ export default function LearningTab() {
                   </div>
                 </div>
                 <div className="mt-2 flex gap-2">
-                  <button onClick={() => acceptProposal(v.id)} className="rounded-lg bg-nexus-accent px-3 py-1.5 text-xs font-medium text-black hover:opacity-90">Accept</button>
-                  <button onClick={() => rejectProposal(v.id)} className="rounded-lg border border-nexus-border px-3 py-1.5 text-xs text-nexus-muted hover:bg-nexus-surface">Reject</button>
+                  <button onClick={() => acceptProposal(v.id)} className="rounded-xl bg-nexus-accent px-3 py-1.5 text-xs font-medium text-black hover:opacity-90">Accept</button>
+                  <button onClick={() => rejectProposal(v.id)} className="rounded-xl border border-nexus-border px-3 py-1.5 text-xs text-nexus-muted hover:bg-nexus-surface">Reject</button>
                 </div>
               </div>
             ))}

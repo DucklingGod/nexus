@@ -108,7 +108,7 @@ export function ToolCallBubble({ events }: ToolCallBubbleProps) {
         {/* Toggle bar */}
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 rounded-lg border border-nexus-border/60 bg-nexus-elevated/80 px-3 py-1.5 text-xs text-nexus-muted transition hover:border-nexus-border hover:text-nexus-fg/80"
+          className="flex items-center gap-2 rounded-2xl border border-nexus-border/60 bg-nexus-elevated/80 px-3 py-1.5 text-xs text-nexus-muted transition hover:border-nexus-border hover:text-nexus-fg/80"
         >
           <span className="text-nexus-gold/70"><IconGear size={13} /></span>
           <span className="font-medium">Used {summary}</span>
@@ -125,7 +125,7 @@ export function ToolCallBubble({ events }: ToolCallBubbleProps) {
 
         {/* Expanded detail */}
         {open && (
-          <div className="mt-1 space-y-1 rounded-lg border border-nexus-border/40 bg-nexus-surface/80 p-2.5">
+          <div className="mt-1 space-y-1 rounded-xl border border-nexus-border/40 bg-nexus-surface/80 p-2.5">
             {calls.map((call) => {
               const result = resultMap.get(call.id);
               return (

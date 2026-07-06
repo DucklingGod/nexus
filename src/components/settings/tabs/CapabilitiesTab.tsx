@@ -20,7 +20,7 @@ export default function CapabilitiesTab() {
         const meta = CATEGORY_META[cap.name] ?? { label: cap.name, icon: IconWrench, desc: "" };
         const Icon = meta.icon;
         return (
-          <div key={cap.name} className="flex items-center justify-between rounded-lg border border-nexus-border bg-nexus-surface p-4">
+          <div key={cap.name} className="flex items-center justify-between rounded-xl border border-nexus-border bg-nexus-surface p-4">
             <div className="flex items-center gap-3">
               <Icon size={18} />
               <div>

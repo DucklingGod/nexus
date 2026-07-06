@@ -101,6 +101,10 @@ export function IconPlus({ size = 14, className }: IconProps) {
   return <svg {...S(size)} className={className}><circle cx="8" cy="8" r="6" /><path d="M8 5v6M5 8h6" /></svg>;
 }
 
+export function IconPalette({ size = 14, className }: IconProps) {
+  return <svg {...S(size)} className={className}><path d="M8 2C4.5 2 2 5.5 2 8.5c0 2.5 2 5.5 5.5 5.5 1 0 2-.5 2-1.5 0-.8-.5-1-1-1.5-.5-.5-.5-1-.5-1.5 0-2 2.5-3 4.5-3.5 1.5-.4 3.5-2 3.5-4A6.5 6.5 0 008 2z" /><circle cx="5.5" cy="5.5" r="1" fill="currentColor" /><circle cx="9.5" cy="5" r="1" fill="currentColor" /><circle cx="4.5" cy="9" r="1" fill="currentColor" /></svg>;
+}
+
 export function IconStar({ size = 14, className }: IconProps) {
   return <svg {...S(size)} className={className}><path d="M8 1.5l2 4 4.5 1-3.2 3 .8 4.5L8 11.5 3.9 13.5l.8-4.5-3.2-3L6 5z" /></svg>;
 }

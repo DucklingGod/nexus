@@ -13,7 +13,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 function ReasoningBlock({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-lg border border-nexus-border/30 bg-nexus-surface/30">
+    <div className="rounded-xl border border-nexus-border/30 bg-nexus-surface/30">
       <button
         onClick={() => setOpen(!open)}
         className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] text-nexus-muted transition hover:text-nexus-fg"
@@ -475,7 +475,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                   {showSafetyDropdown && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowSafetyDropdown(false)} />
-                      <div className="absolute bottom-full left-0 z-50 mb-1 w-52 origin-bottom animate-dropdown rounded-lg border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
+                      <div className="absolute bottom-full left-0 z-50 mb-1 w-52 origin-bottom animate-dropdown rounded-xl border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
                         {SAFETY_MODES.map(m => (
                           <button
                             key={m.id}
@@ -500,7 +500,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
 
               <div className="flex items-center gap-1.5">
                 {/* Context count circle */}
-                <div className="flex h-5 w-5 items-center justify-center rounded-full border border-nexus-border/40 text-[8px] text-nexus-muted/60" title="Context tokens used">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full border border-nexus-border/40 text-[8px] text-nexus-muted/60" title="Messages in conversation">
                   {messages.length}
                 </div>
 
@@ -518,7 +518,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                   {showModelDropdown && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowModelDropdown(false)} />
-                      <div className="absolute bottom-full right-0 z-50 mb-1 max-h-72 w-64 origin-bottom animate-dropdown overflow-y-auto rounded-lg border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
+                      <div className="absolute bottom-full right-0 z-50 mb-1 max-h-72 w-64 origin-bottom animate-dropdown overflow-y-auto rounded-xl border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
                         {modelsLoading && (
                           <div className="flex items-center gap-2 px-3 py-2">
                             <div className="h-3 w-3 animate-spin rounded-full border border-nexus-accent border-t-transparent" />
@@ -601,7 +601,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                   {showReasoningDropdown && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowReasoningDropdown(false)} />
-                      <div className="absolute bottom-full right-0 z-50 mb-1 w-28 origin-bottom animate-dropdown rounded-lg border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
+                      <div className="absolute bottom-full right-0 z-50 mb-1 w-28 origin-bottom animate-dropdown rounded-xl border border-nexus-border bg-nexus-elevated py-1 shadow-xl">
                         {REASONING_LEVELS.map(r => (
                           <button
                             key={r.id}
@@ -651,7 +651,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
             <div className="mx-4 w-full max-w-md rounded-xl border border-gold-faint bg-nexus-elevated p-5 shadow-2xl">
               <h3 className="font-display text-base font-semibold text-nexus-gold">Approve action?</h3>
               <p className="mt-1 text-xs text-nexus-muted">The agent wants to run a privileged tool.</p>
-              <div className="mt-3 rounded-lg border border-nexus-border bg-nexus-bg p-3">
+              <div className="mt-3 rounded-xl border border-nexus-border bg-nexus-bg p-3">
                 <p className="font-mono text-xs font-medium text-nexus-fg">{pendingApproval.name}</p>
                 <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-[10px] text-nexus-fg/70">
                   {JSON.stringify(pendingApproval.arguments, null, 2)}
@@ -660,13 +660,13 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
               <div className="mt-4 flex justify-end gap-2">
                 <button
                   onClick={() => respondApproval(false)}
-                  className="rounded-lg border border-nexus-border px-3 py-1.5 text-xs text-nexus-muted transition hover:bg-nexus-surface"
+                  className="rounded-xl border border-nexus-border px-3 py-1.5 text-xs text-nexus-muted transition hover:bg-nexus-surface"
                 >
                   Deny
                 </button>
                 <button
                   onClick={() => respondApproval(true)}
-                  className="rounded-lg bg-gold-sheen px-4 py-1.5 text-xs font-medium text-black transition hover:brightness-110"
+                  className="rounded-xl bg-gold-sheen px-4 py-1.5 text-xs font-medium text-black transition hover:brightness-110"
                 >
                   Approve
                 </button>

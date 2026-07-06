@@ -80,7 +80,7 @@ export function MarketplaceView() {
       </div>
 
       {notice && (
-        <div className="mx-6 mt-3 rounded-lg border border-gold-faint bg-nexus-surface px-4 py-2 text-xs text-nexus-gold animate-dropdown">{notice}</div>
+        <div className="mx-6 mt-3 rounded-xl border border-gold-faint bg-nexus-surface px-4 py-2 text-xs text-nexus-gold animate-toast">{notice}</div>
       )}
 
       <div className="flex-1 overflow-y-auto p-6">
@@ -141,9 +141,9 @@ function CatalogTab({ flash }: { flash: (m: string) => void }) {
   return (
     <div className="flex flex-col gap-4">
       <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search the MCP registry…"
-        className="w-full rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+        className="w-full rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
       {error && (
-        <div className="rounded-lg border border-red-900/40 bg-red-950/20 p-3">
+        <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-3">
           <p className="text-xs text-red-400">Couldn't reach the registry: {error}</p>
           <p className="mt-1 text-[11px] text-nexus-muted">You can still add a server manually from the “Installed” tab.</p>
         </div>
@@ -153,7 +153,7 @@ function CatalogTab({ flash }: { flash: (m: string) => void }) {
       )}
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         {servers.map(s => (
-          <div key={s.id} className="flex flex-col gap-2 rounded-lg border border-nexus-border bg-nexus-surface/50 p-3">
+          <div key={s.id} className="flex flex-col gap-2 rounded-xl border border-nexus-border bg-nexus-surface/50 p-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-nexus-fg">{s.title ?? s.name}</p>
@@ -240,10 +240,10 @@ function SkillsTab({ flash }: { flash: (m: string) => void }) {
 
       {/* Ecosystem search */}
       <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search skills — e.g. “pdf”, “excel”, “security”…"
-        className="w-full rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+        className="w-full rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
 
       {searchError && (
-        <div className="rounded-lg border border-red-900/40 bg-red-950/20 p-3">
+        <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-3">
           <p className="text-xs text-red-400">Couldn't search the ecosystem: {searchError}</p>
           <p className="mt-1 text-[11px] text-nexus-muted">GitHub may be rate-limiting unauthenticated search — try again shortly, or install from a URL below.</p>
         </div>
@@ -256,7 +256,7 @@ function SkillsTab({ flash }: { flash: (m: string) => void }) {
       ) : (
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {repos.map(r => (
-            <div key={r.fullName} className="flex flex-col gap-2 rounded-lg border border-nexus-border bg-nexus-surface/50 p-3">
+            <div key={r.fullName} className="flex flex-col gap-2 rounded-xl border border-nexus-border bg-nexus-surface/50 p-3">
               <div className="flex items-start justify-between gap-2">
                 <p className="min-w-0 truncate text-sm font-medium text-nexus-fg">{r.fullName}</p>
                 <span className="flex-shrink-0 text-[10px] text-nexus-muted">★ {r.stars}</span>
@@ -279,9 +279,9 @@ function SkillsTab({ flash }: { flash: (m: string) => void }) {
         <h3 className="mb-2 text-sm font-medium text-nexus-fg">Install from a URL</h3>
         <div className="flex gap-2">
           <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://github.com/owner/repo"
-            className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+            className="flex-1 rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
           <button onClick={installFromUrl} disabled={installing || !url.trim()}
-            className="rounded-lg bg-gold-sheen px-4 py-2 text-sm font-medium text-black transition hover:brightness-110 disabled:opacity-50">
+            className="rounded-xl bg-gold-sheen px-4 py-2 text-sm font-medium text-black transition hover:brightness-110 disabled:opacity-50">
             {installing ? "Installing…" : "Install"}
           </button>
         </div>
@@ -375,7 +375,7 @@ function InstalledTab({ flash }: { flash: (m: string) => void }) {
           <button onClick={() => setShowAdd(!showAdd)} className="rounded-md border border-nexus-border px-3 py-1 text-xs text-nexus-fg hover:bg-nexus-surface">+ Add manually</button>
         </div>
         {showAdd && (
-          <div className="mb-2 rounded-lg border border-nexus-border bg-nexus-surface/40 p-3">
+          <div className="mb-2 rounded-xl border border-nexus-border bg-nexus-surface/40 p-3">
             <div className="grid grid-cols-2 gap-2">
               <input value={addForm.id} onChange={e => setAddForm({ ...addForm, id: e.target.value })} placeholder="id (lowercase)" className="rounded-md border border-nexus-border bg-nexus-surface px-2 py-1.5 text-xs text-nexus-fg outline-none focus:border-nexus-accent" />
               <input value={addForm.name} onChange={e => setAddForm({ ...addForm, name: e.target.value })} placeholder="name" className="rounded-md border border-nexus-border bg-nexus-surface px-2 py-1.5 text-xs text-nexus-fg outline-none focus:border-nexus-accent" />
@@ -403,7 +403,7 @@ function InstalledTab({ flash }: { flash: (m: string) => void }) {
         ) : (
           <div className="flex flex-col gap-2">
             {mcpServers.map(s => (
-              <div key={s.config.id} className="rounded-lg border border-nexus-border bg-nexus-surface/40 p-3">
+              <div key={s.config.id} className="rounded-xl border border-nexus-border bg-nexus-surface/40 p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className={`h-1.5 w-1.5 rounded-full ${dot(s.status)}`} title={s.status} />

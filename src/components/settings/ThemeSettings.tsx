@@ -152,7 +152,7 @@ export function ThemeSettings({ onSettingsChange }: Props) {
   return (
     <div className="flex flex-col gap-6">
       {/* Stars */}
-      <div className="rounded-lg border border-nexus-border bg-nexus-surface/30 p-4 space-y-3">
+      <div className="rounded-xl border border-nexus-border bg-nexus-surface/30 p-4 space-y-3">
         <h3 className="text-sm font-medium text-nexus-fg flex items-center gap-2">
           <span className="text-nexus-gold">✦</span> Sparkle Stars
         </h3>
@@ -168,7 +168,7 @@ export function ThemeSettings({ onSettingsChange }: Props) {
       </div>
 
       {/* Comets */}
-      <div className="rounded-lg border border-nexus-border bg-nexus-surface/30 p-4 space-y-3">
+      <div className="rounded-xl border border-nexus-border bg-nexus-surface/30 p-4 space-y-3">
         <h3 className="text-sm font-medium text-nexus-fg flex items-center gap-2">
           <span className="text-nexus-gold">☄</span> Comets
         </h3>
@@ -182,7 +182,7 @@ export function ThemeSettings({ onSettingsChange }: Props) {
       </div>
 
       {/* Global */}
-      <div className="rounded-lg border border-nexus-border bg-nexus-surface/30 p-4 space-y-3">
+      <div className="rounded-xl border border-nexus-border bg-nexus-surface/30 p-4 space-y-3">
         <h3 className="text-sm font-medium text-nexus-fg flex items-center gap-2">
           <span className="text-nexus-gold">◐</span> Global
         </h3>

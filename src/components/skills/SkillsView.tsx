@@ -113,29 +113,29 @@ export function SkillsView() {
         {/* Search + new */}
         <div className="mb-4 flex gap-2">
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search skills…"
-            className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-4 py-2.5 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+            className="flex-1 rounded-xl border border-nexus-border bg-nexus-surface px-4 py-2.5 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
           <button onClick={() => importSkills()} title="Scan the local Hermes skills folder for SKILL.md files"
-            className="rounded-lg border border-gold-faint px-3 py-2 text-sm text-nexus-gold hover:bg-nexus-surface">Import Hermes</button>
+            className="rounded-xl border border-gold-faint px-3 py-2 text-sm text-nexus-gold hover:bg-nexus-surface">Import Hermes</button>
           <button onClick={importFromFolder} title="Pick a folder of SKILL.md files"
-            className="rounded-lg border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface">Folder…</button>
+            className="rounded-xl border border-nexus-border px-3 py-2 text-sm text-nexus-fg hover:bg-nexus-surface">Folder…</button>
           <button onClick={() => setShowForm(v => !v)}
-            className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-nexus-fg hover:bg-nexus-surface">{showForm ? "Cancel" : "+ New skill"}</button>
+            className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-nexus-fg hover:bg-nexus-surface">{showForm ? "Cancel" : "+ New skill"}</button>
         </div>
         {notice && <p className="-mt-2 mb-2 text-xs text-nexus-gold">{notice}</p>}
 
         {/* Create form */}
         {showForm && (
-          <div className="mb-5 flex flex-col gap-2 rounded-lg border border-gold-faint bg-nexus-surface/40 p-4">
+          <div className="mb-5 flex flex-col gap-2 rounded-xl border border-gold-faint bg-nexus-surface/40 p-4">
             <input value={nName} onChange={e => setNName(e.target.value)} placeholder="Skill name"
-              className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+              className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
             <input value={nDesc} onChange={e => setNDesc(e.target.value)} placeholder="One-line description"
-              className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+              className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
             <input value={nTriggers} onChange={e => setNTriggers(e.target.value)} placeholder="Triggers (comma-separated keywords)"
-              className="rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+              className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
             <textarea value={nInstr} onChange={e => setNInstr(e.target.value)} rows={3} placeholder="Instructions — the procedure to follow…"
-              className="resize-none rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+              className="resize-none rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
             <button onClick={createSkill} disabled={!nName.trim() || !nInstr.trim()}
-              className="self-start rounded-lg bg-nexus-accent px-5 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Create skill</button>
+              className="self-start rounded-xl bg-nexus-accent px-5 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50">Create skill</button>
           </div>
         )}
 
@@ -148,7 +148,7 @@ export function SkillsView() {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {filtered.filter(s => s.category === cat).map(s => (
                 <div key={s.id} title={`Triggers: ${s.triggers.join(", ")}`}
-                  className={`flex items-start justify-between gap-3 rounded-lg border bg-nexus-surface px-3 py-2.5 transition ${s.enabled ? "border-nexus-border" : "border-nexus-border/40 opacity-60"}`}>
+                  className={`flex items-start justify-between gap-3 rounded-xl border bg-nexus-surface px-3 py-2.5 transition ${s.enabled ? "border-nexus-border" : "border-nexus-border/40 opacity-60"}`}>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="truncate text-sm font-medium text-nexus-fg">{s.name}</p>

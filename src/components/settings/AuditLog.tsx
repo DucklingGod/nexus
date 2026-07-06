@@ -104,7 +104,7 @@ export function AuditLog() {
         <h3 className="text-sm font-medium text-nexus-fg">Audit Log</h3>
         <button
           onClick={handleExport}
-          className="rounded-lg border border-nexus-border px-3 py-1.5 text-xs text-nexus-muted hover:bg-nexus-surface hover:text-nexus-accent transition"
+          className="rounded-xl border border-nexus-border px-3 py-1.5 text-xs text-nexus-muted hover:bg-nexus-surface hover:text-nexus-accent transition"
         >
           {copied ? '✓ Copied' : 'Export JSON'}
         </button>
@@ -119,7 +119,7 @@ export function AuditLog() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search tool name…"
-            className="w-full rounded-lg border border-nexus-border bg-nexus-surface py-2 pl-8 pr-3 text-xs text-nexus-fg placeholder-nexus-muted/40 outline-none focus:border-nexus-accent"
+            className="w-full rounded-xl border border-nexus-border bg-nexus-surface py-2 pl-8 pr-3 text-xs text-nexus-fg placeholder-nexus-muted/40 outline-none focus:border-nexus-accent"
           />
         </div>
         <div className="flex gap-1">
@@ -127,7 +127,7 @@ export function AuditLog() {
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`rounded-lg border px-3 py-1.5 text-xs capitalize transition ${
+              className={`rounded-xl border px-3 py-1.5 text-xs capitalize transition ${
                 statusFilter === s
                   ? 'border-nexus-accent bg-nexus-surface text-nexus-accent'
                   : 'border-nexus-border text-nexus-muted hover:text-nexus-fg'
@@ -140,7 +140,7 @@ export function AuditLog() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-lg border border-nexus-border">
+      <div className="overflow-hidden rounded-xl border border-nexus-border">
         <table className="w-full text-left text-xs">
           <thead>
             <tr className="border-b border-nexus-border bg-nexus-surface/40">

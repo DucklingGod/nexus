@@ -64,7 +64,7 @@ export function TokenDashboard() {
             <button
               key={r}
               onClick={() => setRange(r)}
-              className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${
+              className={`rounded-xl px-3 py-1.5 text-xs transition-colors ${
                 range === r
                   ? "bg-nexus-accent text-black"
                   : "text-nexus-muted hover:bg-nexus-surface hover:text-nexus-fg"
@@ -81,7 +81,7 @@ export function TokenDashboard() {
               .then(setStats)
               .catch(() => {});
           }}
-          className="rounded-lg px-2 py-1 text-xs text-nexus-muted hover:bg-nexus-surface hover:text-nexus-fg"
+          className="rounded-xl px-2 py-1 text-xs text-nexus-muted hover:bg-nexus-surface hover:text-nexus-fg"
         >
           ↻ Refresh
         </button>
@@ -121,7 +121,7 @@ export function TokenDashboard() {
 
       {/* Daily usage chart */}
       {stats.byDay.length > 0 && (
-        <div className="rounded-lg border border-nexus-border bg-nexus-surface p-4">
+        <div className="rounded-xl border border-nexus-border bg-nexus-surface p-4">
           <h3 className="mb-3 text-xs font-medium text-nexus-fg">Daily Cost</h3>
           <div className="flex items-end gap-1" style={{ height: 120 }}>
             {stats.byDay.slice(-14).map(d => {
@@ -152,7 +152,7 @@ export function TokenDashboard() {
 
       {/* Cost by model */}
       {stats.byModel.length > 0 && (
-        <div className="rounded-lg border border-nexus-border bg-nexus-surface p-4">
+        <div className="rounded-xl border border-nexus-border bg-nexus-surface p-4">
           <h3 className="mb-3 text-xs font-medium text-nexus-fg">Cost by Model</h3>
           <div className="flex flex-col gap-2">
             {stats.byModel.map(m => {
@@ -184,7 +184,7 @@ export function TokenDashboard() {
       )}
 
       {/* Token breakdown */}
-      <div className="rounded-lg border border-nexus-border bg-nexus-surface p-4">
+      <div className="rounded-xl border border-nexus-border bg-nexus-surface p-4">
         <h3 className="mb-3 text-xs font-medium text-nexus-fg">Token Breakdown</h3>
         <div className="flex items-center gap-4">
           <div className="flex-1">
@@ -232,7 +232,7 @@ function SummaryCard({ label, value, sub, icon, muted, highlight }: {
   highlight?: boolean;
 }) {
   return (
-    <div className={`rounded-lg border p-3 ${highlight ? "border-green-500/40 bg-green-500/5" : "border-nexus-border bg-nexus-surface"} ${muted ? "opacity-60" : ""}`}>
+    <div className={`rounded-xl border p-3 ${highlight ? "border-green-500/40 bg-green-500/5" : "border-nexus-border bg-nexus-surface"} ${muted ? "opacity-60" : ""}`}>
       <div className="mb-1 flex items-center gap-1.5">
         <span className={highlight ? "text-green-400" : "text-nexus-muted"}>{icon}</span>
         <span className="text-[10px] text-nexus-muted">{label}</span>

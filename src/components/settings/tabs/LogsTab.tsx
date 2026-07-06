@@ -16,14 +16,14 @@ export default function LogsTab() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <input type="text" value={logFilter} onChange={e => setLogFilter(e.target.value)} placeholder="Filter logs…"
-          className="flex-1 rounded-lg border border-nexus-border bg-nexus-surface px-3 py-2 text-xs text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
-        <button onClick={refreshLogs} className="rounded-lg border border-nexus-border px-3 py-2 text-xs text-nexus-fg hover:bg-nexus-surface">Refresh</button>
+          className="flex-1 rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-xs text-nexus-fg placeholder-nexus-muted outline-none focus:border-nexus-accent" />
+        <button onClick={refreshLogs} className="rounded-xl border border-nexus-border px-3 py-2 text-xs text-nexus-fg hover:bg-nexus-surface">Refresh</button>
         <label className="flex cursor-pointer items-center gap-1.5 text-xs text-nexus-muted">
           <input type="checkbox" checked={logsAuto} onChange={e => setLogsAuto(e.target.checked)} className="accent-nexus-accent" /> Auto
         </label>
-        <button onClick={handleClearLogs} className="rounded-lg border border-nexus-border px-3 py-2 text-xs text-red-400 hover:bg-nexus-surface">Clear</button>
+        <button onClick={handleClearLogs} className="rounded-xl border border-nexus-border px-3 py-2 text-xs text-red-400 hover:bg-nexus-surface">Clear</button>
       </div>
-      <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-nexus-border bg-nexus-bg/60 p-3 font-mono text-[11px] leading-relaxed">
+      <div className="max-h-[60vh] overflow-y-auto rounded-xl border border-nexus-border bg-nexus-bg/60 p-3 font-mono text-[11px] leading-relaxed">
         {(() => {
           const q = logFilter.trim().toLowerCase();
           const filtered = q ? logs.filter(l => l.text.toLowerCase().includes(q)) : logs;

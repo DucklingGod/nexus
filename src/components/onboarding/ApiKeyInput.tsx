@@ -60,7 +60,7 @@ export function ApiKeyInput({ provider, onComplete, onBack }: Props) {
             value={baseUrl}
             onChange={e => { setBaseUrl(e.target.value); setTested(false); }}
             placeholder="http://localhost:1234/v1"
-            className="w-full rounded-lg border border-nexus-border bg-nexus-surface px-4 py-3 text-sm text-neutral-200 placeholder-neutral-600 outline-none focus:border-nexus-accent"
+            className="w-full rounded-xl border border-nexus-border bg-nexus-surface px-4 py-3 text-sm text-neutral-200 placeholder-neutral-600 outline-none focus:border-nexus-accent"
           />
           <p className="mt-1 text-xs text-neutral-600">
             Default: {provider.baseUrl} — change port if needed
@@ -76,7 +76,7 @@ export function ApiKeyInput({ provider, onComplete, onBack }: Props) {
             value={apiKey}
             onChange={e => { setApiKey(e.target.value); setTested(false); }}
             placeholder={`Enter your ${provider.name} API key`}
-            className="w-full rounded-lg border border-nexus-border bg-nexus-surface px-4 py-3 text-sm text-neutral-200 placeholder-neutral-600 outline-none focus:border-nexus-accent"
+            className="w-full rounded-xl border border-nexus-border bg-nexus-surface px-4 py-3 text-sm text-neutral-200 placeholder-neutral-600 outline-none focus:border-nexus-accent"
           />
           {provider.envVar && (
             <p className="mt-1 text-xs text-neutral-600">Env: {provider.envVar}</p>
@@ -93,20 +93,20 @@ export function ApiKeyInput({ provider, onComplete, onBack }: Props) {
       )}
 
       <div className="flex gap-3">
-        <button onClick={onBack} className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-neutral-400 hover:bg-nexus-surface">
+        <button onClick={onBack} className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-neutral-400 hover:bg-nexus-surface">
           Back
         </button>
         <button
           onClick={handleTest}
           disabled={testing || (isLocal ? !baseUrl.trim() : !apiKey.trim())}
-          className="rounded-lg border border-nexus-border px-4 py-2 text-sm text-neutral-400 hover:bg-nexus-surface disabled:opacity-50"
+          className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-neutral-400 hover:bg-nexus-surface disabled:opacity-50"
         >
           {testing ? "Testing..." : "Test & Save"}
         </button>
         <button
           onClick={() => onComplete({ apiKey: isLocal ? "" : apiKey.trim(), baseUrl: isLocal ? baseUrl : undefined })}
           disabled={!tested}
-          className="rounded-lg bg-nexus-accent px-6 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
+          className="rounded-xl bg-nexus-accent px-6 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
         >
           Continue
         </button>

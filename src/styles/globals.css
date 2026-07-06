@@ -94,6 +94,21 @@ body {
   transform-origin: inherit;
 }
 
+/* Toast / notice slide-up animation */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-toast {
+  animation: toast-in 0.2s ease-out forwards;
+}
+
 /* Liquid gold fill — for the loading screen wordmark.
    The gradient is 300% tall: bottom = rich gold, middle = warm gold, top = faded.
    We animate background-position upward so gold "rises" into the text. */
