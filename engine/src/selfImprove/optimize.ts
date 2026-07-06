@@ -20,7 +20,7 @@ import { randomUUID } from "node:crypto";
 import type { ProviderConfig } from "../providers/types.ts";
 import { chat } from "../providers/client.ts";
 import { listExperiences, type Experience } from "./experience.ts";
-import { getAgentPersonality, setAgentPersonality } from "../db/settings.ts";
+import { getAgentPersonality, setAgentPersonality, getSetting } from "../db/settings.ts";
 
 const DATA_DIR = join(
   process.env.NEXUS_DATA_DIR ?? process.env.APPDATA ?? join(process.env.HOME ?? ".", ".nexus"),
@@ -196,4 +196,48 @@ export function applyPromptVersion(id: string): PromptVersion | null {
   setAgentPersonality({ instructions: row.new_text });
   db.prepare("UPDATE prompt_versions SET applied = 1 WHERE id = ?").run(id);
   return rowToPV({ ...row, applied: 1 });
+}
+
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Auto-trigger optimization after low-scoring evaluations (Task 65).
+ * Returns true if an optimization run was actually kicked off, false if skipped
+ * (disabled via setting, debounced, or scores acceptable).
+ */
+export async function maybeAutoOptimize(
+  config: ProviderConfig,
+  model: string,
+  completion: number,
+  satisfaction: number,
+  send?: (obj: unknown) => void,
+): Promise<boolean> {
+  // 1. Gate: auto-trigger must be enabled (default on).
+  if (getSetting("optimize.autoTrigger") === "false") return false;
+
+  // 2. Debounce: skip if a prompt version was created less than 24h ago.
+  const last = db
+    .prepare("SELECT created_at FROM prompt_versions ORDER BY created_at DESC LIMIT 1")
+    .get() as { created_at: number } | undefined;
+  if (last && Date.now() - last.created_at < TWENTY_FOUR_HOURS_MS) return false;
+
+  // 3. Fire-and-forget optimization; notify caller on completion.
+  void runOptimization(config, model)
+    .then((result) => {
+      if (result.proposal && send) {
+        send({
+          jsonrpc: "2.0",
+          method: "chat.optimize_proposal",
+          params: {
+            id: result.proposal.id,
+            score: result.proposal.score,
+            baselineScore: result.proposal.baseline_score,
+            reason: result.proposal.reason,
+          },
+        });
+      }
+    })
+    .catch(() => {});
+
+  return true;
 }

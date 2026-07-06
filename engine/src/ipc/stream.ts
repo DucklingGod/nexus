@@ -19,6 +19,7 @@ import { isAutoExtractEnabled, autoExtract } from "../context/autoExtract.ts";
 import { logExperience, type ToolStep } from "../selfImprove/experience.ts";
 import { injectCorrections } from "../selfImprove/correction.ts";
 import { evaluateSession } from "../selfImprove/evaluate.ts";
+import { maybeAutoOptimize } from "../selfImprove/optimize.ts";
 import { abortRequested } from "../main.ts";
 import { looksUnfinished, MAX_AUTO_CONTINUE, CONTINUE_NUDGE } from "./autocontinue.ts";
 
@@ -159,7 +160,19 @@ export async function streamChat(
         }
         // Self-evaluation (Task 49b): score the turn (opt-in).
         if (getSetting("evaluation.enabled") === "true") {
-          void evaluateSession(config, fullMsgs, model).catch(() => {});
+          void evaluateSession(config, fullMsgs, model)
+            .then((r) => {
+              if (r) {
+                const { evaluation: ev, trend } = r;
+                if (ev.completion < 60 || ev.satisfaction < 50) {
+                  void maybeAutoOptimize(config, model, ev.completion, ev.satisfaction, send);
+                }
+                if (trend?.alerted) {
+                  send({ jsonrpc: "2.0", method: "chat.trend_alert", params: { direction: trend.direction, delta_5v20: trend.delta_5v20, consecutive_low: trend.consecutive_low } });
+                }
+              }
+            })
+            .catch(() => {});
         }
         // Auto-extract: distill durable facts into .md context files (opt-in).
         if (isAutoExtractEnabled()) {
@@ -207,7 +220,17 @@ export async function streamChat(
       send({ jsonrpc: "2.0", method: "chat.experience_logged", params: { id: expId } });
     }
     if (getSetting("evaluation.enabled") === "true") {
-      void evaluateSession(config, noToolMsgs, model).catch(() => {});
+      void evaluateSession(config, noToolMsgs, model).then((r) => {
+        if (r) {
+          const { evaluation: ev, trend } = r;
+          if (ev.completion < 60 || ev.satisfaction < 50) {
+            void maybeAutoOptimize(config, model, ev.completion, ev.satisfaction, send);
+          }
+          if (trend?.alerted) {
+            send({ jsonrpc: "2.0", method: "chat.trend_alert", params: { direction: trend.direction, delta_5v20: trend.delta_5v20, consecutive_low: trend.consecutive_low } });
+          }
+        }
+      }).catch(() => {});
     }
     // Auto-extract: distill durable facts into .md context files (opt-in).
     if (isAutoExtractEnabled()) {

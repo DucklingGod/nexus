@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import type { ChatMessage, ProviderConfig } from "../providers/types.ts";
 import { getSetting } from "../db/settings.ts";
 import { chat } from "../providers/client.ts";
+import { checkTrend, type EvaluationTrend } from "./trends.ts";
 
 const DATA_DIR = join(
   process.env.NEXUS_DATA_DIR ?? process.env.APPDATA ?? join(process.env.HOME ?? ".", ".nexus"),
@@ -70,7 +71,7 @@ export async function evaluateSession(
   config: ProviderConfig,
   messages: ChatMessage[],
   model: string,
-): Promise<Evaluation | null> {
+): Promise<{ evaluation: Evaluation; trend: EvaluationTrend | null } | null> {
   if (getSetting("evaluation.enabled") !== "true") return null;
   const transcript = messages
     .filter((m) => m.role !== "system")
@@ -94,10 +95,13 @@ export async function evaluateSession(
   db.prepare(
     "INSERT INTO evaluations (id, completion, satisfaction, efficiency, note, created_at) VALUES (?,?,?,?,?,?)",
   ).run(id, parsed.completion, parsed.satisfaction, parsed.efficiency, parsed.note ?? null, Date.now());
-  return {
+  const evaluation: Evaluation = {
     id, completion: parsed.completion, satisfaction: parsed.satisfaction,
     efficiency: parsed.efficiency, note: parsed.note ?? null, created_at: Date.now(),
   };
+  // Trend analysis (Task 66): compute rolling averages after each evaluation.
+  const trend = checkTrend();
+  return { evaluation, trend };
 }
 
 export function getLatestEvaluation(): Evaluation | null {

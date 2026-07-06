@@ -23,7 +23,8 @@ import { addHost, listHosts, updateHost, deleteHost } from "../tools/sshStore.ts
 import { listExperiences, setFeedback } from "../selfImprove/experience.ts";
 import { addCorrection, listCorrections, deleteCorrection, extractCorrection } from "../selfImprove/correction.ts";
 import { getLatestEvaluation, listEvaluations } from "../selfImprove/evaluate.ts";
-import { runOptimization, listPromptVersions, applyPromptVersion } from "../selfImprove/optimize.ts";
+import { getLatestTrend, listTrends } from "../selfImprove/trends.ts";
+import { runOptimization, listPromptVersions, applyPromptVersion, maybeAutoOptimize } from "../selfImprove/optimize.ts";
 import { resetAgentData } from "../system/reset.ts";
 import { getServers, addServer, removeServer, toggleServer, connectServer, disconnectServer, getServerStates, type McpServerConfig } from "../mcp/client.ts";
 import { fetchCatalog } from "../mcp/registry.ts";
@@ -288,6 +289,11 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
         const { limit } = (req.params ?? {}) as { limit?: number };
         return { ...base, result: { evaluations: listEvaluations(limit ?? 20) } };
       }
+      // Self-improvement — trend detector (Task 66)
+      case "evaluation.trends": {
+        const { limit } = (req.params ?? {}) as { limit?: number };
+        return { ...base, result: { trends: listTrends(limit ?? 20), latest: getLatestTrend() } };
+      }
 
       // Self-improvement — prompt optimizer (Task 61). optimize.run needs a
       // brokered apiKey (Rust's optimize_prompt command injects it); list/apply
@@ -304,6 +310,12 @@ export async function handle(req: RpcRequest): Promise<RpcResponse> {
         const { id } = req.params as { id: string };
         const version = applyPromptVersion(id);
         return version ? { ...base, result: { version } } : { ...base, error: { code: -32602, message: `Unknown prompt version: ${id}` } };
+      }
+      // Manual trigger (Task 65): bypass debounce / auto-trigger setting.
+      case "optimize.trigger": {
+        const { config } = req.params as { config: ProviderConfig & { model: string } };
+        const triggered = await maybeAutoOptimize(config, config.model, 0, 0);
+        return { ...base, result: { triggered } };
       }
       case "connector.start": {
         const { platform, token, config } = req.params as { platform: string; token: string; config: ProviderConfig & { model: string } };
