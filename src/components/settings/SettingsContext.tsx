@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { emit } from "@tauri-apps/api/event";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { secureHas, secureSet, secureDelete } from "../../lib/secure";
 import { PROVIDERS, type ProviderInfo } from "../../lib/providers";
@@ -443,6 +444,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setConfig({ provider: selectedProvider.id, model, baseUrl: selectedProvider.baseUrl });
       setChangingProvider(false);
       setChangingModel(false);
+      // Tell the chat UI (a live overlay, never unmounted) to re-read the now-current
+      // provider/model so its header + model picker reflect the change immediately.
+      void emit("provider-changed").catch(() => {});
       showMsg(`Switched to ${selectedProvider.name} / ${model}`);
     } catch (e) { showMsg(`Error: ${e}`); } finally { setSaving(false); }
   }

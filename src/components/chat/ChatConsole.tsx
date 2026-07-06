@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useChat, type ImageAttachment } from "../../hooks/useChat";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { RightPanel } from "../panel/RightPanel";
@@ -134,18 +135,29 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
     setErrorDismissed(false);
   }, [error]);
 
-  // Load current provider + model
-  useEffect(() => {
+  // Load the current provider + model. Runs on mount AND whenever the provider
+  // is changed in Settings — which is a z-50 overlay that never unmounts this
+  // component, so a one-time mount effect would leave the chat header/model
+  // picker showing the old provider. SettingsContext emits "provider-changed".
+  const loadProvider = useCallback(() => {
     invoke<{ provider: string; model: string; baseUrl: string } | null>("provider_get")
       .then(cfg => {
         if (cfg) {
           setModelName(cfg.model);
           setProviderId(cfg.provider);
           setBaseUrl(cfg.baseUrl);
+          setModelList([]); // drop the old provider's cached model list so the dropdown re-fetches
         }
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => { loadProvider(); }, [loadProvider]);
+
+  useEffect(() => {
+    const un = listen("provider-changed", () => loadProvider());
+    return () => { un.then(f => f()).catch(() => {}); };
+  }, [loadProvider]);
 
   const safety = SAFETY_MODES.find(m => m.id === safetyMode) ?? SAFETY_MODES[0];
   const reasoning = REASONING_LEVELS.find(r => r.id === reasoningLevel) ?? REASONING_LEVELS[1];
