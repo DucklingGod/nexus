@@ -742,6 +742,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
 
       {/* Right panel */}
       <RightPanel
+        messages={messages}
         toolEvents={toolEvents}
         filesChanged={[]}
         collapsed={rightPanelCollapsed}
