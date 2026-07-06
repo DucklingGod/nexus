@@ -6,6 +6,7 @@ import { requestApproval, requestUserChoice } from "../tools/approval.ts";
 import { getSetting } from "../db/settings.ts";
 import { augmentWithContext } from "../knowledge/documents.ts";
 import { formatEnvContext } from "../system/context.ts";
+import { getToolGuides } from "../system/toolGuides.ts";
 import { recordTokenUsage, calculateCost } from "../tokens/usage.ts";
 import { estimateTokens } from "../tokens/budget.ts";
 import { maybeRouteModel } from "../tokens/router.ts";
@@ -111,7 +112,14 @@ export async function streamChat(
   // proactively reach for tools instead of asking the user to use them.
   const toolText = listToolsText();
   const envText = formatEnvContext();
-  const injected = [envText, toolText].filter(Boolean).join("\n\n");
+  // Get active tool names for detailed usage guides
+  const disabledRaw = getSetting("tools.disabled");
+  const disabled: string[] = disabledRaw ? JSON.parse(disabledRaw) : [];
+  const activeToolNames = listToolsForLLM()
+    .map((t: any) => t.function?.name)
+    .filter(Boolean);
+  const guideText = getToolGuides(activeToolNames);
+  const injected = [envText, toolText, guideText].filter(Boolean).join("\n\n");
   if (injected) {
     const sysIdx = ragMessages.findIndex((m) => m.role === "system");
     if (sysIdx >= 0) ragMessages[sysIdx] = { ...ragMessages[sysIdx], content: ragMessages[sysIdx].content + "\n\n" + injected };
