@@ -606,12 +606,20 @@ export function startTelegram(token: string, config: ConnectorConfig, log: (msg:
   let running = true;
   let offset = 0;
   const api = `https://api.telegram.org/bot${token}`;
+  const processedUpdates = new Set<number>();
 
   (async () => {
     try {
       const me = await fetch(`${api}/getMe`).then((r) => r.json());
       if (!me.ok) { log("invalid bot token"); running = false; return; }
       log(`connected as @${me.result.username} — listening`);
+
+      // IMPORTANT: Delete any existing webhook before long-polling
+      // If a webhook is set, getUpdates won't receive messages properly
+      const webhookRes = await fetch(`${api}/deleteWebhook`).then((r) => r.json()).catch(() => null);
+      if (webhookRes?.ok) {
+        log("cleared existing webhook");
+      }
     } catch {
       log("connection failed"); running = false; return;
     }
@@ -622,6 +630,14 @@ export function startTelegram(token: string, config: ConnectorConfig, log: (msg:
         if (!res.ok) { await sleep(2000); continue; }
         for (const upd of res.result ?? []) {
           offset = upd.update_id + 1;
+          // Deduplication: skip already-processed updates
+          if (processedUpdates.has(upd.update_id)) continue;
+          processedUpdates.add(upd.update_id);
+          // Keep set size bounded (last 1000 updates)
+          if (processedUpdates.size > 1000) {
+            const arr = Array.from(processedUpdates);
+            for (let i = 0; i < arr.length - 500; i++) processedUpdates.delete(arr[i]);
+          }
           const msg = upd.message;
           if (!msg || !running) continue;
 
