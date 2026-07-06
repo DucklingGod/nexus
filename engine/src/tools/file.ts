@@ -92,7 +92,7 @@ export function registerFileTools(): void {
     {
       name: "send_file",
       category: "file" as const,
-      description: "Send a file to the user as a downloadable attachment in the chat. Use this after creating a file so the user can download it directly without searching for it on their filesystem. Always use this after file_write to deliver the result.",
+      description: "MANDATORY after creating any file: deliver it to the user as a downloadable attachment in the chat. Call this immediately after file_write, terminal_exec (that creates a file), or any tool that produces an output file. The user cannot see files on disk — they need this to get the result. Always pass the absolute path and a friendly label.",
       parameters: [
         { name: "path", type: "string", description: "Path to the file to send", required: true },
         { name: "label", type: "string", description: "Friendly name to show the user (e.g. 'Budget spreadsheet')" },
