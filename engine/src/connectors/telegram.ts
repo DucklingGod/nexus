@@ -29,23 +29,9 @@ function escapeMarkdownV2(text: string): string {
   }).join("");
 }
 
-/** Try to send with MarkdownV2; fall back to plain text if Telegram rejects it. */
+/** Send message to Telegram. Always plain text — no MarkdownV2 to avoid
+ *  fallback double-send issues. Splits long messages into chunks. */
 async function sendFormatted(api: string, chatId: number, text: string, replyTo?: number): Promise<void> {
-  if (text.length <= 4000) {
-    const escaped = escapeMarkdownV2(text);
-    const body: Record<string, unknown> = {
-      chat_id: chatId,
-      text: escaped,
-      parse_mode: "MarkdownV2",
-      reply_parameters: replyTo ? { message_id: replyTo } : undefined,
-    };
-    const res = await fetch(`${api}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }).then(r => r.json()).catch(() => ({ ok: false }));
-    if (res.ok) return;
-  }
   await sendLongMessage(api, chatId, text, replyTo);
 }
 
@@ -607,6 +593,7 @@ export function startTelegram(token: string, config: ConnectorConfig, log: (msg:
   let offset = 0;
   const api = `https://api.telegram.org/bot${token}`;
   const processedUpdates = new Set<number>();
+  const processingChats = new Set<string>(); // lock per chat to prevent concurrent processing
 
   (async () => {
     try {
@@ -665,6 +652,13 @@ export function startTelegram(token: string, config: ConnectorConfig, log: (msg:
 
           if (!userText) continue;
 
+          // Skip if this chat is currently being processed (prevent concurrent handling)
+          const chatKey = String(chatId);
+          if (processingChats.has(chatKey)) {
+            log(`skipping duplicate for chat ${chatKey} (already processing)`);
+            continue;
+          }
+
           log(`message from ${msg.from?.username ?? chatId}: ${userText.slice(0, 50)}`);
 
           // ── Slash commands ──
@@ -698,6 +692,9 @@ export function startTelegram(token: string, config: ConnectorConfig, log: (msg:
           sendTyping();
           const typingTimer = setInterval(sendTyping, 4000);
 
+          // Acquire lock for this chat
+          processingChats.add(chatKey);
+
           let reply: string;
           let attachments: string[] = [];
           try {
@@ -710,6 +707,8 @@ export function startTelegram(token: string, config: ConnectorConfig, log: (msg:
             reply = "Sorry, I hit an error handling that.";
           } finally {
             clearInterval(typingTimer);
+            // Release lock
+            processingChats.delete(chatKey);
           }
 
           // ── Send reply with formatting ──
