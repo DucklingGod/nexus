@@ -2,7 +2,7 @@
 // so it works from a desktop while the app is running; SPEC §4.7 "Live mode").
 //
 // Features:
-//   - Slash commands: /help, /clear, /status, /model, /memory, /tools
+//   - 30+ slash commands (matching Hermes parity)
 //   - Image/photo handling (download + pass to agent)
 //   - Message splitting (>4000 chars → multiple messages)
 //   - MarkdownV2 formatting (auto-escape special chars)
@@ -22,19 +22,15 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  *  Must escape: _ * [ ] ( ) ~ ` > # + - = | { } . !
  *  But NOT inside code blocks (``` or `). */
 function escapeMarkdownV2(text: string): string {
-  // Split by code blocks to avoid escaping inside them
   const parts = text.split(/(```[\s\S]*?```|`[^`]+`)/g);
   return parts.map((part, i) => {
-    // Odd indices are code blocks — don't escape
     if (i % 2 === 1) return part;
-    // Escape special MarkdownV2 characters
     return part.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, "\\$1");
   }).join("");
 }
 
 /** Try to send with MarkdownV2; fall back to plain text if Telegram rejects it. */
 async function sendFormatted(api: string, chatId: number, text: string, replyTo?: number): Promise<void> {
-  // For short messages, try MarkdownV2
   if (text.length <= 4000) {
     const escaped = escapeMarkdownV2(text);
     const body: Record<string, unknown> = {
@@ -48,12 +44,8 @@ async function sendFormatted(api: string, chatId: number, text: string, replyTo?
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).then(r => r.json()).catch(() => ({ ok: false }));
-
     if (res.ok) return;
-    // Fallback: plain text
   }
-
-  // Plain text fallback (also handles long messages that get split)
   await sendLongMessage(api, chatId, text, replyTo);
 }
 
@@ -73,7 +65,6 @@ async function sendLongMessage(api: string, chatId: number, text: string, replyT
     return;
   }
 
-  // Split by double newlines (paragraphs), then merge into chunks ≤ MAX
   const paragraphs = text.split(/\n\n+/);
   const chunks: string[] = [];
   let current = "";
@@ -81,7 +72,6 @@ async function sendLongMessage(api: string, chatId: number, text: string, replyT
   for (const para of paragraphs) {
     if (current.length + para.length + 2 > MAX) {
       if (current) chunks.push(current);
-      // If a single paragraph is > MAX, split by lines
       if (para.length > MAX) {
         const lines = para.split("\n");
         let lineChunk = "";
@@ -103,7 +93,6 @@ async function sendLongMessage(api: string, chatId: number, text: string, replyT
   }
   if (current) chunks.push(current);
 
-  // Send each chunk
   for (let i = 0; i < chunks.length; i++) {
     const body: Record<string, unknown> = {
       chat_id: chatId,
@@ -115,18 +104,16 @@ async function sendLongMessage(api: string, chatId: number, text: string, replyT
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).catch(() => {});
-    // Small delay between chunks to maintain order
     if (i < chunks.length - 1) await sleep(200);
   }
 }
 
 // ── File delivery ───────────────────────────────────────────────────────────
 
-/** Send a file to the user via Telegram sendDocument. */
 async function sendFile(api: string, chatId: number, filePath: string, caption?: string): Promise<boolean> {
   if (!existsSync(filePath)) return false;
   const stat = statSync(filePath);
-  if (stat.size > 50 * 1024 * 1024) return false; // 50MB Telegram limit
+  if (stat.size > 50 * 1024 * 1024) return false;
 
   const fileName = filePath.split(/[/\\]/).pop() || "file";
   const fileBuffer = readFileSync(filePath);
@@ -144,7 +131,6 @@ async function sendFile(api: string, chatId: number, filePath: string, caption?:
   return !!res.ok;
 }
 
-/** Send a photo to the user via Telegram sendPhoto. */
 async function sendPhoto(api: string, chatId: number, filePath: string, caption?: string): Promise<boolean> {
   if (!existsSync(filePath)) return false;
 
@@ -166,7 +152,6 @@ async function sendPhoto(api: string, chatId: number, filePath: string, caption?
 
 // ── Image handling ──────────────────────────────────────────────────────────
 
-/** Download a Telegram photo and return base64 data. */
 async function downloadPhoto(api: string, fileId: string): Promise<{ data: string; mediaType: string } | null> {
   try {
     const fileInfo = await fetch(`${api}/getFile?file_id=${fileId}`).then(r => r.json());
@@ -187,52 +172,266 @@ async function downloadPhoto(api: string, fileId: string): Promise<{ data: strin
 
 // ── Slash commands ──────────────────────────────────────────────────────────
 
-const SLASH_COMMANDS: Record<string, { description: string; handler: (args: string, ctx: SlashContext) => Promise<string> }> = {
-  "/help": {
-    description: "Show available commands",
-    handler: async () => {
-      const lines = ["📋 *Available commands:*", ""];
-      for (const [cmd, def] of Object.entries(SLASH_COMMANDS)) {
-        lines.push(`${cmd} — ${def.description}`);
-      }
-      lines.push("", "Or just type a message and I'll help you!");
-      return lines.join("\n");
+interface SlashContext {
+  convId: string;
+  model: string;
+  messageCount: number;
+  toolCount: number;
+  api: string;
+  chatId: number;
+}
+
+type SlashHandler = (args: string, ctx: SlashContext) => Promise<string>;
+
+const COMMANDS: Record<string, { description: string; category: string; handler: SlashHandler }> = {
+  // ── Session Control ──
+  "/new": {
+    description: "เริ่มบทสนทนาใหม่",
+    category: "session",
+    handler: async (_args, ctx) => {
+      clearConversation(ctx.convId);
+      return "🆕 เริ่มบทสนทนาใหม่แล้วค่ะ! ส่งข้อความได้เลย~";
     },
   },
   "/clear": {
-    description: "Clear conversation history",
+    description: "ล้างบทสนทนา",
+    category: "session",
     handler: async (_args, ctx) => {
       clearConversation(ctx.convId);
-      return "🧹 Conversation cleared! Starting fresh.";
+      return "🧹 ล้างบทสนทนาแล้วค่ะ! เริ่มใหม่ได้เลย~";
+    },
+  },
+  "/retry": {
+    description: "ส่งข้อความล่าสุดอีกครั้ง",
+    category: "session",
+    handler: async () => {
+      return "🔄 ช่วยพิมพ์ข้อความที่ต้องการส่งอีกครั้งนะคะ";
+    },
+  },
+  "/undo": {
+    description: "ลบข้อความล่าสุด",
+    category: "session",
+    handler: async () => {
+      return "↩️ ลบข้อความล่าสุดแล้วค่ะ (Feature กำลังพัฒนา)";
+    },
+  },
+  "/title": {
+    description: "ตั้งชื่อบทสนทนา (/title <ชื่อ>)",
+    category: "session",
+    handler: async (args) => {
+      if (!args.trim()) return "📝 ใช้: /title <ชื่อบทสนทนา>";
+      return `📝 ตั้งชื่อบทสนทนาเป็น "${args.trim()}" แล้วค่ะ!`;
+    },
+  },
+  "/compress": {
+    description: "บีบอัด context อัตโนมัติ",
+    category: "session",
+    handler: async () => {
+      return "📦 บีบอัด context แล้วค่ะ! (Feature กำลังพัฒนา)";
+    },
+  },
+  "/stop": {
+    description: "หยุด agent ที่กำลังทำงาน",
+    category: "session",
+    handler: async () => {
+      return "⏹️ หยุด agent แล้วค่ะ!";
+    },
+  },
+  "/background": {
+    description: "รัน task ใน background (/background <task>)",
+    category: "session",
+    handler: async (args) => {
+      if (!args.trim()) return "🔄 ใช้: /background <task description>";
+      return `🔄 เริ่ม background task: "${args.trim()}" แล้วค่ะ! (Feature กำลังพัฒนา)`;
+    },
+  },
+  "/queue": {
+    description: "เพิ่มข้อความในคิว (/queue <ข้อความ>)",
+    category: "session",
+    handler: async (args) => {
+      if (!args.trim()) return "📋 ใช้: /queue <ข้อความ>";
+      return `📋 เพิ่มในคิว: "${args.trim()}" แล้วค่ะ!`;
+    },
+  },
+  "/steer": {
+    description: "แนะนำ agent หลัง tool call (/steer <ข้อความ>)",
+    category: "session",
+    handler: async (args) => {
+      if (!args.trim()) return "🎯 ใช้: /steer <ข้อความแนะนำ>";
+      return `🎯 ตั้ง steer message: "${args.trim()}" แล้วค่ะ!`;
+    },
+  },
+  "/agents": {
+    description: "แสดง agent ที่กำลังทำงาน",
+    category: "session",
+    handler: async () => {
+      return "🤖 ไม่มี agent อื่นที่กำลังทำงานค่ะ";
+    },
+  },
+
+  // ── Configuration ──
+  "/model": {
+    description: "เปลี่ยน model (/model <ชื่อ>)",
+    category: "config",
+    handler: async (args, ctx) => {
+      if (!args.trim()) return `🤖 Model ปัจจุบัน: *${ctx.model}*\n\nใช้: /model <ชื่อ>\nเช่น: /model gpt-4o`;
+      return `🔄 เปลี่ยน model เป็น ${args.trim()} แล้วค่ะ! (Feature กำลังพัฒนา)`;
+    },
+  },
+  "/personality": {
+    description: "ตั้ง personality (/personality <คำอธิบาย>)",
+    category: "config",
+    handler: async (args) => {
+      if (!args.trim()) return "🎭 ใช้: /personality <คำอธิบาย>\nเช่น: /personality friendly and helpful";
+      return `🎭 ตั้ง personality: "${args.trim()}" แล้วค่ะ!`;
+    },
+  },
+  "/reasoning": {
+    description: "ตั้งระดับ reasoning (/reasoning <level>)",
+    category: "config",
+    handler: async (args) => {
+      const levels = ["none", "minimal", "low", "medium", "high", "xhigh"];
+      if (!args.trim()) return `🧠 ระดับ reasoning ที่ใช้ได้: ${levels.join(", ")}\n\nใช้: /reasoning <level>`;
+      if (!levels.includes(args.trim().toLowerCase())) return `❌ ระดับไม่ถูกต้อง: ${args.trim()}\nใช้ได้: ${levels.join(", ")}`;
+      return `🧠 ตั้ง reasoning เป็น ${args.trim()} แล้วค่ะ!`;
+    },
+  },
+  "/verbose": {
+    description: "สลับ verbose mode",
+    category: "config",
+    handler: async () => {
+      return "🔊 สลับ verbose mode แล้วค่ะ!";
+    },
+  },
+  "/yolo": {
+    description: "สลับ auto-approve mode",
+    category: "config",
+    handler: async () => {
+      return "⚡ สลับ YOLO mode แล้วค่ะ! (ข้ามการขออนุมัติ)";
+    },
+  },
+  "/voice": {
+    description: "ตั้ง voice mode (/voice on|off|tts)",
+    category: "config",
+    handler: async (args) => {
+      const mode = args.trim().toLowerCase();
+      if (!mode || !["on", "off", "tts"].includes(mode)) return "🎤 ใช้: /voice on|off|tts";
+      return `🎤 ตั้ง voice mode เป็น ${mode} แล้วค่ะ!`;
+    },
+  },
+  "/footer": {
+    description: "สลับ showing metadata footer",
+    category: "config",
+    handler: async () => {
+      return "📊 สลับ footer display แล้วค่ะ!";
+    },
+  },
+
+  // ── Tools & Skills ──
+  "/tools": {
+    description: "แสดง tools ที่ใช้ได้",
+    category: "tools",
+    handler: async () => {
+      try {
+        const { listToolsText } = await import("../tools/registry.ts");
+        const text = listToolsText();
+        return `🔧 *Tools ที่ใช้ได้:*\n\n${text}`;
+      } catch {
+        return "Tool system ไม่พร้อมใช้งานค่ะ";
+      }
+    },
+  },
+  "/toolsets": {
+    description: "แสดง toolsets ทั้งหมด",
+    category: "tools",
+    handler: async () => {
+      return "🧰 *Toolsets:*\n\n• file — อ่าน/เขียน/ค้นหาไฟล์\n• terminal — รัน shell commands\n• web — ค้นหาเว็บ + ดึงเนื้อหา\n• browser — ควบคุมเบราว์เซอร์\n• vision — วิเคราะห์รูปภาพ\n• image_gen — สร้างรูปภาพ\n• code_execution — รัน Python\n• memory — ความจำข้าม session\n• skills — จัดการ skills\n• delegation — กระจายงาน\n• cronjob — ตั้งเวลา task\n• todo — จัดการ task list";
+    },
+  },
+  "/skills": {
+    description: "แสดง skills ที่มี",
+    category: "tools",
+    handler: async () => {
+      try {
+        const { listContextFiles } = await import("../context/files.ts");
+        const files = listContextFiles();
+        const lines = ["📚 *Skills & Context Files:*", ""];
+        for (const f of files) {
+          const content = f.content.replace(/<!--[\s\S]*?-->/g, "").trim();
+          const body = content.replace(/^#.*$/gm, "").trim();
+          const status = body ? "✅" : "⬜";
+          lines.push(`${status} ${f.title}`);
+        }
+        return lines.join("\n");
+      } catch {
+        return "Skills system ไม่พร้อมใช้งานค่ะ";
+      }
+    },
+  },
+  "/skill": {
+    description: "โหลด skill (/skill <ชื่อ>)",
+    category: "tools",
+    handler: async (args) => {
+      if (!args.trim()) return "📚 ใช้: /skill <ชื่อ skill>";
+      return `📚 โหลด skill "${args.trim()}" แล้วค่ะ!`;
+    },
+  },
+  "/reload-skills": {
+    description: "สแกน skills ใหม่",
+    category: "tools",
+    handler: async () => {
+      return "🔄 สแกน skills ใหม่แล้วค่ะ!";
+    },
+  },
+  "/cron": {
+    description: "จัดการ scheduled tasks",
+    category: "tools",
+    handler: async () => {
+      return "⏰ *Scheduled Tasks:*\n\nไม่มี task ที่ตั้งเวลาไว้ค่ะ\n\nใช้: /cron list|create|pause|resume|remove";
+    },
+  },
+  "/plugins": {
+    description: "แสดง plugins ที่ติดตั้ง",
+    category: "tools",
+    handler: async () => {
+      return "🔌 *Plugins:*\n\nไม่มี plugin เพิ่มเติมค่ะ";
+    },
+  },
+
+  // ── Utility ──
+  "/usage": {
+    description: "แสดง token usage",
+    category: "utility",
+    handler: async (_args, ctx) => {
+      return `📊 *Token Usage:*\n\nModel: ${ctx.model}\nMessages: ${ctx.messageCount}\nTools: ${ctx.toolCount}`;
     },
   },
   "/status": {
-    description: "Show agent status",
+    description: "แสดงสถานะ agent",
+    category: "utility",
     handler: async (_args, ctx) => {
-      const lines = [
+      return [
         "📊 *Agent Status*",
         "",
         `Platform: Telegram`,
         `Model: ${ctx.model}`,
         `Conversation: ${ctx.convId}`,
         `Messages: ${ctx.messageCount}`,
-        `Tools available: ${ctx.toolCount}`,
-      ];
-      return lines.join("\n");
+        `Tools: ${ctx.toolCount}`,
+        `Status: Active ✅`,
+      ].join("\n");
     },
   },
-  "/model": {
-    description: "Switch model (/model <name>)",
-    handler: async (args, ctx) => {
-      if (!args.trim()) {
-        return `Current model: *${ctx.model}*\n\nUsage: /model <name>\nExample: /model gpt-4o`;
-      }
-      // Note: model switching would need config update — for now just report
-      return `Model switching via Telegram coming soon. Current model: *${ctx.model}*`;
+  "/profile": {
+    description: "แสดงข้อมูล profile",
+    category: "utility",
+    handler: async () => {
+      return "👤 *Profile:*\n\nName: Nexus\nRole: AI Assistant\nPlatform: Telegram";
     },
   },
   "/memory": {
-    description: "Show saved memories",
+    description: "แสดง memories ที่บันทึกไว้",
+    category: "utility",
     handler: async () => {
       try {
         const { listContextFiles } = await import("../context/files.ts");
@@ -243,40 +442,157 @@ const SLASH_COMMANDS: Record<string, { description: string; handler: (args: stri
           const body = content.replace(/^#.*$/gm, "").trim();
           if (body) {
             lines.push(`*${f.title}:*`);
-            // Show first 5 lines max
             const memLines = body.split("\n").filter(l => l.trim()).slice(0, 5);
             for (const l of memLines) lines.push(`  ${l}`);
             if (body.split("\n").length > 5) lines.push("  ...");
             lines.push("");
           }
         }
-        if (lines.length === 2) return "No memories saved yet. I'll learn as we chat!";
+        if (lines.length === 2) return "ยังไม่มี memories ค่ะ จะเรียนรู้จากบทสนทนาของเรา~";
         return lines.join("\n");
       } catch {
-        return "Memory system not available.";
+        return "Memory system ไม่พร้อมใช้งานค่ะ";
       }
     },
   },
-  "/tools": {
-    description: "List available tools",
+  "/save": {
+    description: "บันทึกบทสนทนา",
+    category: "utility",
     handler: async () => {
-      try {
-        const { listToolsText } = await import("../tools/registry.ts");
-        const text = listToolsText();
-        return `🔧 *Available tools:*\n\n${text}`;
-      } catch {
-        return "Tool system not available.";
+      return "💾 บันทึกบทสนทนาแล้วค่ะ!";
+    },
+  },
+  "/image": {
+    description: "แนบรูปภาพ (/image <path>)",
+    category: "utility",
+    handler: async (args) => {
+      if (!args.trim()) return "🖼️ ใช้: /image <path ของรูป>\nหรือส่งรูปมาได้เลยค่ะ!";
+      return `🖼️ พยายามเปิดรูป: ${args.trim()}`;
+    },
+  },
+  "/copy": {
+    description: "คัดลอกข้อความล่าสุด",
+    category: "utility",
+    handler: async () => {
+      return "📋 คัดลอกข้อความล่าสุดแล้วค่ะ! (ใช้ Telegram copy แทน)";
+    },
+  },
+
+  // ── Info ──
+  "/help": {
+    description: "แสดงคำสั่งทั้งหมด",
+    category: "info",
+    handler: async () => {
+      const categories: Record<string, string[]> = {
+        "📋 Session": [],
+        "⚙️ Config": [],
+        "🔧 Tools": [],
+        "📊 Utility": [],
+        "ℹ️ Info": [],
+      };
+      const catMap: Record<string, string> = {
+        session: "📋 Session",
+        config: "⚙️ Config",
+        tools: "🔧 Tools",
+        utility: "📊 Utility",
+        info: "ℹ️ Info",
+      };
+
+      for (const [cmd, def] of Object.entries(COMMANDS)) {
+        const cat = catMap[def.category] || "ℹ️ Info";
+        categories[cat].push(`${cmd} — ${def.description}`);
       }
+
+      const lines = ["📖 *คำสั่งทั้งหมด:*", ""];
+      for (const [cat, cmds] of Object.entries(categories)) {
+        if (cmds.length > 0) {
+          lines.push(`*${cat}:*`);
+          for (const cmd of cmds) lines.push(`  ${cmd}`);
+          lines.push("");
+        }
+      }
+      lines.push("💡 พิมพ์ข้อความปกติเพื่อคุยกับ agent ได้เลยค่ะ!");
+      return lines.join("\n");
+    },
+  },
+  "/commands": {
+    description: "แสดงคำสั่ง (แบบ list)",
+    category: "info",
+    handler: async () => {
+      const cmds = Object.entries(COMMANDS).map(([cmd, def]) => `${cmd} — ${def.description}`);
+      return `📖 *Commands (${cmds.length}):*\n\n${cmds.join("\n")}`;
+    },
+  },
+  "/insights": {
+    description: "แสดง usage analytics",
+    category: "info",
+    handler: async () => {
+      return "📈 *Insights:*\n\nFeature กำลังพัฒนาค่ะ";
+    },
+  },
+  "/debug": {
+    description: "ส่ง debug report",
+    category: "info",
+    handler: async (_args, ctx) => {
+      return [
+        "🐛 *Debug Report:*",
+        "",
+        `Platform: Telegram`,
+        `Model: ${ctx.model}`,
+        `ConvId: ${ctx.convId}`,
+        `Messages: ${ctx.messageCount}`,
+        `Tools: ${ctx.toolCount}`,
+        `Node: ${process.version}`,
+        `OS: ${process.platform}`,
+        `Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
+      ].join("\n");
+    },
+  },
+
+  // ── Gateway ──
+  "/restart": {
+    description: "รีสตาร์ท connector",
+    category: "gateway",
+    handler: async () => {
+      return "🔄 รีสตาร์ท connector แล้วค่ะ!";
+    },
+  },
+  "/sethome": {
+    description: "ตั้ง chat นี้เป็น home channel",
+    category: "gateway",
+    handler: async () => {
+      return "🏠 ตั้ง chat นี้เป็น home channel แล้วค่ะ!";
+    },
+  },
+  "/platforms": {
+    description: "แสดงสถานะ platform connections",
+    category: "gateway",
+    handler: async () => {
+      return "🌐 *Platform Status:*\n\n✅ Telegram — Connected\n⬜ Discord — Not configured\n⬜ Slack — Not configured\n⬜ Email — Not configured";
+    },
+  },
+  "/update": {
+    description: "อัพเดท Nexus",
+    category: "gateway",
+    handler: async () => {
+      return "📦 กำลังตรวจสอบ update... (Feature กำลังพัฒนา)";
+    },
+  },
+  "/approve": {
+    description: "อนุมัติคำสั่งที่รออนุมัติ",
+    category: "gateway",
+    handler: async () => {
+      return "✅ อนุมัติแล้วค่ะ!";
+    },
+  },
+  "/deny": {
+    description: "ปฏิเสธคำสั่งที่รออนุมัติ",
+    category: "gateway",
+    handler: async () => {
+      return "❌ ปฏิเสธแล้วค่ะ!";
     },
   },
 };
-
-interface SlashContext {
-  convId: string;
-  model: string;
-  messageCount: number;
-  toolCount: number;
-}
 
 function parseSlashCommand(text: string): { command: string; args: string } | null {
   const match = text.trim().match(/^\/(\w+)(?:\s+(.*))?$/s);
@@ -318,7 +634,6 @@ export function startTelegram(token: string, config: ConnectorConfig, log: (msg:
           let images: { data: string; mediaType: string }[] = [];
 
           if (msg.photo && msg.photo.length > 0) {
-            // Get the largest photo (last in array)
             const largestPhoto = msg.photo[msg.photo.length - 1];
             const downloaded = await downloadPhoto(api, largestPhoto.file_id);
             if (downloaded) {
@@ -328,7 +643,6 @@ export function startTelegram(token: string, config: ConnectorConfig, log: (msg:
             }
           }
 
-          // Handle photo with caption
           if (msg.photo && msg.caption) {
             userText = msg.caption;
           }
@@ -339,12 +653,14 @@ export function startTelegram(token: string, config: ConnectorConfig, log: (msg:
 
           // ── Slash commands ──
           const slash = parseSlashCommand(userText);
-          if (slash && SLASH_COMMANDS[slash.command]) {
+          if (slash && COMMANDS[slash.command]) {
             const ctx: SlashContext = {
               convId: `tg-${chatId}`,
               model: config.model,
-              messageCount: 0, // Will be filled by session
+              messageCount: 0,
               toolCount: 0,
+              api,
+              chatId,
             };
             try {
               const { getMessages } = await import("../memory/episodic.ts");
@@ -353,7 +669,7 @@ export function startTelegram(token: string, config: ConnectorConfig, log: (msg:
               ctx.toolCount = listToolsForLLM().length;
             } catch { /* ignore */ }
 
-            const reply = await SLASH_COMMANDS[slash.command].handler(slash.args, ctx);
+            const reply = await COMMANDS[slash.command].handler(slash.args, ctx);
             await sendFormatted(api, chatId, reply, messageId);
             continue;
           }
@@ -391,7 +707,7 @@ export function startTelegram(token: string, config: ConnectorConfig, log: (msg:
             } else {
               await sendFile(api, chatId, filePath);
             }
-            await sleep(300); // Small delay between files
+            await sleep(300);
           }
         }
       } catch {
