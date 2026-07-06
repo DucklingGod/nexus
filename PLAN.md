@@ -26,7 +26,7 @@ breakdown is unchanged below). Current status against it:
 | v0.9 — Extensibility + Multi-Agent + Self-Improvement | 41, 45-49 | ✅ Complete — **sub-agent orchestrator (41)** + **plugin system (45-46)** + **skill synthesizer (48)** + **experience collector (47)** + **correction memory + self-evaluation (49)** |
 | v1.0 — Complete Platform (Knowledge + MCP) | 50-55 | 🚧 Mostly done — **local file connector (50)** + **MCP client (54)** + **Obsidian (52)** + **unified search (53)** + **MCP marketplace (55)** done; **Notion (51) deferred** (OAuth + paid integration-token flow). **Also added (beyond plan):** full host machine control (file tools accept absolute paths) + SSH remote control + multi-provider hot-swap + factory reset + streamable-HTTP MCP transport + live MCP registry marketplace. |
 | v1.1 — Beyond Hermes (Surpass) | 56-63 | 🚧 Nearly done — **56-61, 63 all done**; **62 (clean installer) researched, not implemented** — bun single-binary compile ruled out with verified evidence (native `better-sqlite3` binding can't resolve inside a compiled binary); recommended path documented (bundle portable Node + real engine files as Tauri resources), needs a clean machine to safely implement + verify. Grounded in the 2026-07 competitive analysis (wiki `nexus-vs-hermes`); each task written up as a **detailed implementer handoff** in the "Beyond Hermes" section below. |
-| v1.2 — Agent Reliability & Autonomy | 64+ | 🔴 **NEXT / high priority** — Task 64: fix the agent narrating "let me do X" then ending its turn (forces the user to type "ok" each step) instead of looping autonomously. Discovered from real usage; higher priority than remaining features. Detailed root-cause + layered fix in the "v1.2" section below. |
+| v1.2 — Agent Reliability & Autonomy | 64+ | 🟡 In progress — Task 64 (autonomous loop): **Layers 1-3 done** (`b9d70d4`) — prompt hardening + auto-continue + configurable `agent.maxRounds`; L4 (parse text `<tool_call>`) + L5 (Continue button) remain. Fixes the agent narrating "let me do X" then stopping. |
 
 > **The first public release is `v0.6` (beta), NOT v1.0.** The product isn't feature-complete
 > until the full 55-task vision ships — **v1.0 = everything done** (through the knowledge
@@ -194,7 +194,8 @@ Scoped to the two real, verified gaps found (not generic polish): (1) the Usage 
 > Not in the original 55-task plan — surfaced by actually using the shipped app. **This is higher priority
 > than any remaining feature work: a feature-rich agent that stalls mid-task feels broken to the user.**
 
-### Task 64 — Autonomous agent loop (fix "narrate-then-stop") 🔴 HIGH PRIORITY
+### Task 64 — Autonomous agent loop (fix "narrate-then-stop") 🟡 Layers 1-3 DONE (`b9d70d4`); L4-5 remain
+**Shipped:** L1 prompt hardening (main + connector + sub-agent system prompts now mandate act-don't-narrate + never-wait-for-"ok"); L2 auto-continue in `agentLoop` (a pure, tested `looksUnfinished` helper in `ipc/autocontinue.ts` detects "announced but no tool call", injects a continue-nudge, bounded by `MAX_AUTO_CONTINUE=3`, reset on real tool use, skipped in plan mode, never bypasses approval); L3 round cap 5→12 + `agent.maxRounds` setting (Settings → Advanced, hard-capped 30). 109 engine tests (5 new). **Remaining:** L4 (parse text-form `<tool_call>` into real executions instead of dropping) + L5 ("Continue" button safety net) — see layers below.
 **The bug (observed 2026-07-06, real session, model `nvidia/nemotron-3-ultra-550b:free`):** the agent announces an
 action as plain text — *"Let me extract the text using a Python script"*, then *"The pdfplumber library is not
 installed. Let me install it first."* — and **ends its turn each time**, forcing the user to type "ok" to nudge
