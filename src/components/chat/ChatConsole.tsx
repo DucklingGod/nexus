@@ -8,6 +8,8 @@ import { ErrorToast } from "../common/ErrorToast";
 import { EmptyState } from "../common/EmptyState";
 import { getUserMessage } from "../../lib/errorHandler";
 import { IconHand, IconCheckCircle, IconClipboard, IconShield } from "../icons";
+import { AgentTimeline } from "./AgentTimeline";
+import { AgentDAG } from "./AgentDAG";
 import { open } from "@tauri-apps/plugin-dialog";
 
 /** Collapsible reasoning/thinking block — shows model's internal reasoning */
@@ -122,6 +124,7 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
   const [reasoningLevel, setReasoningLevel] = useState("medium");
   const [showReasoningDropdown, setShowReasoningDropdown] = useState(false);
   const [showAttachPopover, setShowAttachPopover] = useState(false);
+  const [timelineView, setTimelineView] = useState<"timeline" | "dag">("timeline");
   const [modelName, setModelName] = useState<string>("");
   const [providerId, setProviderId] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
@@ -336,18 +339,34 @@ export function ChatConsole({ conversationId, onConversationCreated, inputPrefil
                     {msg.reasoning && (
                       <ReasoningBlock text={msg.reasoning} />
                     )}
+                    {/* Agent timeline / DAG — inline view of tool execution */}
                     {msg.toolEvents && msg.toolEvents.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {msg.toolEvents.filter(e => e.type === "result").map((e, i) => (
-                          <div key={i} className="flex items-center gap-1.5 rounded-full border border-nexus-border/30 bg-nexus-surface/50 px-2.5 py-1 text-[10px]">
-                            <span className={e.error ? "text-red-400" : "text-green-400"}>
-                              {e.error ? "✗" : "✓"}
-                            </span>
-                            <span className="text-nexus-fg/70">{e.name}</span>
-                            {e.elapsed_ms && <span className="text-nexus-muted/40">{e.elapsed_ms}ms</span>}
-                          </div>
-                        ))}
-                      </div>
+                      <>
+                        {/* View toggle */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setTimelineView("timeline")}
+                            className={`rounded-md px-2 py-0.5 text-[9px] transition ${
+                              timelineView === "timeline" ? "bg-nexus-surface text-nexus-fg" : "text-nexus-muted/40 hover:text-nexus-muted"
+                            }`}
+                          >
+                            Timeline
+                          </button>
+                          <button
+                            onClick={() => setTimelineView("dag")}
+                            className={`rounded-md px-2 py-0.5 text-[9px] transition ${
+                              timelineView === "dag" ? "bg-nexus-surface text-nexus-fg" : "text-nexus-muted/40 hover:text-nexus-muted"
+                            }`}
+                          >
+                            Graph
+                          </button>
+                        </div>
+                        {timelineView === "timeline" ? (
+                          <AgentTimeline toolEvents={msg.toolEvents} />
+                        ) : (
+                          <AgentDAG toolEvents={msg.toolEvents} />
+                        )}
+                      </>
                     )}
                     {msg.meta && (msg.meta.skills?.length || msg.meta.routedModel || msg.meta.cached || msg.meta.model || msg.meta.usage) ? (
                       <div className="flex flex-wrap gap-1.5">
