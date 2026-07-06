@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { SettingsProvider, useSettings } from "./SettingsContext";
-import { IconKey, IconBot, IconZap, IconGear, IconBook, IconChart, IconGlobe, IconTerminal, IconClipboard, IconBrain, IconStar, IconPalette, IconShield, IconWifi, IconArrowLeft } from "../icons";
+import { IconKey, IconBot, IconGear, IconGlobe, IconPalette, IconStar, IconArrowLeft } from "../icons";
 
 // Lazy-load heavy tabs
 const ProviderTab = lazy(() => import("./tabs/ProviderTab"));
@@ -21,23 +21,80 @@ const TokenDashboard = lazy(() => import("./TokenDashboard").then(m => ({ defaul
 const AuditLog = lazy(() => import("./AuditLog").then(m => ({ default: m.AuditLog })));
 const About = lazy(() => import("../About").then(m => ({ default: m.About })));
 
+// Phase 2: 14 flat tabs → 6 grouped categories with plain-language labels
 type TabId = "provider" | "agent" | "capabilities" | "advanced" | "knowledge" | "connectors" | "ssh" | "learning" | "context" | "theme" | "logs" | "usage" | "audit" | "about";
 
-const TABS: { id: TabId; label: string; icon: React.FC<{ size?: number }> }[] = [
-  { id: "provider", label: "Provider", icon: IconKey },
-  { id: "agent", label: "Agent", icon: IconBot },
-  { id: "capabilities", label: "Capabilities", icon: IconZap },
-  { id: "advanced", label: "Advanced", icon: IconGear },
-  { id: "knowledge", label: "Knowledge", icon: IconBook },
-  { id: "connectors", label: "Connectors", icon: IconGlobe },
-  { id: "ssh", label: "SSH Hosts", icon: IconWifi },
-  { id: "learning", label: "Learning", icon: IconBrain },
-  { id: "context", label: "Context", icon: IconClipboard },
-  { id: "theme", label: "Theme", icon: IconPalette },
-  { id: "usage", label: "Usage", icon: IconChart },
-  { id: "audit", label: "Audit", icon: IconShield },
-  { id: "logs", label: "Logs", icon: IconTerminal },
-  { id: "about", label: "About", icon: IconStar },
+interface GroupItem {
+  id: TabId;
+  label: string;
+  desc: string;
+  component: React.LazyExoticComponent<React.ComponentType<any>>;
+}
+
+interface SettingsGroup {
+  id: string;
+  label: string;
+  icon: React.FC<{ size?: number }>;
+  items: GroupItem[];
+}
+
+const GROUPS: SettingsGroup[] = [
+  {
+    id: "model",
+    label: "AI Model",
+    icon: IconKey,
+    items: [
+      { id: "provider", label: "Provider & model", desc: "Choose your AI provider and set up API keys", component: ProviderTab },
+      { id: "usage", label: "Costs & usage", desc: "Track how much you've spent on AI", component: TokenDashboard },
+    ],
+  },
+  {
+    id: "agent",
+    label: "My Agent",
+    icon: IconBot,
+    items: [
+      { id: "agent", label: "Personality", desc: "Name, avatar, and behavior of your AI assistant", component: GeneralTab },
+      { id: "learning", label: "Learning", desc: "Rules your agent picks up from your feedback", component: LearningTab },
+      { id: "context", label: "Memory", desc: "What your agent remembers between conversations", component: ContextTab },
+      { id: "knowledge", label: "Knowledge", desc: "Facts, documents, and notes your agent can search", component: KnowledgeTab },
+    ],
+  },
+  {
+    id: "connections",
+    label: "Connections",
+    icon: IconGlobe,
+    items: [
+      { id: "connectors", label: "Apps & bots", desc: "Telegram, Discord, and other integrations", component: ConnectorsTab },
+      { id: "ssh", label: "Remote devices", desc: "SSH connections to other computers", component: SshTab },
+    ],
+  },
+  {
+    id: "appearance",
+    label: "Appearance",
+    icon: IconPalette,
+    items: [
+      { id: "theme", label: "Theme", desc: "Colors, stars, and visual effects", component: ThemeSettings },
+    ],
+  },
+  {
+    id: "advanced",
+    label: "Advanced",
+    icon: IconGear,
+    items: [
+      { id: "capabilities", label: "Abilities", desc: "File editing, web browsing, and other powers", component: CapabilitiesTab },
+      { id: "advanced", label: "Engine settings", desc: "Low-level configuration for the AI engine", component: AdvancedTab },
+      { id: "logs", label: "Engine logs", desc: "Raw output from the AI engine (for debugging)", component: LogsTab },
+      { id: "audit", label: "Action history", desc: "Everything your agent has done, in order", component: AuditLog },
+    ],
+  },
+  {
+    id: "about",
+    label: "About",
+    icon: IconStar,
+    items: [
+      { id: "about", label: "About", desc: "Version, credits, and links", component: About },
+    ],
+  },
 ];
 
 interface Props {
@@ -53,7 +110,8 @@ export function Settings({ onClose }: Props) {
 }
 
 function SettingsInner({ onClose }: Props) {
-  const [tab, setTab] = useState<TabId>("provider");
+  const [groupId, setGroupId] = useState("model");
+  const [itemId, setItemId] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
 
   const { changingProvider, selectedProvider, changingModel } = useSettings();
@@ -63,6 +121,10 @@ function SettingsInner({ onClose }: Props) {
     await win.toggleMaximize();
     setIsMaximized(await win.isMaximized());
   }
+
+  const group = GROUPS.find(g => g.id === groupId) ?? GROUPS[0];
+  const activeItemId = (itemId && group.items.find(i => i.id === itemId)) ? itemId : group.items[0].id;
+  const activeItem = group.items.find(i => i.id === activeItemId) ?? group.items[0];
 
   // Determine the title bar based on change-provider flow state
   let title = "Settings";
@@ -80,18 +142,18 @@ function SettingsInner({ onClose }: Props) {
         {/* Left nav panel — hidden during change-provider flow */}
         {showNav && (
           <div className="w-52 flex-shrink-0 border-r border-nexus-border/40 bg-nexus-surface/20 py-2">
-            {TABS.map(t => (
+            {GROUPS.map(g => (
               <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
+                key={g.id}
+                onClick={() => { setGroupId(g.id); setItemId(null); }}
                 className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-xs transition ${
-                  tab === t.id
+                  groupId === g.id
                     ? "bg-nexus-surface text-nexus-accent"
                     : "text-nexus-muted hover:bg-nexus-surface/50 hover:text-nexus-fg"
                 }`}
               >
-                <t.icon size={14} />
-                {t.label}
+                <g.icon size={14} />
+                {g.label}
               </button>
             ))}
           </div>
@@ -99,53 +161,45 @@ function SettingsInner({ onClose }: Props) {
 
         {/* Right content panel */}
         <div className="flex-1 overflow-y-auto p-6 transition-smooth">
+          {/* Group header — plain-language context */}
+          {showNav && (
+            <div className="mb-4">
+              <h2 className="font-display text-base font-semibold text-nexus-fg">{activeItem.label}</h2>
+              <p className="mt-0.5 text-xs text-nexus-muted/60">{activeItem.desc}</p>
+            </div>
+          )}
+
+          {/* Pill sub-nav when group has >1 item */}
+          {showNav && group.items.length > 1 && (
+            <div className="mb-4 flex gap-1">
+              {group.items.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setItemId(item.id)}
+                  className={`rounded-md px-3 py-1.5 text-xs transition ${
+                    activeItemId === item.id
+                      ? "bg-nexus-surface text-nexus-gold"
+                      : "text-nexus-muted hover:bg-nexus-surface hover:text-nexus-fg"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           <Suspense fallback={
             <div className="flex items-center gap-2 py-4">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-nexus-accent border-t-transparent" />
               <span className="text-sm text-nexus-muted">Loading…</span>
             </div>
           }>
-            {/* Provider (includes change-provider flow overlays) */}
-            {tab === "provider" && <ProviderTab />}
-
-            {/* Agent */}
-            {tab === "agent" && <GeneralTab />}
-
-            {/* Capabilities */}
-            {tab === "capabilities" && <CapabilitiesTab />}
-
-            {/* Advanced */}
-            {tab === "advanced" && <AdvancedTab />}
-
-            {/* Knowledge */}
-            {tab === "knowledge" && <KnowledgeTab />}
-
-            {/* Connectors */}
-            {tab === "connectors" && <ConnectorsTab />}
-
-            {/* SSH */}
-            {tab === "ssh" && <SshTab />}
-
-            {/* Learning */}
-            {tab === "learning" && <LearningTab />}
-
-            {/* Context */}
-            {tab === "context" && <ContextTab />}
-
-            {/* Theme */}
-            {tab === "theme" && <ThemeSettings />}
-
-            {/* Usage */}
-            {tab === "usage" && <TokenDashboard />}
-
-            {/* Audit */}
-            {tab === "audit" && <AuditLog />}
-
-            {/* Logs */}
-            {tab === "logs" && <LogsTab />}
-
-            {/* About */}
-            {tab === "about" && <About />}
+            {/* During change-provider flow, always render ProviderTab regardless of active item */}
+            {(changingProvider || changingModel) ? (
+              <ProviderTab />
+            ) : (
+              <activeItem.component />
+            )}
           </Suspense>
         </div>
       </div>
