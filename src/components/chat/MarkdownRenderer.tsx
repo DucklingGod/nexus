@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 
 interface Props {
   content: string;
@@ -8,7 +9,7 @@ interface Props {
 export function MarkdownRenderer({ content }: Props) {
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkBreaks]}
       components={{
         // Headings
         h1: ({ children }) => (
