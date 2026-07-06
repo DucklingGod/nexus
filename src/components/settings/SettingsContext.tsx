@@ -137,6 +137,13 @@ interface SettingsCtx {
   deleteConnectorToken: (platform: string) => Promise<void>;
   connectPlatform: (platform: string) => Promise<void>;
   disconnectPlatform: (platform: string) => Promise<void>;
+  // Gateway
+  gatewayRunning: boolean;
+  gatewayPid: number | null;
+  gatewayLoading: boolean;
+  startGateway: (platform: string) => Promise<void>;
+  stopGateway: () => Promise<void>;
+  checkGatewayStatus: () => Promise<void>;
 
   // SSH
   sshHosts: SshHost[];
@@ -255,6 +262,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [emailPass, setEmailPass] = useState("");
   const [hasEmail, setHasEmail] = useState(false);
   const [connectors, setConnectors] = useState<ConnectorStatus[]>([]);
+  // ---- Gateway ----
+  const [gatewayRunning, setGatewayRunning] = useState(false);
+  const [gatewayPid, setGatewayPid] = useState<number | null>(null);
+  const [gatewayLoading, setGatewayLoading] = useState(false);
 
   // ---- Context ----
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
@@ -342,6 +353,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setSavedProviders(saved);
       const conn = await invoke<{ connectors: ConnectorStatus[] }>("connector_status").catch(() => ({ connectors: [] }));
       setConnectors(conn.connectors ?? []);
+      await checkGatewayStatus();
       const ssh = await invoke<{ hosts: SshHost[] }>("engine_rpc", { method: "ssh.list", params: {} }).catch(() => ({ hosts: [] }));
       setSshHosts(ssh.hosts ?? []);
       setExpEnabled(all["experience.enabled"] === "true");
@@ -672,6 +684,40 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }
 
   // ---------------------------------------------------------------------------
+  // Gateway handlers
+  // ---------------------------------------------------------------------------
+  async function checkGatewayStatus() {
+    try {
+      const r = await invoke<{ running: boolean; pid?: number }>("gateway_status");
+      setGatewayRunning(r.running);
+      setGatewayPid(r.running && r.pid ? r.pid : null);
+    } catch {
+      setGatewayRunning(false);
+      setGatewayPid(null);
+    }
+  }
+
+  async function startGateway(platform: string) {
+    if (!config) { showMsg("Set up a provider first"); return; }
+    setGatewayLoading(true);
+    try {
+      await invoke("gateway_start", { platform, provider: config.provider, model: config.model, baseUrl: config.baseUrl });
+      showMsg("Gateway starting…");
+      setTimeout(checkGatewayStatus, 2000);
+    } catch (e) { showMsg(`Error: ${e}`); } finally { setGatewayLoading(false); }
+  }
+
+  async function stopGateway() {
+    setGatewayLoading(true);
+    try {
+      await invoke("gateway_stop");
+      setGatewayRunning(false);
+      setGatewayPid(null);
+      showMsg("Gateway stopped");
+    } catch (e) { showMsg(`Error: ${e}`); } finally { setGatewayLoading(false); }
+  }
+
+  // ---------------------------------------------------------------------------
   // SSH handlers
   // ---------------------------------------------------------------------------
   async function reloadSsh() {
@@ -816,6 +862,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     emailImapHost, setEmailImapHost, emailSmtpHost, setEmailSmtpHost,
     emailUser, setEmailUser, emailPass, setEmailPass, hasEmail,
     saveConnectorToken, deleteConnectorToken, connectPlatform, disconnectPlatform,
+    gatewayRunning, gatewayPid, gatewayLoading, startGateway, stopGateway, checkGatewayStatus,
     sshHosts, sshForm, setSshForm, sshEditingId, setSshEditingId, sshTesting,
     saveSshHost, editSshHost, deleteSshHost, testSshHost,
     expEnabled, setExpEnabled, correctionEnabled, setCorrectionEnabled, evalEnabled, setEvalEnabled,

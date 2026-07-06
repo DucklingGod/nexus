@@ -9,7 +9,7 @@
 //! "engine-event" Tauri event while this call blocks for the final result.
 
 use serde_json::{json, Value};
-use tauri::State;
+use tauri::{Manager, State};
 
 use crate::{secure, AppState};
 
@@ -195,6 +195,156 @@ pub fn connector_stop(state: State<'_, AppState>, platform: String) -> Result<Va
 #[tauri::command]
 pub fn connector_status(state: State<'_, AppState>) -> Result<Value, String> {
     state.sidecar.request("connector.status", Value::Null)
+}
+
+/// Start the gateway as a detached background process.
+/// The gateway keeps running even if the app closes.
+#[tauri::command]
+pub fn gateway_start(
+    _state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+    platform: String,
+    provider: String,
+    model: String,
+    base_url: String,
+) -> Result<Value, String> {
+    // Get bot token from keychain
+    let token = secure::get_key(&format!("api_key_{platform}"))?.unwrap_or_default();
+    let api_key = key_for_local_aware(&provider, &base_url)?;
+    let _openai = secure::get_key("api_key_openai")?.unwrap_or_default();
+    if token.is_empty() {
+        return Err(format!("No bot token saved for {platform}."));
+    }
+
+    // Get data dir for PID file
+    let data_dir = app_handle.path().app_data_dir()
+        .map_err(|e| e.to_string())?
+        .to_string_lossy()
+        .to_string();
+
+    // Build gateway config JSON
+    let config = serde_json::json!({
+        "platform": platform,
+        "token": token,
+        "config": {
+            "id": provider,
+            "name": provider,
+            "baseUrl": base_url,
+            "apiKey": api_key,
+            "model": model
+        }
+    });
+
+    // Find node executable and gateway script
+    // Use same node that runs the engine sidecar
+    let engine_dir = std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../engine"));
+    let gateway_script = engine_dir.join("src/gateway/main.ts");
+
+    // Spawn detached process
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        std::process::Command::new("node")
+            .arg(&gateway_script)
+            .env("NEXUS_DATA_DIR", &data_dir)
+            .env("NEXUS_GATEWAY_CONFIG", config.to_string())
+            .creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        use std::os::unix::process::CommandExt;
+        std::process::Command::new("node")
+            .arg(&gateway_script)
+            .env("NEXUS_DATA_DIR", &data_dir)
+            .env("NEXUS_GATEWAY_CONFIG", config.to_string())
+            .process_group(0)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(serde_json::json!({ "ok": true }))
+}
+
+/// Stop the gateway by killing its PID.
+#[tauri::command]
+pub fn gateway_stop(app_handle: tauri::AppHandle) -> Result<Value, String> {
+    let data_dir = app_handle.path().app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let pid_file = data_dir.join("gateway.pid");
+
+    if !pid_file.exists() {
+        return Err("Gateway is not running".to_string());
+    }
+
+    let pid_str = std::fs::read_to_string(&pid_file)
+        .map_err(|e| e.to_string())?;
+    let pid: u32 = pid_str.trim().parse()
+        .map_err(|_| "Invalid PID file".to_string())?;
+
+    // Kill the process
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/F"])
+            .output()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        unsafe { libc::kill(pid as i32, libc::SIGTERM); }
+    }
+
+    // Clean up PID file
+    let _ = std::fs::remove_file(&pid_file);
+
+    Ok(serde_json::json!({ "ok": true }))
+}
+
+/// Check if the gateway is running.
+#[tauri::command]
+pub fn gateway_status(app_handle: tauri::AppHandle) -> Result<Value, String> {
+    let data_dir = app_handle.path().app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let pid_file = data_dir.join("gateway.pid");
+
+    if !pid_file.exists() {
+        return Ok(serde_json::json!({ "running": false }));
+    }
+
+    let pid_str = std::fs::read_to_string(&pid_file)
+        .map_err(|e| e.to_string())?;
+    let pid: u32 = pid_str.trim().parse()
+        .map_err(|_| "Invalid PID file".to_string())?;
+
+    // Check if process is alive
+    #[cfg(target_os = "windows")]
+    let alive = {
+        let output = std::process::Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {}", pid), "/NH"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        stdout.contains(&pid.to_string())
+    };
+
+    #[cfg(not(target_os = "windows"))]
+    let alive = {
+        unsafe { libc::kill(pid as i32, 0) == 0 }
+    };
+
+    if !alive {
+        let _ = std::fs::remove_file(&pid_file);
+        return Ok(serde_json::json!({ "running": false }));
+    }
+
+    Ok(serde_json::json!({ "running": true, "pid": pid }))
 }
 
 /// Execute a workflow graph. Brokers the provider key; the engine emits

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useSettings } from "../SettingsContext";
 
 export default function ConnectorsTab() {
@@ -10,8 +11,10 @@ export default function ConnectorsTab() {
     emailImapHost, setEmailImapHost, emailSmtpHost, setEmailSmtpHost,
     emailUser, setEmailUser, emailPass, setEmailPass, hasEmail,
     saveConnectorToken, deleteConnectorToken, connectPlatform, disconnectPlatform,
+    gatewayRunning, gatewayPid, gatewayLoading, startGateway, stopGateway,
     showMsg,
   } = useSettings();
+  const [gatewayPlatform, setGatewayPlatform] = useState("telegram");
 
   async function saveSlack() {
     if (!slackAppToken.trim() || !slackBotToken.trim()) { showMsg("Both tokens are required"); return; }
@@ -187,6 +190,55 @@ export default function ConnectorsTab() {
           </div>
         );
       })()}
+
+      {/* Gateway — background process that survives app close */}
+      <div className="rounded-xl border border-nexus-border bg-nexus-surface/40 p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-nexus-fg">Gateway Mode</span>
+            <span className="rounded bg-nexus-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-nexus-accent">Background</span>
+          </div>
+          <span className={`flex items-center gap-1.5 text-[11px] ${gatewayRunning ? "text-green-400" : "text-nexus-muted"}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${gatewayRunning ? "bg-green-400" : "bg-nexus-muted/50"}`} />
+            {gatewayRunning ? `running (PID ${gatewayPid})` : "stopped"}
+          </span>
+        </div>
+        <p className="mb-3 text-xs text-nexus-muted">
+          Runs a connector as a background process that survives app close. Pick a platform, then start the gateway.
+        </p>
+        <div className="flex items-center gap-2">
+          <select
+            value={gatewayPlatform}
+            onChange={e => setGatewayPlatform(e.target.value)}
+            disabled={gatewayRunning || gatewayLoading}
+            className="rounded-xl border border-nexus-border bg-nexus-surface px-3 py-2 text-sm text-nexus-fg outline-none focus:border-nexus-accent disabled:opacity-50"
+          >
+            <option value="telegram">Telegram</option>
+            <option value="discord">Discord</option>
+            <option value="slack">Slack</option>
+          </select>
+          {gatewayRunning ? (
+            <button
+              onClick={stopGateway}
+              disabled={gatewayLoading}
+              className="rounded-xl border border-nexus-border px-4 py-2 text-sm text-red-400 hover:bg-nexus-surface disabled:opacity-50"
+            >
+              {gatewayLoading ? "Stopping…" : "Stop Gateway"}
+            </button>
+          ) : (
+            <button
+              onClick={() => startGateway(gatewayPlatform)}
+              disabled={gatewayLoading}
+              className="rounded-xl bg-nexus-accent px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
+            >
+              {gatewayLoading ? "Starting…" : "Start Gateway"}
+            </button>
+          )}
+        </div>
+        <p className="mt-2 text-[11px] text-nexus-muted">
+          The gateway is a standalone process that keeps running even after you close Nexus. Stop it manually here, or kill the process (PID shown above).
+        </p>
+      </div>
     </div>
   );
 }
