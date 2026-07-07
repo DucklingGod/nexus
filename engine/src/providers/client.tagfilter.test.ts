@@ -25,6 +25,22 @@ describe("ContentTagFilter", () => {
     expect(out.reasoning).toBeUndefined();
   });
 
+  it("parses a JSON-form <tool_call> block and strips it from text (mimo-v2.5 style)", () => {
+    const f = new ContentTagFilter();
+    const out = f.feed('Let me check.<tool_call>{"name": "web_search", "arguments": {"query": "weather"}}</tool_call>');
+    expect(out.text).toBe("Let me check.");
+    expect(out.tool_calls?.length).toBe(1);
+    expect(out.tool_calls?.[0].function.name).toBe("web_search");
+    expect(out.tool_calls?.[0].function.arguments).toBe('{"query":"weather"}');
+  });
+
+  it("parses a JSON-form <tool_call> using the 'parameters' key", () => {
+    const f = new ContentTagFilter();
+    const out = f.feed('<tool_call>{"name": "file_list", "parameters": {"path": "."}}</tool_call>');
+    expect(out.tool_calls?.[0].function.name).toBe("file_list");
+    expect(out.tool_calls?.[0].function.arguments).toBe('{"path":"."}');
+  });
+
   it("handles a <think> block split across multiple chunks", () => {
     const f = new ContentTagFilter();
     const a = f.feed("Start <think");

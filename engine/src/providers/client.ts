@@ -158,30 +158,42 @@ export class ContentTagFilter {
     return 0;
   }
 
-  /** Parse XML-form tool_call content into a structured tool call. */
-  private parseToolCallXml(xml: string): { id: string; name: string; arguments: string } | null {
-    // Extract function name from <function=NAME> or <function name="NAME">
-    const fnMatch = xml.match(/<function\s*[=\s]["']?([\w_\.]+)["']?\s*>/i);
+  /** Parse the inner content of a <tool_call> block into a structured tool call.
+   *  Handles both the JSON form ({"name": "x", "arguments": {...}}) that mimo-v2.5
+   *  and Qwen emit, and the Hermes XML form (<function=NAME><parameter=k>v</parameter>).
+   *  Returns null if neither shape is present. */
+  private parseToolCallXml(inner: string): { id: string; name: string; arguments: string } | null {
+    const id = `text_tc_${this.toolCallIndex}`;
+    const trimmed = inner.trim();
+
+    // JSON form: {"name": "x", "arguments": {...}} — also accepts "parameters".
+    if (trimmed.startsWith("{")) {
+      try {
+        const obj = JSON.parse(trimmed) as { name?: string; arguments?: unknown; parameters?: unknown };
+        if (typeof obj.name === "string") {
+          const rawArgs = obj.arguments ?? obj.parameters ?? {};
+          return { id, name: obj.name, arguments: typeof rawArgs === "string" ? rawArgs : JSON.stringify(rawArgs) };
+        }
+      } catch { /* not valid JSON — fall through to XML */ }
+    }
+
+    // Hermes XML form: <function=NAME> with <parameter=k>v</parameter> children.
+    const fnMatch = trimmed.match(/<function\s*[=\s]["']?([\w_\.]+)["']?\s*>/i);
     if (!fnMatch) return null;
     const name = fnMatch[1];
-    // Extract parameters
     const args: Record<string, unknown> = {};
     const paramRe = /<parameter\s+([\w_]+)(?:\s*=\s*"[^"]*")?\s*>([^<]*)<\/parameter>/gi;
     let m;
-    while ((m = paramRe.exec(xml)) !== null) {
+    while ((m = paramRe.exec(trimmed)) !== null) {
       let val: unknown = m[2].trim();
-      // Try to parse as JSON for non-string values
+      // Coerce obvious scalar types; everything else stays a string.
       if (val === "true") val = true;
       else if (val === "false") val = false;
       else if (val === "null") val = null;
       else if (/^-?\d+(\.\d+)?$/.test(val as string)) val = Number(val);
       args[m[1]] = val;
     }
-    return {
-      id: `text_tc_${this.toolCallIndex}`,
-      name,
-      arguments: JSON.stringify(args),
-    };
+    return { id, name, arguments: JSON.stringify(args) };
   }
 }
 
@@ -308,35 +320,13 @@ export async function testConnection(config: ProviderConfig): Promise<boolean> {
   }
 }
 
-/// Chat with any OpenAI-compatible endpoint
-// Parse XML-form <tool_call> blocks from text content.
-// Used as fallback when models emit tool calls as text instead of structured objects.
-function parseTextToolCalls(text: string): { id: string; name: string; arguments: unknown }[] {
-  const results: { id: string; name: string; arguments: unknown }[] = [];
-  const blockRe = /<tool_call>([\s\S]*?)<\/tool_call>/g;
-  let blockMatch;
-  let idx = 0;
-  while ((blockMatch = blockRe.exec(text)) !== null) {
-    const xml = blockMatch[1];
-    const fnMatch = xml.match(/<function\s*[=\s]["']?([\w_\.]+)["']?\s*>/i);
-    if (!fnMatch) continue;
-    const name = fnMatch[1];
-    const args: Record<string, unknown> = {};
-    const paramRe = /<parameter\s+([\w_]+)(?:\s*=\s*"[^"]*")?\s*>([^<]*)<\/parameter>/gi;
-    let m;
-    while ((m = paramRe.exec(xml)) !== null) {
-      let val: unknown = m[2].trim();
-      if (val === "true") val = true;
-      else if (val === "false") val = false;
-      else if (val === "null") val = null;
-      else if (/^-?\d+(\.\d+)?$/.test(val as string)) val = Number(val);
-      args[m[1]] = val;
-    }
-    results.push({ id: `text_tc_${idx++}`, name, arguments: args });
-  }
-  return results;
+/** JSON.parse that never throws — returns {} on malformed input. Text-form tool
+ *  calls from weak models can carry sketchy JSON; that shouldn't crash a reply. */
+function safeJsonParse(s: string): Record<string, unknown> {
+  try { return JSON.parse(s || "{}") as Record<string, unknown>; } catch { return {}; }
 }
 
+/// Chat with any OpenAI-compatible endpoint
 export async function chat(config: ProviderConfig, req: ChatRequest): Promise<ChatResponse> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -374,7 +364,7 @@ export async function chat(config: ProviderConfig, req: ChatRequest): Promise<Ch
   const data = await res.json();
   const msg = data.choices?.[0]?.message;
 
-  // Parse tool_calls if present
+  // Parse structured tool_calls if present (preferred).
   const tool_calls = msg?.tool_calls?.map((tc: { id: string; function: { name: string; arguments: string } }) => ({
     id: tc.id,
     name: tc.function.name,
@@ -383,17 +373,27 @@ export async function chat(config: ProviderConfig, req: ChatRequest): Promise<Ch
 
   let finalToolCalls = tool_calls?.length ? tool_calls : undefined;
 
-  // Fallback: if no structured tool_calls but content contains <tool_call> XML,
-  // parse the XML into structured tool calls (mimo-v2.5 and similar models).
-  if (!finalToolCalls && msg?.content) {
-    const xmlCalls = parseTextToolCalls(msg.content);
-    if (xmlCalls.length) {
-      finalToolCalls = xmlCalls;
+  // Non-streaming has no ContentTagFilter, so <think>/<tool_call> tags that some
+  // models (mimo-v2.5, Qwen-QwQ, free OpenRouter) emit as TEXT would otherwise
+  // reach the caller verbatim — e.g. shown as a raw message in Telegram. Run the
+  // same filter the streaming path uses: strip the tags from the visible content
+  // and recover any text-form tool calls not sent as structured objects.
+  let content = msg?.content ?? "";
+  if (content) {
+    const filter = new ContentTagFilter();
+    const fed = filter.feed(content);
+    content = (fed.text + filter.flush().text).trim();
+    if (!finalToolCalls && fed.tool_calls?.length) {
+      finalToolCalls = fed.tool_calls.map((tc) => ({
+        id: tc.id,
+        name: tc.function.name,
+        arguments: safeJsonParse(tc.function.arguments),
+      }));
     }
   }
 
   return {
-    content: msg?.content ?? "",
+    content,
     model: data.model ?? req.model,
     usage: {
       input: data.usage?.prompt_tokens ?? 0,
