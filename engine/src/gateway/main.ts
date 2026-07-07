@@ -14,10 +14,8 @@ import { join } from "node:path";
 
 // ── PID file management ─────────────────────────────────────────────────────
 
-const DATA_DIR = join(
-  process.env.NEXUS_DATA_DIR ?? process.env.APPDATA ?? join(process.env.HOME ?? ".", ".nexus"),
-  "nexus",
-);
+const DATA_DIR = process.env.NEXUS_DATA_DIR
+  ?? join(process.env.APPDATA ?? join(process.env.HOME ?? ".", ".nexus"), "nexus");
 mkdirSync(DATA_DIR, { recursive: true });
 const PID_FILE = join(DATA_DIR, "gateway.pid");
 

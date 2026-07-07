@@ -155,15 +155,23 @@ impl Sidecar {
             .or_else(home_dir)
             .unwrap_or_else(|| data_dir.to_string());
 
-        let mut child = Command::new(&node)
-            .arg(&engine)
+        let mut cmd = Command::new(&node);
+        cmd.arg(&engine)
             .env("NEXUS_DATA_DIR", data_dir)
             .env("NEXUS_WORKDIR", &workdir)
             .current_dir(&workdir)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
+            .stderr(Stdio::piped());
+
+        // Hide console window on Windows
+        #[cfg(target_os = "windows")]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        let mut child = cmd.spawn()?;
 
         let stdin = child.stdin.take().expect("piped stdin");
         let stdout = child.stdout.take().expect("piped stdout");

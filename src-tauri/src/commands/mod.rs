@@ -163,11 +163,14 @@ pub fn engine_rpc(state: State<'_, AppState>, method: String, mut params: Value)
 #[tauri::command]
 pub fn connector_start(
     state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
     platform: String,
     provider: String,
     model: String,
     base_url: String,
 ) -> Result<Value, String> {
+    // Stop gateway first to prevent duplicate message processing
+    let _ = gateway_stop(app_handle);
     let api_key = key_for_local_aware(&provider, &base_url)?;
     let token = secure::get_key(&format!("api_key_{platform}"))?.unwrap_or_default();
     let openai = secure::get_key("api_key_openai")?.unwrap_or_default();
@@ -201,13 +204,16 @@ pub fn connector_status(state: State<'_, AppState>) -> Result<Value, String> {
 /// The gateway keeps running even if the app closes.
 #[tauri::command]
 pub fn gateway_start(
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
     platform: String,
     provider: String,
     model: String,
     base_url: String,
 ) -> Result<Value, String> {
+    // Stop in-app connector first to prevent duplicate message processing
+    let _ = state.sidecar.request("connector.stop", json!({ "platform": &platform }));
+
     // Get bot token from keychain
     let token = secure::get_key(&format!("api_key_{platform}"))?.unwrap_or_default();
     let api_key = key_for_local_aware(&provider, &base_url)?;

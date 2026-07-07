@@ -29,25 +29,48 @@ function escapeMarkdownV2(text: string): string {
   }).join("");
 }
 
-/** Send message to Telegram. Always plain text — no MarkdownV2 to avoid
- *  fallback double-send issues. Splits long messages into chunks. */
+/** Send a single message to Telegram. Returns true on success. */
+async function sendMessage(api: string, chatId: number, text: string, replyTo?: number, parseMode?: string): Promise<boolean> {
+  const body: Record<string, unknown> = {
+    chat_id: chatId,
+    text,
+    reply_parameters: replyTo ? { message_id: replyTo } : undefined,
+  };
+  if (parseMode) body.parse_mode = parseMode;
+  const res = await fetch(`${api}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch(() => null);
+  if (!res) return false;
+  const json = await res.json().catch(() => null);
+  return !!json?.ok;
+}
+
+/** Escape text for Telegram Markdown (V1) — minimal escaping. */
+function escapeMarkdownV1(text: string): string {
+  // Markdown V1 only needs these escaped inside entities we don't use:
+  // `_`, `*`, `` ` ``, `[` — but since the LLM produces real markdown,
+  // we WANT those to render. Only escape bare `*` that aren't paired
+  // and backticks that would break code blocks.
+  return text;
+}
+
+/** Try sending with Markdown parse_mode; fall back to plain text on failure.
+ *  Only ONE message is ever sent (no double-send). Splits long messages. */
 async function sendFormatted(api: string, chatId: number, text: string, replyTo?: number): Promise<void> {
-  await sendLongMessage(api, chatId, text, replyTo);
+  await sendLongMessage(api, chatId, text, replyTo, "Markdown");
 }
 
 /** Split a long message into chunks ≤ 4000 chars, respecting paragraph boundaries. */
-async function sendLongMessage(api: string, chatId: number, text: string, replyTo?: number): Promise<void> {
+async function sendLongMessage(api: string, chatId: number, text: string, replyTo?: number, parseMode?: string): Promise<void> {
   const MAX = 4000;
   if (text.length <= MAX) {
-    await fetch(`${api}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        reply_parameters: replyTo ? { message_id: replyTo } : undefined,
-      }),
-    }).catch(() => {});
+    const ok = await sendMessage(api, chatId, text, replyTo, parseMode);
+    if (!ok && parseMode) {
+      // Markdown failed → retry as plain text (once)
+      await sendMessage(api, chatId, text, replyTo);
+    }
     return;
   }
 
@@ -80,17 +103,14 @@ async function sendLongMessage(api: string, chatId: number, text: string, replyT
   if (current) chunks.push(current);
 
   for (let i = 0; i < chunks.length; i++) {
-    const body: Record<string, unknown> = {
-      chat_id: chatId,
-      text: chunks[i],
-      reply_parameters: (i === 0 && replyTo) ? { message_id: replyTo } : undefined,
-    };
-    await fetch(`${api}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }).catch(() => {});
-    if (i < chunks.length - 1) await sleep(200);
+    const isLast = i === chunks.length - 1;
+    const chunkReply = (i === 0 && replyTo) ? replyTo : undefined;
+    const ok = await sendMessage(api, chatId, chunks[i], chunkReply, parseMode);
+    if (!ok && parseMode) {
+      // Markdown failed for this chunk → plain text fallback
+      await sendMessage(api, chatId, chunks[i], chunkReply);
+    }
+    if (!isLast) await sleep(200);
   }
 }
 

@@ -36,8 +36,9 @@ function toGoogleParts(m: ChatMessage): object[] {
  * Stateful streaming filter that strips pseudo-tag blocks from content that
  * some models emit as plain text instead of using the API's structured fields:
  *   • `<think>...</think>`    → surfaced as reasoning (Qwen-QwQ, DeepSeek-R1, Nemotron)
- *   • `<tool_call>...</tool_call>` → dropped (text-form tool calls are never
- *     actionable; only structured tool_calls are honored by the agent loop)
+ *   • `<tool_call>...</tool_call>` → parsed into structured tool_calls
+ *     (some models like mimo-v2.5 emit tool calls as XML text instead of
+ *     structured function-calling objects — this filter recovers them)
  *
  * Handles tags split across chunk boundaries by buffering the tail of each
  * feed() call. Cheap: a single regex pass over the incoming text each call.
@@ -46,11 +47,13 @@ export class ContentTagFilter {
   private buf = "";
   // Current open block: "think" | "tool_call" | null (normal text)
   private mode: "think" | "tool_call" | null = null;
+  private toolCallIndex = 0;
 
-  feed(chunk: string): { text: string; reasoning?: string } {
+  feed(chunk: string): { text: string; reasoning?: string; tool_calls?: { index: number; id: string; type: string; function: { name: string; arguments: string } }[] } {
     this.buf += chunk;
     let text = "";
     let reasoning = "";
+    const toolCalls: { index: number; id: string; type: string; function: { name: string; arguments: string } }[] = [];
     // Process until no more complete decisions can be made.
     // We loop because a single chunk can contain multiple blocks.
     // Safety cap to avoid pathological loops.
@@ -94,13 +97,25 @@ export class ContentTagFilter {
       }
       // Block closed. Emit inner content, drop the close tag.
       const inner = this.buf.slice(0, closeIdx);
-      if (this.mode === "think") reasoning += inner;
+      if (this.mode === "think") {
+        reasoning += inner;
+      } else if (this.mode === "tool_call") {
+        const parsed = this.parseToolCallXml(inner);
+        if (parsed) {
+          toolCalls.push({
+            index: this.toolCallIndex++,
+            id: parsed.id,
+            type: "function",
+            function: { name: parsed.name, arguments: parsed.arguments },
+          });
+        }
+      }
       this.buf = this.buf.slice(closeIdx + closeTag.length);
       this.mode = null;
       // loop again — there may be more blocks or trailing text
       continue;
     }
-    return { text, reasoning: reasoning || undefined };
+    return { text, reasoning: reasoning || undefined, tool_calls: toolCalls.length ? toolCalls : undefined };
   }
 
   /** Flush any remaining buffer at stream end. */
@@ -141,6 +156,32 @@ export class ContentTagFilter {
       if (s.endsWith(tag.slice(0, k))) return k;
     }
     return 0;
+  }
+
+  /** Parse XML-form tool_call content into a structured tool call. */
+  private parseToolCallXml(xml: string): { id: string; name: string; arguments: string } | null {
+    // Extract function name from <function=NAME> or <function name="NAME">
+    const fnMatch = xml.match(/<function\s*[=\s]["']?([\w_\.]+)["']?\s*>/i);
+    if (!fnMatch) return null;
+    const name = fnMatch[1];
+    // Extract parameters
+    const args: Record<string, unknown> = {};
+    const paramRe = /<parameter\s+([\w_]+)(?:\s*=\s*"[^"]*")?\s*>([^<]*)<\/parameter>/gi;
+    let m;
+    while ((m = paramRe.exec(xml)) !== null) {
+      let val: unknown = m[2].trim();
+      // Try to parse as JSON for non-string values
+      if (val === "true") val = true;
+      else if (val === "false") val = false;
+      else if (val === "null") val = null;
+      else if (/^-?\d+(\.\d+)?$/.test(val as string)) val = Number(val);
+      args[m[1]] = val;
+    }
+    return {
+      id: `text_tc_${this.toolCallIndex}`,
+      name,
+      arguments: JSON.stringify(args),
+    };
   }
 }
 
@@ -268,6 +309,34 @@ export async function testConnection(config: ProviderConfig): Promise<boolean> {
 }
 
 /// Chat with any OpenAI-compatible endpoint
+// Parse XML-form <tool_call> blocks from text content.
+// Used as fallback when models emit tool calls as text instead of structured objects.
+function parseTextToolCalls(text: string): { id: string; name: string; arguments: unknown }[] {
+  const results: { id: string; name: string; arguments: unknown }[] = [];
+  const blockRe = /<tool_call>([\s\S]*?)<\/tool_call>/g;
+  let blockMatch;
+  let idx = 0;
+  while ((blockMatch = blockRe.exec(text)) !== null) {
+    const xml = blockMatch[1];
+    const fnMatch = xml.match(/<function\s*[=\s]["']?([\w_\.]+)["']?\s*>/i);
+    if (!fnMatch) continue;
+    const name = fnMatch[1];
+    const args: Record<string, unknown> = {};
+    const paramRe = /<parameter\s+([\w_]+)(?:\s*=\s*"[^"]*")?\s*>([^<]*)<\/parameter>/gi;
+    let m;
+    while ((m = paramRe.exec(xml)) !== null) {
+      let val: unknown = m[2].trim();
+      if (val === "true") val = true;
+      else if (val === "false") val = false;
+      else if (val === "null") val = null;
+      else if (/^-?\d+(\.\d+)?$/.test(val as string)) val = Number(val);
+      args[m[1]] = val;
+    }
+    results.push({ id: `text_tc_${idx++}`, name, arguments: args });
+  }
+  return results;
+}
+
 export async function chat(config: ProviderConfig, req: ChatRequest): Promise<ChatResponse> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -312,6 +381,17 @@ export async function chat(config: ProviderConfig, req: ChatRequest): Promise<Ch
     arguments: JSON.parse(tc.function.arguments || "{}"),
   }));
 
+  let finalToolCalls = tool_calls?.length ? tool_calls : undefined;
+
+  // Fallback: if no structured tool_calls but content contains <tool_call> XML,
+  // parse the XML into structured tool calls (mimo-v2.5 and similar models).
+  if (!finalToolCalls && msg?.content) {
+    const xmlCalls = parseTextToolCalls(msg.content);
+    if (xmlCalls.length) {
+      finalToolCalls = xmlCalls;
+    }
+  }
+
   return {
     content: msg?.content ?? "",
     model: data.model ?? req.model,
@@ -319,7 +399,7 @@ export async function chat(config: ProviderConfig, req: ChatRequest): Promise<Ch
       input: data.usage?.prompt_tokens ?? 0,
       output: data.usage?.completion_tokens ?? 0,
     },
-    tool_calls: tool_calls?.length ? tool_calls : undefined,
+    tool_calls: finalToolCalls,
   };
 }
 
@@ -368,9 +448,9 @@ export async function* chatStream(config: ProviderConfig, req: ChatRequest): Asy
   const decoder = new TextDecoder();
   let buffer = "";
   // Stateful filter: strips <think>/<tool_call> pseudo-tags from content that
-  // some models emit as text (free OpenRouter models, Qwen-QwQ, Nemotron).
-  // <think> is surfaced as reasoning; <tool_call> is dropped (the agent loop
-  // only honors structured tool_calls, so the text form is never actionable).
+  // some models emit as text (free OpenRouter models, Qwen-QwQ, Nemotron, mimo-v2.5).
+  // <think> is surfaced as reasoning; <tool_call> is parsed into structured tool_calls
+  // so models that emit XML-form tool calls still get their tools executed.
   const tagFilter = new ContentTagFilter();
 
   while (true) {
@@ -401,8 +481,9 @@ export async function* chatStream(config: ProviderConfig, req: ChatRequest): Asy
         const reasoning = delta?.reasoning_content ?? "";
         if (reasoning) yield { delta: "", done: false, reasoning };
         if (content) {
-          const { text, reasoning: thinkReasoning } = tagFilter.feed(content);
+          const { text, reasoning: thinkReasoning, tool_calls: textToolCalls } = tagFilter.feed(content);
           if (thinkReasoning) yield { delta: "", done: false, reasoning: thinkReasoning };
+          if (textToolCalls) yield { delta: "", done: false, tool_calls: textToolCalls };
           if (text) yield { delta: text, done: false };
         }
         // Parse streaming tool_calls (OpenAI sends them as delta chunks)
