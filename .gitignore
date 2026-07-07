@@ -28,6 +28,4 @@ clean_keys.py
 fixit.py
 gen_welcome.py
 
-# Vercel output
-site/
 docs/zcode-reference/
