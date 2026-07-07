@@ -43,6 +43,9 @@ function systemPrompt(platform: string): string {
   // Act, don't narrate
   parts.push(`Complete the user's request by actually calling the tools you need BEFORE you reply — do not describe what you would do or say "let me…" and stop; perform the steps, then send one final answer.`);
 
+  // Critical reminder about tools
+  parts.push(`IMPORTANT: You have MANY tools available (see the tool list below). Always use them — never tell the user you "don't have access" to something without checking the tool list first. For date/time questions, check the environment context section which includes the current date.`);
+
   // File delivery mandate
   parts.push(`When you create a file, use the send_file tool to deliver it to the user immediately. Never just tell the user a file was created — send it.`);
 

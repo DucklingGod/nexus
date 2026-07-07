@@ -99,6 +99,14 @@ export function formatEnvContext(): string {
     lines.push(`- Python packages available: ${e.installedPackages.join(", ")}`);
   }
 
+  // Current date/time — the agent needs this to answer time/date questions
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Bangkok" });
+  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
+  lines.push(
+    `- Current date/time: ${dateStr}, ${timeStr} (Bangkok time, UTC+7)`,
+  );
+
   lines.push(
     ``,
     `Use these paths directly — do NOT waste tool calls detecting them again.`,
