@@ -83,8 +83,8 @@ Nexus is a **local-first desktop AI agent platform** built with Tauri 2 (Rust sh
 - **Export / import agent** — share personality + settings + skills + context as a JSON bundle (never your keys)
 
 ### Platform connectors
-- **Telegram** (long-poll) and **Discord** (Gateway WebSocket) — Live mode, no webhook/public URL needed
-- Remote messages run with **safe tools only**; a typing indicator shows while the agent works, and those chats appear in the sidebar
+- **5 platforms** — **Telegram** (long-poll), **Discord** (Gateway WebSocket), **Slack** (Socket Mode), **Matrix** (`/sync` long-poll), and **Email** (IMAP/SMTP) — all Live mode, no webhook or public URL needed
+- Remote messages run with **safe tools only**; pseudo-tag output (`<think>`/`<tool_call>`) is stripped so replies stay clean, a typing indicator shows while the agent works, and those chats appear in the sidebar
 
 ### Desktop experience
 - **Tauri 2** — ~12 MB native app (vs Electron's ~200 MB)
@@ -112,7 +112,7 @@ Nexus is a **local-first desktop AI agent platform** built with Tauri 2 (Rust sh
 │  │  ├─ RAG (extract → chunk → embed)       │    │
 │  │  ├─ Skills (60 built-in + synthesizer)  │    │
 │  │  ├─ Workflow executor · scheduler       │    │
-│  │  └─ Connectors (Telegram · Discord)     │    │
+│  │  └─ Connectors (5 chat platforms)       │    │
 │  └───────────────┬────────────────────────┘    │
 │                  │                              │
 │  ┌───────────────▼────────────────────────┐    │
@@ -148,11 +148,14 @@ The API key never reaches the WebView: the React UI passes only a provider id, a
 | v0.5 — Reach + Polish | Connectors + governance + UI polish + branding | ✅ |
 | v0.7 — Visual Workflows | Canvas + execution + templates + skill import + context files | ✅ |
 | v0.8 — Observability | Per-reply observability + export/import + A/B + prompt assistant | ✅ |
-| v0.9 — Extensibility | Sub-agent orchestration + MCP + plugins + skill synthesizer | 🚧 mostly done (experience/correction remain) |
-| v1.0 — Complete Platform | Knowledge connectors + MCP + marketplace | 🚧 file connector + MCP client done |
+| v0.9 — Extensibility | Sub-agent orchestration + MCP + plugins + skill synthesizer | ✅ |
+| v1.0 — Complete Platform | Knowledge connectors + MCP + marketplace | ✅ |
+| v1.1 — Beyond Hermes | Multi-provider gateways + vision + mixture-of-agents + toolset presets + prompt optimizer | ✅ |
+| v1.2 — Reliability + UX | Autonomous auto-continue loop + Claude-style decisions + UI/UX rework | ✅ |
+| v1.3 — Self-Evolution | Auto-optimization trigger + trend detection + adaptive strategy engine | ✅ |
 | v0.6 — First Public Beta | Integration tests + docs + cross-platform CI + release | ⏸️ deferred until the feature surface settles |
 
-See [PLAN.md](PLAN.md) for the full 55-task roadmap with acceptance criteria.
+See [PLAN.md](PLAN.md) for the full task-by-task roadmap with acceptance criteria.
 
 ## Nexus vs Hermes Agent
 
@@ -165,7 +168,7 @@ See [PLAN.md](PLAN.md) for the full 55-task roadmap with acceptance criteria.
 | MCP + plugins | ✅ | ✅ (MCP client + plugin loader) |
 | Transparent memory (`.md`) | ✅ | ✅ (5 files + auto-extract) |
 | Skill library | 1000+ | 60 built-in + synthesizer + GitHub/Hermes import |
-| Platform delivery | 10+ platforms | Telegram + Discord (more planned) |
+| Platform delivery | 10+ platforms | Telegram · Discord · Slack · Matrix · Email |
 
 ## Building from source
 
@@ -210,7 +213,7 @@ nexus/
 │       ├── mcp/         # MCP client   · plugins/  — plugin loader
 │       ├── workflow/    # Canvas executor + store
 │       ├── scheduler/   # Cron engine  · kanban/  — board store
-│       ├── connectors/  # Telegram, Discord
+│       ├── connectors/  # Telegram, Discord, Slack, Matrix, Email
 │       ├── skills/      # Built-in skills + import + synthesizer
 │       ├── knowledge/   # Documents + RAG + watched folders
 │       ├── context/     # 5 .md files + auto-extract

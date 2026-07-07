@@ -242,6 +242,7 @@
                 <div class="sidebar-items" style="max-height:500px">
                     <a href="#chat">Chat Interface</a>
                     <a href="#tools">Tools</a>
+                    <a href="#connectors">Connectors</a>
                     <a href="#skills">Skills</a>
                     <a href="#providers">Providers</a>
                     <a href="#conversations">Conversations</a>
@@ -560,12 +561,27 @@ cargo check --manifest-path src-tauri/Cargo.toml
                     <tr><td><a href="#">image_generate</a></td><td>Generate images from text prompts (text-to-image) or edit existing images</td></tr>
                     <tr><td><a href="#">vision_analyze</a></td><td>Analyze images with AI vision models</td></tr>
                     <tr><td><a href="#">text_to_speech</a></td><td>Convert text to speech audio with multiple provider support</td></tr>
-                    <tr><td><a href="#">send_message</a></td><td>Send messages to connected platforms (Telegram, Discord, etc.)</td></tr>
+                    <tr><td><a href="#">send_message</a></td><td>Send messages to connected platforms (Telegram, Discord, Slack, Matrix, Email)</td></tr>
                 </table>
 
                 <div class="callout callout-info">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
                     <div><strong>Tool Transparency:</strong> Every tool call shows its name, input parameters, output, and execution time. You can expand any tool call to inspect the raw data.</div>
+                </div>
+
+                <!-- Connectors -->
+                <h2 id="connectors"><a href="#connectors" class="anchor">#</a> Platform Connectors</h2>
+                <p>Connectors let your agent live where you already chat. Each runs in <strong>Live mode</strong> — a plain outbound connection, so there is <strong>no webhook, public URL, or port-forwarding</strong> to set up. Connect one in <strong>Settings → Connections</strong> with a bot token (or, for Email and Matrix, a small credential blob).</p>
+                <table class="quick-table">
+                    <tr><td><strong>Telegram</strong></td><td>Long-polling <code>getUpdates</code> — paste a BotFather token</td></tr>
+                    <tr><td><strong>Discord</strong></td><td>Gateway WebSocket — paste a bot token, then invite the bot to your server</td></tr>
+                    <tr><td><strong>Slack</strong></td><td>Socket Mode — an app-level token opens a websocket to Slack</td></tr>
+                    <tr><td><strong>Matrix</strong></td><td>Client-Server <code>/sync</code> long-poll — homeserver URL + access token</td></tr>
+                    <tr><td><strong>Email</strong></td><td>Polls an IMAP inbox for unread mail and replies over SMTP</td></tr>
+                </table>
+                <div class="callout callout-info">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+                    <div><strong>Safe by default:</strong> remote messages run with <strong>safe (non-dangerous) tools only</strong> and cannot re-delegate sub-agents. Reply text is cleaned of internal <code>&lt;think&gt;</code>/<code>&lt;tool_call&gt;</code> markup, a typing indicator shows while the agent works, and every connected chat also appears in the app sidebar.</div>
                 </div>
 
                 <!-- Skills -->
