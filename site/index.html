@@ -393,9 +393,9 @@
             <h1>Build Your AI Army</h1>
             <p>Nexus is an open-source desktop AI Agent platform that puts you in control. Run multiple AI agents with 40+ built-in tools, all running locally on your machine.</p>
             <div class="hero-buttons">
-                <a href="https://github.com/DucklingGod/nexus/releases" class="btn-primary">
+                <a href="https://github.com/DucklingGod/nexus/releases" class="btn-primary" data-download-btn>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Download Nexus
+                    <span data-download-label>Download Nexus</span>
                 </a>
                 <a href="https://github.com/DucklingGod/nexus" class="btn-secondary">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
@@ -406,6 +406,7 @@
                     Read the Docs
                 </a>
             </div>
+            <p class="download-platforms" data-download-platforms style="margin-top:14px;font-size:0.85rem;opacity:0.7;"></p>
         </div>
     </section>
 
@@ -724,9 +725,9 @@
             <div class="cta-content reveal-scale">
                 <h2>Ready to Build Your AI Army?</h2>
                 <p>Join the community of developers who are taking control of their AI tools. Open source, privacy-first, and always free.</p>
-                <a href="https://github.com/DucklingGod/nexus/releases" class="btn-primary">
+                <a href="https://github.com/DucklingGod/nexus/releases" class="btn-primary" data-download-btn>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Download Nexus
+                    <span data-download-label>Download Nexus</span>
                 </a>
             </div>
         </div>
@@ -1018,6 +1019,58 @@
             }
         });
     });
+    </script>
+    <script>
+    /* Per-platform download links. Detects the visitor's OS and points the
+       Download buttons at the matching installer from the latest GitHub release.
+       Falls back to the releases page until the first release is published. */
+    (function () {
+      var REPO = "DucklingGod/nexus";
+      var RELEASES = "https://github.com/" + REPO + "/releases";
+      var LABELS = { windows: "Windows", macos: "macOS", linux: "Linux" };
+
+      function detectOS() {
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+        var s = (p + " " + (navigator.userAgent || "")).toLowerCase();
+        if (s.indexOf("win") !== -1) return "windows";
+        if (s.indexOf("mac") !== -1) return "macos";
+        if (s.indexOf("linux") !== -1 || s.indexOf("x11") !== -1) return "linux";
+        return "windows";
+      }
+
+      function pickAsset(assets, os) {
+        var lower = assets.map(function (a) { return { a: a, n: a.name.toLowerCase() }; });
+        function find(fn) { var m = lower.find(fn); return m && m.a; }
+        if (os === "windows") return find(function (x) { return /-setup\.exe$/.test(x.n); }) || find(function (x) { return /\.exe$/.test(x.n); }) || find(function (x) { return /\.msi$/.test(x.n); });
+        if (os === "macos") return find(function (x) { return /\.dmg$/.test(x.n); });
+        if (os === "linux") return find(function (x) { return /\.appimage$/.test(x.n); }) || find(function (x) { return /\.deb$/.test(x.n); });
+      }
+
+      var os = detectOS();
+      var btns = document.querySelectorAll("[data-download-btn]");
+      document.querySelectorAll("[data-download-label]").forEach(function (el) {
+        el.textContent = "Download for " + LABELS[os];
+      });
+      var line = document.querySelector("[data-download-platforms]");
+
+      fetch("https://api.github.com/repos/" + REPO + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+        .then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+        .then(function (rel) {
+          var assets = rel.assets || [];
+          var mine = pickAsset(assets, os);
+          if (mine) btns.forEach(function (b) { b.setAttribute("href", mine.browser_download_url); });
+          if (line) {
+            var links = ["windows", "macos", "linux"].map(function (o) {
+              var a = pickAsset(assets, o);
+              return '<a href="' + (a ? a.browser_download_url : RELEASES) + '" style="color:inherit;text-decoration:underline;">' + LABELS[o] + "</a>";
+            }).join(" · ");
+            line.innerHTML = "Also for: " + links;
+          }
+        })
+        .catch(function () {
+          if (line) line.innerHTML = '<a href="' + RELEASES + '" style="color:inherit;text-decoration:underline;">Windows · macOS · Linux downloads</a>';
+        });
+    })();
     </script>
 </body>
 </html>
