@@ -1,0 +1,80 @@
+name: Release
+
+# Builds Nexus installers for Windows, macOS (Apple Silicon) and Linux, and
+# publishes them to a GitHub Release. Trigger manually (Actions → Release → Run)
+# or by pushing a tag like v0.1.0. The release tag tracks the version in
+# src-tauri/tauri.conf.json (__VERSION__).
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            triple: x86_64-pc-windows-msvc
+            target: ""
+          - os: macos-latest
+            triple: aarch64-apple-darwin
+            target: aarch64-apple-darwin
+          - os: ubuntu-22.04
+            triple: x86_64-unknown-linux-gnu
+            target: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux system dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev build-essential file
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Assemble bundled engine + Node runtime
+        shell: bash
+        run: bash scripts/assemble-bundle.sh "${{ matrix.triple }}" "$(command -v node)"
+
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: "Nexus v__VERSION__"
+          releaseBody: |
+            Download the installer for your platform below.
+
+            **Note — these are unsigned builds:**
+            - **Windows**: SmartScreen may warn — click *More info → Run anyway*.
+            - **macOS**: Gatekeeper may block it — run `xattr -cr /Applications/Nexus.app` once, or right-click the app → *Open*.
+            - **Linux**: use the `.AppImage` (chmod +x) or the `.deb`.
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: false
+          args: ${{ matrix.target && format('--config src-tauri/tauri.bundle.conf.json --target {0}', matrix.target) || '--config src-tauri/tauri.bundle.conf.json' }}

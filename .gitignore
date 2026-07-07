@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Bundled release artifacts (assembled by scripts/assemble-bundle.sh)
+src-tauri/binaries/
+src-tauri/resources/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

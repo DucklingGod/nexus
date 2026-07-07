@@ -30,9 +30,27 @@ pub fn run() {
             // Non-fatal: if the engine can't start, still open the window so the
             // user sees the UI (commands will surface the failure) instead of the
             // app silently exiting — there's no console in a release build.
+            // Resolve the engine entry: the bundled copy in a packaged app
+            // (under the app resource dir), else the dev source tree.
+            let engine_entry = {
+                let mut found: Option<std::path::PathBuf> = None;
+                if let Ok(res) = app.path().resource_dir() {
+                    for sub in ["resources/engine/src/main.ts", "engine/src/main.ts"] {
+                        let p = res.join(sub);
+                        if p.exists() {
+                            found = Some(p);
+                            break;
+                        }
+                    }
+                }
+                found.unwrap_or_else(|| {
+                    std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../engine/src/main.ts"))
+                })
+            };
+
             // Always manage AppState — use a failed sidecar placeholder if spawn fails
             // so Tauri commands don't panic with "state not managed".
-            match sidecar::Sidecar::spawn(&data_dir, move |method, params| {
+            match sidecar::Sidecar::spawn(&data_dir, engine_entry, move |method, params| {
                 let _ = handle.emit("engine-event", json!({ "method": method, "params": params }));
             }) {
                 Ok(sidecar) => {

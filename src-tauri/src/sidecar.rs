@@ -8,8 +8,9 @@
 //!
 //! `request` is synchronous (blocks until the response); callers that may block
 //! for a while (chat) run it from an async command so the UI thread stays free.
-//! Dev resolves the engine via CARGO_MANIFEST_DIR; production will spawn the
-//! bundled sidecar binary instead (TODO).
+//! In production the engine (as `resources`) and a Node runtime (as `externalBin`)
+//! are bundled with the app and resolved from the app dir; in dev they come from
+//! the source tree and a system Node install.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
@@ -90,6 +91,23 @@ fn find_node() -> String {
     "node".to_string()
 }
 
+/// Resolve the Node runtime for the engine. A bundled app ships a Node binary
+/// next to the app executable (Tauri `externalBin`, target-triple stripped) named
+/// `nexus-node[.exe]` — prefer it so the app is self-contained. Otherwise fall
+/// back to a system Node (dev, or if the sidecar is somehow missing).
+fn resolve_node() -> String {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let name = if cfg!(target_os = "windows") { "nexus-node.exe" } else { "nexus-node" };
+            let cand = dir.join(name);
+            if cand.exists() {
+                return cand.to_string_lossy().into_owned();
+            }
+        }
+    }
+    find_node()
+}
+
 /// Resolve the current user's home directory in a cross-platform way without
 /// pulling in the `dirs` crate. Returns None if it can't be determined.
 fn home_dir() -> Option<String> {
@@ -132,19 +150,19 @@ impl Sidecar {
         }
     }
 
-    /// Spawn `node engine/src/main.ts` (Node 24 runs TypeScript natively).
-    /// `data_dir` is handed to the engine for its SQLite database.
+    /// Spawn `node <engine_entry>` (Node 24 runs TypeScript natively).
+    /// `engine_entry` is the engine's `main.ts`: the bundled copy in production
+    /// (resolved from the app resource dir by the caller) or the source tree in
+    /// dev. `data_dir` is handed to the engine for its SQLite database.
     /// `on_notify(method, params)` receives engine notifications.
-    pub fn spawn<F>(data_dir: &str, on_notify: F) -> std::io::Result<Arc<Self>>
+    pub fn spawn<F>(data_dir: &str, engine_entry: std::path::PathBuf, on_notify: F) -> std::io::Result<Arc<Self>>
     where
         F: Fn(&str, Value) + Send + 'static,
     {
-        // Engine lives at ../engine/ relative to src-tauri/.
-        // CARGO_MANIFEST_DIR is baked at compile time — correct after rebuild.
-        let engine = std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../engine/src/main.ts"));
+        let engine = engine_entry;
 
-        // Find node executable: NEXUS_NODE env > PATH > common Windows locations
-        let node = find_node();
+        // Prefer the bundled Node runtime (production); fall back to system Node.
+        let node = resolve_node();
 
         // Default the engine's working directory to the user's home so relative
         // paths and `terminal_exec` resolve there (not the app bundle dir).
