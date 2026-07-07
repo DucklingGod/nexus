@@ -27,10 +27,12 @@ export function listTools(): ToolDef[] {
  *  Cached internally — returns the same string until the tool set changes. */
 let _toolsCache: { hash: string; text: string } = { hash: "", text: "" };
 
-export function listToolsText(): string {
+export function listToolsText(filter?: (name: string) => boolean): string {
   const disabledRaw = getSetting("tools.disabled");
   const disabled: string[] = disabledRaw ? JSON.parse(disabledRaw) : [];
-  const active = listTools().filter(t => !disabled.includes(t.category));
+  let active = listTools().filter(t => !disabled.includes(t.category));
+  // Optional scope (e.g. connectors advertise only the safe tools they can call).
+  if (filter) active = active.filter(t => filter(t.name));
   if (active.length === 0) return "";
 
   // Cache key: sorted tool names + disabled list

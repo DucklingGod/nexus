@@ -13,7 +13,6 @@ import { chat } from "../providers/client.ts";
 import { listToolsForLLM, executeTool, getTool, listToolsText } from "../tools/registry.ts";
 import { getAgentPersonality } from "../db/settings.ts";
 import { formatEnvContext } from "../system/context.ts";
-import { getToolGuides } from "../system/toolGuides.ts";
 import { injectContext } from "../context/files.ts";
 import { looksUnfinished, MAX_AUTO_CONTINUE, CONTINUE_NUDGE } from "../ipc/autocontinue.ts";
 
@@ -69,29 +68,32 @@ function safeTools(): object[] {
   });
 }
 
-/** Build the enhanced system prompt with env context + tool guides + context files. */
+/** Build the enhanced system prompt: identity + a compact, safe-scoped tool
+ *  inventory + env context. We deliberately skip the full per-tool guides here
+ *  (~1-2k lines): weak connector models drown in them, and the structured tools
+ *  array already carries full call schemas. The inventory is placed EARLY so the
+ *  model sees its real capabilities before anything else. */
 function buildEnhancedPrompt(platform: string): string {
   const parts: string[] = [systemPrompt(platform)];
 
-  // Environment context (detect OS, shell, Python, Node)
-  try {
-    const envText = formatEnvContext();
-    if (envText) parts.push(envText);
-  } catch { /* ignore */ }
+  // Names of the tools we actually pass to the model (safe subset), so the
+  // inventory never advertises a tool the connector can't call.
+  const safeNames = new Set(
+    safeTools()
+      .map((t) => (t as { function?: { name?: string } }).function?.name)
+      .filter((n): n is string => Boolean(n)),
+  );
 
-  // Tool inventory text
+  // Compact tool inventory, scoped to the safe tools, up front.
   try {
-    const toolText = listToolsText();
+    const toolText = listToolsText((name) => safeNames.has(name));
     if (toolText) parts.push(toolText);
   } catch { /* ignore */ }
 
-  // Tool guides (20-50 lines per tool)
+  // Environment context (OS, shell, current date/time)
   try {
-    const activeToolNames = safeTools()
-      .map((t: any) => t.function?.name)
-      .filter(Boolean);
-    const guideText = getToolGuides(activeToolNames);
-    if (guideText) parts.push(guideText);
+    const envText = formatEnvContext();
+    if (envText) parts.push(envText);
   } catch { /* ignore */ }
 
   return parts.join("\n\n");
