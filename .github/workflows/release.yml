@@ -37,6 +37,14 @@ jobs:
         with:
           node-version: "24"
 
+      # Defender can transiently lock files in the large bundled node_modules
+      # during resource copy → "Access is denied". Excluding the workspace avoids it.
+      - name: Exclude workspace from Windows Defender
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: Add-MpPreference -ExclusionPath "${{ github.workspace }}"
+        continue-on-error: true
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
