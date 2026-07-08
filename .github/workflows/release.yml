@@ -1,9 +1,13 @@
 name: Release
 
-# Builds Nexus installers for Windows, macOS (Apple Silicon) and Linux, and
-# publishes them to a GitHub Release. Trigger manually (Actions → Release → Run)
-# or by pushing a tag like v0.1.0. The release tag tracks the version in
-# src-tauri/tauri.conf.json (__VERSION__).
+# Builds Nexus installers for Windows, macOS (Apple Silicon) and Linux and
+# publishes them to a GitHub Release. Trigger: Actions → Release → Run workflow,
+# or push a tag like v0.1.0. The release tag tracks the version in package.json.
+#
+# Pattern: one job creates a DRAFT release (deleting any existing one for the tag
+# so re-runs are clean), the matrix build jobs upload their installers to it via
+# releaseId (no create-race), and a final job un-drafts it — only if all three
+# platforms built.
 
 on:
   workflow_dispatch:
@@ -14,7 +18,47 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read version
+        id: v
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Create draft release
+        id: create
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const tag = `v${{ steps.v.outputs.version }}`;
+            // Remove any existing release for this tag so re-runs start clean.
+            try {
+              const ex = await github.rest.repos.getReleaseByTag({ owner: context.repo.owner, repo: context.repo.repo, tag });
+              await github.rest.repos.deleteRelease({ owner: context.repo.owner, repo: context.repo.repo, release_id: ex.data.id });
+            } catch (e) { /* no existing release — fine */ }
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Nexus ${tag}`,
+              body: [
+                'Download the installer for your platform below.',
+                '',
+                '**Unsigned builds:**',
+                '- **Windows**: SmartScreen may warn — click *More info → Run anyway*.',
+                '- **macOS**: run `xattr -cr /Applications/Nexus.app` once, or right-click the app → *Open*.',
+                '- **Linux**: use the `.AppImage` (chmod +x) or the `.deb`.'
+              ].join('\n'),
+              draft: true,
+              prerelease: false
+            });
+            return data.id;
+
+  build:
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
@@ -68,25 +112,29 @@ jobs:
         shell: bash
         run: bash scripts/assemble-bundle.sh "${{ matrix.triple }}" "$(command -v node)"
 
-      - name: Build and publish release
+      - name: Build and upload to release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          # Key has no password. GitHub forbids empty secrets, so set it empty here
-          # directly instead of via a secret.
+          # Key has no password; GitHub forbids empty secrets, so set it inline.
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
-          tagName: v__VERSION__
-          releaseName: "Nexus v__VERSION__"
-          releaseBody: |
-            Download the installer for your platform below.
-
-            **Note — these are unsigned builds:**
-            - **Windows**: SmartScreen may warn — click *More info → Run anyway*.
-            - **macOS**: Gatekeeper may block it — run `xattr -cr /Applications/Nexus.app` once, or right-click the app → *Open*.
-            - **Linux**: use the `.AppImage` (chmod +x) or the `.deb`.
-          releaseDraft: false
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           includeUpdaterJson: true
           args: ${{ matrix.target && format('--config src-tauri/tauri.bundle.conf.json --target {0}', matrix.target) || '--config src-tauri/tauri.bundle.conf.json' }}
+
+  publish-release:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Un-draft the release (all platforms built)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ needs.create-release.outputs.release_id }},
+              draft: false
+            });
