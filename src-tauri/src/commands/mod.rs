@@ -29,7 +29,7 @@ fn key_for_local_aware(provider: &str, base_url: &str) -> Result<String, String>
 
 /// Health-check the agent engine sidecar. Returns `{ ok, version }`.
 #[tauri::command]
-pub fn engine_health(state: State<'_, AppState>) -> Result<Value, String> {
+pub async fn engine_health(state: State<'_, AppState>) -> Result<Value, String> {
     state.sidecar.request("engine.health", Value::Null)
 }
 
@@ -104,7 +104,7 @@ pub async fn provider_list_models(
 
 /// Save provider selection.
 #[tauri::command]
-pub fn provider_set(
+pub async fn provider_set(
     state: State<'_, AppState>,
     provider: String,
     model: String,
@@ -115,13 +115,13 @@ pub fn provider_set(
 
 /// Get saved provider config.
 #[tauri::command]
-pub fn provider_get(state: State<'_, AppState>) -> Result<Value, String> {
+pub async fn provider_get(state: State<'_, AppState>) -> Result<Value, String> {
     state.sidecar.request("provider.get", Value::Null)
 }
 
 /// Save agent personality.
 #[tauri::command]
-pub fn agent_personality_set(
+pub async fn agent_personality_set(
     state: State<'_, AppState>,
     name: Option<String>,
     role: Option<String>,
@@ -137,7 +137,7 @@ pub fn agent_personality_set(
 
 /// Get agent personality.
 #[tauri::command]
-pub fn agent_personality_get(state: State<'_, AppState>) -> Result<Value, String> {
+pub async fn agent_personality_get(state: State<'_, AppState>) -> Result<Value, String> {
     state.sidecar.request("agent.personality.get", Value::Null)
 }
 
@@ -145,7 +145,7 @@ pub fn agent_personality_get(state: State<'_, AppState>) -> Result<Value, String
 /// marketplace calls get an optional GitHub token injected from the keychain to
 /// raise GitHub's rate limits. The token never reaches the WebView.
 #[tauri::command]
-pub fn engine_rpc(state: State<'_, AppState>, method: String, mut params: Value) -> Result<Value, String> {
+pub async fn engine_rpc(state: State<'_, AppState>, method: String, mut params: Value) -> Result<Value, String> {
     if method == "skills.search" || method == "skills.importGithub" {
         if let Ok(Some(tok)) = secure::get_key("api_key_github") {
             if !tok.is_empty() {
@@ -161,7 +161,7 @@ pub fn engine_rpc(state: State<'_, AppState>, method: String, mut params: Value)
 /// Start a platform connector (Telegram/Discord). Brokers the provider key + the
 /// platform bot token from the keychain; neither is exposed to the WebView.
 #[tauri::command]
-pub fn connector_start(
+pub async fn connector_start(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
     platform: String,
@@ -190,20 +190,20 @@ pub fn connector_start(
 
 /// Stop a running platform connector.
 #[tauri::command]
-pub fn connector_stop(state: State<'_, AppState>, platform: String) -> Result<Value, String> {
+pub async fn connector_stop(state: State<'_, AppState>, platform: String) -> Result<Value, String> {
     state.sidecar.request("connector.stop", json!({ "platform": platform }))
 }
 
 /// Status of all platform connectors.
 #[tauri::command]
-pub fn connector_status(state: State<'_, AppState>) -> Result<Value, String> {
+pub async fn connector_status(state: State<'_, AppState>) -> Result<Value, String> {
     state.sidecar.request("connector.status", Value::Null)
 }
 
 /// Start the gateway as a detached background process.
 /// The gateway keeps running even if the app closes.
 #[tauri::command]
-pub fn gateway_start(
+pub async fn gateway_start(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
     platform: String,
@@ -279,7 +279,7 @@ pub fn gateway_start(
 
 /// Stop the gateway by killing its PID.
 #[tauri::command]
-pub fn gateway_stop(app_handle: tauri::AppHandle) -> Result<Value, String> {
+pub async fn gateway_stop(app_handle: tauri::AppHandle) -> Result<Value, String> {
     let data_dir = app_handle.path().app_data_dir()
         .map_err(|e| e.to_string())?;
     let pid_file = data_dir.join("gateway.pid");
@@ -315,7 +315,7 @@ pub fn gateway_stop(app_handle: tauri::AppHandle) -> Result<Value, String> {
 
 /// Restart the gateway (stop + start with new config).
 #[tauri::command]
-pub fn gateway_restart(
+pub async fn gateway_restart(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
     platform: String,
@@ -324,16 +324,16 @@ pub fn gateway_restart(
     base_url: String,
 ) -> Result<Value, String> {
     // Stop if running (ignore errors if not running)
-    let _ = gateway_stop(app_handle.clone());
+    let _ = gateway_stop(app_handle.clone()).await;
     // Small delay to ensure process is fully stopped
     std::thread::sleep(std::time::Duration::from_millis(500));
     // Start with new config
-    gateway_start(state, app_handle, platform, provider, model, base_url)
+    gateway_start(state, app_handle, platform, provider, model, base_url).await
 }
 
 /// Check if the gateway is running.
 #[tauri::command]
-pub fn gateway_status(app_handle: tauri::AppHandle) -> Result<Value, String> {
+pub async fn gateway_status(app_handle: tauri::AppHandle) -> Result<Value, String> {
     let data_dir = app_handle.path().app_data_dir()
         .map_err(|e| e.to_string())?;
     let pid_file = data_dir.join("gateway.pid");

@@ -56,10 +56,16 @@ pub fn run() {
                 let _ = handle.emit("engine-event", json!({ "method": method, "params": params }));
             }) {
                 Ok(sidecar) => {
-                    match sidecar.request("engine.health", serde_json::Value::Null) {
-                        Ok(info) => println!("Engine connected: {info}"),
-                        Err(e) => eprintln!("Engine health check failed: {e}"),
-                    }
+                    // Log engine connectivity in the background — a slow first-launch
+                    // engine start (e.g. antivirus scanning the bundled runtime) must
+                    // NOT block the UI thread here, or the window freezes on open.
+                    let health = sidecar.clone();
+                    std::thread::spawn(move || {
+                        match health.request("engine.health", serde_json::Value::Null) {
+                            Ok(info) => println!("Engine connected: {info}"),
+                            Err(e) => eprintln!("Engine health check failed: {e}"),
+                        }
+                    });
                     app.manage(AppState { sidecar });
                 }
                 Err(e) => {
