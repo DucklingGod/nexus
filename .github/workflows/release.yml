@@ -103,7 +103,7 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev build-essential file
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev build-essential file libfuse2
 
       - name: Install frontend dependencies
         run: npm ci
@@ -119,6 +119,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           # Key has no password; GitHub forbids empty secrets, so set it inline.
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+          # AppImage tooling (linuxdeploy) is itself an AppImage; extract-and-run
+          # avoids needing FUSE on the runner.
+          APPIMAGE_EXTRACT_AND_RUN: "1"
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           includeUpdaterJson: true
