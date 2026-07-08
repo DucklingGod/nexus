@@ -64,6 +64,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: "Nexus v__VERSION__"
@@ -76,5 +78,5 @@ jobs:
             - **Linux**: use the `.AppImage` (chmod +x) or the `.deb`.
           releaseDraft: false
           prerelease: false
-          includeUpdaterJson: false
+          includeUpdaterJson: true
           args: ${{ matrix.target && format('--config src-tauri/tauri.bundle.conf.json --target {0}', matrix.target) || '--config src-tauri/tauri.bundle.conf.json' }}

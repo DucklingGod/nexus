@@ -13,6 +13,7 @@ import { ABTestView } from "./components/lab/ABTestView";
 import { KanbanView } from "./components/kanban/KanbanView";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { SpaceCanvas } from "./components/SpaceCanvas";
+import { UpdateNotifier } from "./components/UpdateNotifier";
 
 // Phase 1: single union type replaces 5 mutually-exclusive booleans
 export type MainView = "chat" | "skills" | "workflows" | "kanban" | "marketplace" | "ab";
@@ -161,6 +162,8 @@ function App() {
           <span className="text-nexus-gold">✦</span>{learnedToast}
         </div>
       )}
+
+      <UpdateNotifier />
     </div>
   );
 }
