@@ -108,6 +108,14 @@ fn resolve_node() -> String {
     find_node()
 }
 
+/// Node's module resolver crashes on Windows extended-length paths — the `\\?\`
+/// verbatim prefix that Tauri's `resource_dir()` / `current_exe()` return for an
+/// installed app — with `EISDIR: lstat 'C:'`, so the engine never starts. Strip
+/// the prefix so node sees a normal path. No-op on non-verbatim paths / other OSes.
+fn strip_verbatim(s: String) -> String {
+    s.strip_prefix(r"\\?\").map(str::to_string).unwrap_or(s)
+}
+
 /// Resolve the current user's home directory in a cross-platform way without
 /// pulling in the `dirs` crate. Returns None if it can't be determined.
 fn home_dir() -> Option<String> {
@@ -159,23 +167,27 @@ impl Sidecar {
     where
         F: Fn(&str, Value) + Send + 'static,
     {
-        let engine = engine_entry;
+        let engine = strip_verbatim(engine_entry.to_string_lossy().into_owned());
 
         // Prefer the bundled Node runtime (production); fall back to system Node.
-        let node = resolve_node();
+        let node = strip_verbatim(resolve_node());
 
         // Default the engine's working directory to the user's home so relative
         // paths and `terminal_exec` resolve there (not the app bundle dir).
         // Users can override via NEXUS_WORKDIR. Absolute paths reach anywhere.
-        let workdir = std::env::var("NEXUS_WORKDIR")
-            .ok()
-            .filter(|s| !s.trim().is_empty())
-            .or_else(home_dir)
-            .unwrap_or_else(|| data_dir.to_string());
+        let workdir = strip_verbatim(
+            std::env::var("NEXUS_WORKDIR")
+                .ok()
+                .filter(|s| !s.trim().is_empty())
+                .or_else(home_dir)
+                .unwrap_or_else(|| data_dir.to_string()),
+        );
+        // The engine opens its SQLite DB under NEXUS_DATA_DIR — strip verbatim too.
+        let data_dir = strip_verbatim(data_dir.to_string());
 
         let mut cmd = Command::new(&node);
         cmd.arg(&engine)
-            .env("NEXUS_DATA_DIR", data_dir)
+            .env("NEXUS_DATA_DIR", &data_dir)
             .env("NEXUS_WORKDIR", &workdir)
             .current_dir(&workdir)
             .stdin(Stdio::piped())
@@ -221,6 +233,13 @@ impl Sidecar {
                         };
                         let _ = tx.send(result);
                     }
+                }
+            }
+            // Engine closed stdout (exited / crashed) — fail any in-flight requests
+            // so callers get an error instead of blocking forever (frozen "loading").
+            if let Ok(mut map) = pending_reader.lock() {
+                for (_, tx) in map.drain() {
+                    let _ = tx.send(Err("engine exited".to_string()));
                 }
             }
         });
